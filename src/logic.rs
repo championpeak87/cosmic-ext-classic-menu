@@ -1,34 +1,4 @@
-use std::{fs, path::Path, str::Split};
-
-use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter, PathSource, DesktopEntry};
-
-pub fn get_applications_list() -> Vec<String> {
-    const XDG_DATA_DIRS: &str = env!("XDG_DATA_DIRS");
-    let applications_locations: Split<&str> = XDG_DATA_DIRS.split(":");
-    for x in applications_locations {
-        dbg!(x);
-
-        let folder_content = fs::read_dir(x.to_string() + "/applications");
-        match folder_content {
-            Ok(entries) => {
-                for entry in entries {
-                    match entry {
-                        Ok(entry) => {
-                            let path = entry.path();
-                            if path.ends_with(".desktop") {
-                            }
-                            println!("{:?}", path);
-                        }
-                        Err(e) => eprintln!("Error reading entry: {:?}", e),
-                    }
-                }
-            }
-            Err(_) => (),
-        }
-    }
-
-    vec!["Hello".to_string()]
-}
+use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter, DesktopEntry};
 
 pub fn get_apps() -> Vec<DesktopEntry> {
     let locales = get_languages_from_env();
@@ -38,4 +8,22 @@ pub fn get_apps() -> Vec<DesktopEntry> {
         .collect::<Vec<_>>();
 
     entries
+}
+
+fn load_desktop_entries_from_app_ids<I, L>(ids: &[I], locales: &[L]) -> Vec<DesktopEntry>
+where
+    I: AsRef<str>,
+    L: AsRef<str>,
+{
+    let entries = Iter::new(default_paths())
+        .entries(Some(locales))
+        .collect::<Vec<_>>();
+
+    ids.iter()
+        .map(|id| {
+            freedesktop_desktop_entry::matching::find_entry_from_appid(entries.iter(), id.as_ref())
+                .unwrap_or(&freedesktop_desktop_entry::DesktopEntry::from_appid(String::from(id)))
+                .to_owned()
+        })
+        .collect_vec()
 }

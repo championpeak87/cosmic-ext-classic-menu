@@ -1,6 +1,6 @@
-use crate::logic::{get_applications_list, get_apps};
+use crate::logic::get_apps;
+use crate::{spawn_detached, launcher};
 use cosmic::app::Core;
-use cosmic::applet::PanelType;
 use cosmic::cosmic_config::Config;
 use cosmic::iced::{
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
@@ -8,15 +8,20 @@ use cosmic::iced::{
     window::Id,
     Alignment, Length, Limits, Task,
 };
-use cosmic::iced_core::border::width;
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_widget::button;
+use cosmic::process::spawn;
 use cosmic::widget::{container, text_input};
 use cosmic::widget::{scrollable, text};
-use cosmic::{Apply, Element};
+use cosmic::Element;
 use freedesktop_desktop_entry::{get_languages_from_env, DesktopEntry};
+use tokio::sync::mpsc;
+use tracing::{debug, error, info};
 use std::borrow::Cow;
 use std::fmt::Debug;
+use std::process::Command;
+use pop_launcher::SearchResult;
+use pop_launcher_service::Service;
 
 const ID: &str = "com.championpeak87.cosmic-classic-menu";
 const CONFIG_VERS: u64 = 1;
@@ -32,6 +37,8 @@ pub struct Window {
     popup: Option<Id>,
     search_field: String,
     available_applications: Vec<DesktopEntry>,
+    launcher_items: Vec<SearchResult>,
+    tx: Option<mpsc::Sender<launcher::Request>>,
 }
 
 /// Messages to be sent to the Libcosmic Update function
@@ -44,7 +51,21 @@ pub enum Message {
     RestartClicked,
     LogOutClicked,
     LockScreenClicked,
-    ApplicationSelected,
+    ApplicationSelected(DesktopEntry),
+    ApplicationSecondaryClick,
+}
+
+impl Window {
+    fn request(&self, r: launcher::Request) {
+        debug!("request: {:?}", r);
+        if let Some(tx) = &self.tx {
+            if let Err(e) = tx.blocking_send(r) {
+                error!("tx: {e}");
+            }
+        } else {
+            info!("tx not found");
+        }
+    }
 }
 
 impl cosmic::Application for Window {
@@ -63,12 +84,14 @@ impl cosmic::Application for Window {
 
     fn init(core: Core, _flags: Self::Flags) -> (Window, Task<cosmic::app::Message<Message>>) {
         // Set the start up state of the application using the above variables
-        let mut window = Window {
+        let window = Window {
             core,
             config: Config::new(ID, CONFIG_VERS).unwrap(),
             popup: None,
             search_field: String::new(),
             available_applications: get_apps(),
+            tx: None,
+            launcher_items: vec![]
         };
 
         // Return the state and no Task
@@ -134,7 +157,43 @@ impl cosmic::Application for Window {
             Message::RestartClicked => todo!("Restart not implemented"),
             Message::LogOutClicked => todo!("Logout not implemented"),
             Message::LockScreenClicked => todo!("Lock screen not implemented"),
-            Message::ApplicationSelected => todo!("Application launch not implemented"),
+            Message::ApplicationSelected(app) => {
+                let app_exec = app.exec().unwrap().split(" ");
+                let mut app_exec_arr: Vec<&str> = app_exec.collect();
+                let app_exec_cmd: &str = app_exec_arr.remove(0);
+
+                if let Some(p) = self.popup.take() {
+                    destroy_popup::<Message>(p);
+                }
+
+                spawn_detached::spawn_process_detached(
+                    &mut Command::new(app_exec_cmd).args(app_exec_arr),
+                );
+            }
+            Message::ApplicationSecondaryClick => {
+                return if let Some(p) = self.popup.take() {
+                    destroy_popup(p)
+                } else {
+                    let new_id = Id::unique();
+                    self.popup.replace(new_id);
+
+                    let mut popup_settings = self.core.applet.get_popup_settings(
+                        self.core.main_window_id().unwrap(),
+                        new_id,
+                        None,
+                        None,
+                        None,
+                    );
+
+                    popup_settings.positioner.size_limits = Limits::NONE
+                        .max_width(POPUP_MAX_WIDTH)
+                        .min_width(POPUP_MIN_WIDTH)
+                        .min_height(POPUP_MIN_HEIGHT)
+                        .max_height(POPUP_MAX_HEIGHT);
+
+                    get_popup(popup_settings)
+                }
+            }
         }
         Task::none()
     }
@@ -156,26 +215,38 @@ impl cosmic::Application for Window {
                     "system-shutdown-symbolic"
                 ))
                 .on_press(Message::ShutdownClicked)
-                .height(35)
-                .width(35),
+                .tooltip("Shutdown the computer")
+                .icon_size(25)
+                .height(25)
+                .width(25)
+                .padding(5),
                 cosmic::widget::button::icon(cosmic::widget::icon::from_name(
                     "system-restart-symbolic"
                 ))
                 .on_press(Message::RestartClicked)
-                .height(35)
-                .width(35),
+                .tooltip("Restart the computer")
+                .icon_size(25)
+                .height(25)
+                .width(25)
+                .padding(5),
                 cosmic::widget::button::icon(cosmic::widget::icon::from_name(
                     "system-log-out-symbolic"
                 ))
                 .on_press(Message::LogOutClicked)
-                .height(35)
-                .width(35),
+                .tooltip("Logout current user")
+                .icon_size(25)
+                .height(25)
+                .width(25)
+                .padding(5),
                 cosmic::widget::button::icon(cosmic::widget::icon::from_name(
                     "system-lock-screen-symbolic"
                 ))
                 .on_press(Message::LockScreenClicked)
-                .height(35)
-                .width(35)
+                .tooltip("Lock current session")
+                .icon_size(25)
+                .height(25)
+                .width(25)
+                .padding(5)
             ]
             .padding(5)
             .align_y(Alignment::Center),
@@ -207,7 +278,8 @@ impl cosmic::Application for Window {
                         ]
                     ]))
                     .width(Length::Fill)
-                    .on_press(Message::ApplicationSelected),
+                    .on_press(Message::ApplicationSelected(app.clone()))
+                    .padding(2),
                 )
                 .width(Length::Fill)
             })
@@ -234,7 +306,7 @@ impl cosmic::Application for Window {
             row![
                 scrollable(app_list).width(Length::FillPortion(2)),
                 scrollable(places_list).width(Length::FillPortion(1))
-            ].padding(5)
+            ]
         ]
         .padding(10);
 
