@@ -2,6 +2,7 @@ use crate::logic::get_apps;
 use crate::{spawn_detached, launcher};
 use cosmic::app::Core;
 use cosmic::cosmic_config::Config;
+use cosmic::desktop::DesktopEntryData;
 use cosmic::iced::{
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
     widget::{column, row},
@@ -137,15 +138,14 @@ impl cosmic::Application for Window {
             }
             Message::SearchFieldInput(input) => {
                 if input.is_empty() {
-                    self.available_applications = get_apps();
+                    self.available_applications = load_apps();
                 } else {
                     self.available_applications = self
                         .available_applications
                         .clone()
                         .into_iter()
                         .filter(|x| {
-                            x.name(get_languages_from_env().as_slice())
-                                .unwrap_or(Cow::from(""))
+                            x.name
                                 .to_lowercase()
                                 .starts_with(input.to_lowercase().as_str())
                         })
@@ -262,20 +262,14 @@ impl cosmic::Application for Window {
             .available_applications
             .iter()
             .fold(cosmic::widget::column(), |col, app| {
-                let app_name = app.name(get_languages_from_env().as_slice());
-                let comment = app.comment(get_languages_from_env().as_slice());
-                let icon_path = app.icon();
+                let comment = "App comment";
                 col.push(
                     cosmic::widget::button::custom(container(row![
-                        cosmic::widget::button::icon(match icon_path {
-                            Some(x) => cosmic::widget::icon::from_name(x),
-                            None => cosmic::widget::icon::from_name("system-lock-screen-symbolic")
-                                .into(),
-                        }),
-                        column![
-                            text(app_name.unwrap_or(Cow::from(""))),
-                            text(comment.unwrap_or(Cow::from(""))).size(8.0)
-                        ]
+                        app.icon
+                            .as_cosmic_icon()
+                            .width(Length::Fixed(20.))
+                            .height(Length::Fixed(20.)),
+                        column![text(app.name.clone()), text(comment).size(8.0)].padding(5)
                     ]))
                     .width(Length::Fill)
                     .on_press(Message::ApplicationSelected(app.clone()))
