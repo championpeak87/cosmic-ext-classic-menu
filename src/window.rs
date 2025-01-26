@@ -1,5 +1,3 @@
-use crate::logic::get_apps;
-use crate::{spawn_detached, launcher};
 use cosmic::app::Core;
 use cosmic::cosmic_config::Config;
 use cosmic::desktop::DesktopEntryData;
@@ -15,14 +13,11 @@ use cosmic::process::spawn;
 use cosmic::widget::{container, text_input};
 use cosmic::widget::{scrollable, text};
 use cosmic::Element;
-use freedesktop_desktop_entry::{get_languages_from_env, DesktopEntry};
-use tokio::sync::mpsc;
-use tracing::{debug, error, info};
-use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt::Debug;
-use std::process::Command;
-use pop_launcher::SearchResult;
-use pop_launcher_service::Service;
+use std::sync::Arc;
+
+use crate::logic::{available_categories, load_apps};
 
 const ID: &str = "com.championpeak87.cosmic-classic-menu";
 const CONFIG_VERS: u64 = 1;
@@ -37,9 +32,9 @@ pub struct Window {
     config: Config,
     popup: Option<Id>,
     search_field: String,
-    available_applications: Vec<DesktopEntry>,
-    launcher_items: Vec<SearchResult>,
-    tx: Option<mpsc::Sender<launcher::Request>>,
+    available_categories: HashSet<String>,
+    available_applications: Vec<Arc<DesktopEntryData>>,
+    all_applications: Vec<Arc<DesktopEntryData>>
 }
 
 /// Messages to be sent to the Libcosmic Update function
@@ -52,21 +47,8 @@ pub enum Message {
     RestartClicked,
     LogOutClicked,
     LockScreenClicked,
-    ApplicationSelected(DesktopEntry),
-    ApplicationSecondaryClick,
-}
-
-impl Window {
-    fn request(&self, r: launcher::Request) {
-        debug!("request: {:?}", r);
-        if let Some(tx) = &self.tx {
-            if let Err(e) = tx.blocking_send(r) {
-                error!("tx: {e}");
-            }
-        } else {
-            info!("tx not found");
-        }
-    }
+    ApplicationSelected(Arc<DesktopEntryData>),
+    CategorySelected(String),
 }
 
 impl cosmic::Application for Window {
@@ -90,9 +72,9 @@ impl cosmic::Application for Window {
             config: Config::new(ID, CONFIG_VERS).unwrap(),
             popup: None,
             search_field: String::new(),
-            available_applications: get_apps(),
-            tx: None,
-            launcher_items: vec![]
+            available_applications: load_apps(),
+            available_categories: available_categories(),
+            all_applications: load_apps()
         };
 
         // Return the state and no Task
@@ -157,42 +139,14 @@ impl cosmic::Application for Window {
             Message::RestartClicked => todo!("Restart not implemented"),
             Message::LogOutClicked => todo!("Logout not implemented"),
             Message::LockScreenClicked => todo!("Lock screen not implemented"),
-            Message::ApplicationSelected(app) => {
-                let app_exec = app.exec().unwrap().split(" ");
-                let mut app_exec_arr: Vec<&str> = app_exec.collect();
-                let app_exec_cmd: &str = app_exec_arr.remove(0);
-
-                if let Some(p) = self.popup.take() {
-                    destroy_popup::<Message>(p);
-                }
-
-                spawn_detached::spawn_process_detached(
-                    &mut Command::new(app_exec_cmd).args(app_exec_arr),
-                );
+            Message::ApplicationSelected(_app) => {
+                // cosmic::desktop::spawn_desktop_exec(app.exec, None, None);
             }
-            Message::ApplicationSecondaryClick => {
-                return if let Some(p) = self.popup.take() {
-                    destroy_popup(p)
-                } else {
-                    let new_id = Id::unique();
-                    self.popup.replace(new_id);
-
-                    let mut popup_settings = self.core.applet.get_popup_settings(
-                        self.core.main_window_id().unwrap(),
-                        new_id,
-                        None,
-                        None,
-                        None,
-                    );
-
-                    popup_settings.positioner.size_limits = Limits::NONE
-                        .max_width(POPUP_MAX_WIDTH)
-                        .min_width(POPUP_MIN_WIDTH)
-                        .min_height(POPUP_MIN_HEIGHT)
-                        .max_height(POPUP_MAX_HEIGHT);
-
-                    get_popup(popup_settings)
-                }
+            Message::CategorySelected(category) => {
+                self.available_applications = load_apps()
+                    .into_iter()
+                    .filter(|app| app.categories.contains(&category))
+                    .collect();
             }
         }
         Task::none()
@@ -272,27 +226,22 @@ impl cosmic::Application for Window {
                         column![text(app.name.clone()), text(comment).size(8.0)].padding(5)
                     ]))
                     .width(Length::Fill)
-                    .on_press(Message::ApplicationSelected(app.clone()))
-                    .padding(2),
+                    .on_press(Message::ApplicationSelected(app.clone())),
                 )
                 .width(Length::Fill)
             })
             .padding(5);
-        let places_list = column![
-            button("Favorites").width(Length::Fill),
-            button("Recently used").width(Length::Fill),
-            button("All").width(Length::Fill),
-            button("Accessories").width(Length::Fill),
-            button("Development").width(Length::Fill),
-            button("Games").width(Length::Fill),
-            button("Graphics").width(Length::Fill),
-            button("Internet").width(Length::Fill),
-            button("Multimedia").width(Length::Fill),
-            button("Office").width(Length::Fill),
-            button("Other").width(Length::Fill),
-            button("System").width(Length::Fill)
-        ]
-        .padding(5);
+        let places_list = self.available_categories
+            .iter()
+            .fold(cosmic::widget::column(), move |col, category| {
+                col.push(
+                    button(category.as_str())
+                        .on_press(Message::CategorySelected(category.to_string()))
+                        .width(Length::Fill),
+                )
+                .width(Length::Fill)
+            })
+            .padding(5);
 
         let menu_layout = column![
             power_menu,
@@ -301,6 +250,7 @@ impl cosmic::Application for Window {
                 scrollable(app_list).width(Length::FillPortion(2)),
                 scrollable(places_list).width(Length::FillPortion(1))
             ]
+            .padding(5)
         ]
         .padding(10);
 

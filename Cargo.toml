@@ -11,11 +11,7 @@ serde = "1.0.210"
 url = "2.4.0"
 regex = "1.11.1"
 freedesktop-desktop-entry = "0.7.7"
-libc = "0.2.169"
-futures = "0.3.21"
-tracing = "0.1"
-pop-launcher = { git = "https://github.com/pop-os/launcher/" }
-pop-launcher-service = { git = "https://github.com/pop-os/launcher/" }
+current_locale = "0.1.1"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"

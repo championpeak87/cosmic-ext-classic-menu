@@ -1,29 +1,45 @@
-use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter, DesktopEntry};
+use std::{collections::HashSet, fs, path::Path, str::Split, sync::Arc};
 
-pub fn get_apps() -> Vec<DesktopEntry> {
-    let locales = get_languages_from_env();
+use cosmic::{desktop::DesktopEntryData, iced_winit::graphics::image::image_rs::load};
+use freedesktop_desktop_entry::{
+    default_paths, get_languages_from_env, DesktopEntry, Iter, PathSource,
+};
 
-    let entries = Iter::new(default_paths())
-        .entries(Some(&locales))
-        .collect::<Vec<_>>();
+pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
+    let locale = current_locale::current_locale().ok();
+    let xdg_current_desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
+    let mut all_entries: Vec<Arc<DesktopEntryData>> =
+        cosmic::desktop::load_applications_filtered(locale.as_deref(), |entry| {
+            entry.exec().is_some()
+                && !entry.no_display()
+                && xdg_current_desktop
+                    .as_deref()
+                    .as_ref()
+                    .zip(entry.only_show_in())
+                    .map(|(xdg_current_desktop, only_show_in)| {
+                        only_show_in.contains(xdg_current_desktop)
+                    })
+                    .unwrap_or(true)
+        })
+        .into_iter()
+        .map(Arc::new)
+        .collect();
+    all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
-    entries
+    all_entries
 }
 
-fn load_desktop_entries_from_app_ids<I, L>(ids: &[I], locales: &[L]) -> Vec<DesktopEntry>
-where
-    I: AsRef<str>,
-    L: AsRef<str>,
-{
-    let entries = Iter::new(default_paths())
-        .entries(Some(locales))
-        .collect::<Vec<_>>();
+pub fn available_categories() -> HashSet<String> {
+    let available_apps = load_apps();
+    let all_categories = available_apps
+        .into_iter()
+        .fold(HashSet::new(), |mut acc, x| {
+            if x.categories.get(0).is_some() {
+                acc.insert(x.categories.get(0).unwrap().clone());
+            }
+            acc
+        });
 
-    ids.iter()
-        .map(|id| {
-            freedesktop_desktop_entry::matching::find_entry_from_appid(entries.iter(), id.as_ref())
-                .unwrap_or(&freedesktop_desktop_entry::DesktopEntry::from_appid(String::from(id)))
-                .to_owned()
-        })
-        .collect_vec()
+    dbg!(&all_categories);
+    all_categories
 }
