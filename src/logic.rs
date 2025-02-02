@@ -29,17 +29,23 @@ pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
     all_entries
 }
 
-pub fn available_categories() -> HashSet<String> {
-    let available_apps = load_apps();
-    let all_categories = available_apps
-        .into_iter()
-        .fold(HashSet::new(), |mut acc, x| {
-            if x.categories.get(0).is_some() {
-                acc.insert(x.categories.get(0).unwrap().clone());
-            }
-            acc
-        });
+pub fn available_categories() -> HashSet<&'static str> {
+    let categories: HashSet<&str> = vec![
+        "Audio",
+        "Video",
+        "Development",
+        "Education",
+        "Game",
+        "Graphics",
+        "Network",
+        "Office",
+        "Science",
+        "Settings",
+        "System",
+        "Utility",
+    ]
+    .into_iter()
+    .collect();
 
-    dbg!(&all_categories);
-    all_categories
+    categories
 }
