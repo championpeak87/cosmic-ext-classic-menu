@@ -18,7 +18,7 @@ use freedesktop_desktop_entry::DesktopEntry;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::process;
+use std::{process, env};
 use std::sync::Arc;
 
 use crate::logic::{available_categories, load_apps};
@@ -203,8 +203,14 @@ impl cosmic::Application for Window {
                     a => return a.perform(),
                 };
             }
-            Message::ApplicationSelected(_app) => {
-                // cosmic::desktop::spawn_desktop_exec(app.exec, None, None);
+            Message::ApplicationSelected(app) => {
+                let app_exec: String = app.exec.to_owned().unwrap();
+                let env_vars: Vec<(String, String)> = env::vars().collect();
+                let app_id: Option<String> = Some(app.id.clone());
+                
+                tokio::spawn(async move {
+                    cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref()).await;
+                });
 
                 if let Some(p) = self.popup.take() {
                     return destroy_popup(p);
