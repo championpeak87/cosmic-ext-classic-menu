@@ -1,9 +1,6 @@
-use std::{collections::HashSet, fs, path::Path, str::Split, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
-use cosmic::{desktop::DesktopEntryData, iced_winit::graphics::image::image_rs::load};
-use freedesktop_desktop_entry::{
-    default_paths, get_languages_from_env, DesktopEntry, Iter, PathSource,
-};
+use cosmic::desktop::DesktopEntryData;
 
 pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
     let locale = current_locale::current_locale().ok();

@@ -1,5 +1,4 @@
 use cosmic::app::Core;
-use cosmic::cctk::sctk::shell::xdg::popup::Popup;
 use cosmic::cosmic_config::Config;
 use cosmic::cosmic_theme::Spacing;
 use cosmic::desktop::DesktopEntryData;
@@ -9,21 +8,21 @@ use cosmic::iced::{
     window::Id,
     Alignment, Length, Limits, Task,
 };
-use cosmic::iced_core::ContentFit;
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_widget::button;
-use cosmic::process::spawn;
 use cosmic::widget::menu::menu_button;
-use cosmic::widget::{container, context_menu, text_input, Column};
+use cosmic::widget::{container, text_input, Column};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 use freedesktop_desktop_entry::DesktopEntry;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::process;
 use std::sync::Arc;
 
 use crate::logic::{available_categories, load_apps};
+use crate::power_options::{lock, log_out, restart, shutdown, suspend};
 
 const ID: &str = "com.championpeak87.cosmic-classic-menu";
 const CONFIG_VERS: u64 = 1;
@@ -42,7 +41,6 @@ pub struct Window {
     available_applications: Vec<Arc<DesktopEntryData>>,
     all_applications: Vec<Arc<DesktopEntryData>>,
     popup_type: PopupType,
-    show_text: bool,
 }
 
 /// Messages to be sent to the Libcosmic Update function
@@ -51,28 +49,42 @@ pub enum Message {
     TogglePopup(PopupType),
     PopupClosed(Id),
     SearchFieldInput(String),
-    ShutdownClicked,
-    RestartClicked,
-    LogOutClicked,
-    LockScreenClicked,
+    PowerOptionSelected(PowerAction),
     ApplicationSelected(Arc<DesktopEntryData>),
     CategorySelected(String),
     ShowConfig,
     OpenDiskManagement,
     OpenSystemConfig,
     OpenSystemMonitor,
+    Zbus(Result<(), zbus::Error>),
+}
+
+#[derive(Clone, Debug)]
+pub enum PowerAction {
+    Shutdown,
+    Logout,
+    Lock,
+    Reboot,
+    Suspend,
+}
+
+impl PowerAction {
+    fn perform(self) -> cosmic::iced::Task<cosmic::app::Message<Message>> {
+        let msg = |m| cosmic::app::message::app(Message::Zbus(m));
+        match self {
+            PowerAction::Lock => cosmic::iced::Task::perform(lock(), msg),
+            PowerAction::Logout => cosmic::iced::Task::perform(log_out(), msg),
+            PowerAction::Reboot => cosmic::iced::Task::perform(restart(), msg),
+            PowerAction::Shutdown => cosmic::iced::Task::perform(shutdown(), msg),
+            PowerAction::Suspend => cosmic::iced::Task::perform(suspend(), msg),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PopupType {
     MainMenu,
     ContextMenu,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum MenuAction {
-    About,
-    Settings,
 }
 
 impl cosmic::Application for Window {
@@ -91,16 +103,17 @@ impl cosmic::Application for Window {
 
     fn init(core: Core, _flags: Self::Flags) -> (Window, Task<cosmic::app::Message<Message>>) {
         // Set the start up state of the application using the above variables
+        let all_apps = load_apps();
+
         let window = Window {
             core,
             config: Config::new(ID, CONFIG_VERS).unwrap(),
             popup: None,
             search_field: String::new(),
-            available_applications: load_apps(),
+            available_applications: all_apps.clone(),
             available_categories: available_categories(),
-            all_applications: load_apps(),
+            all_applications: all_apps,
             popup_type: PopupType::MainMenu,
-            show_text: true,
         };
 
         // Return the state and no Task
@@ -155,34 +168,52 @@ impl cosmic::Application for Window {
                 } else {
                     self.available_applications = self
                         .all_applications
-                        .clone()
-                        .into_iter()
+                        .iter()
                         .filter(|x| {
                             x.name
                                 .to_lowercase()
                                 .starts_with(input.to_lowercase().as_str())
                         })
+                        .cloned()
                         .collect();
                 }
                 self.search_field = input;
             }
-            Message::ShutdownClicked => todo!("Shutdown not implemented"),
-            Message::RestartClicked => todo!("Restart not implemented"),
-            Message::LogOutClicked => todo!("Logout not implemented"),
-            Message::LockScreenClicked => todo!("Lock screen not implemented"),
+            Message::PowerOptionSelected(action) => {
+                match action {
+                    PowerAction::Logout => {
+                        if let Err(_err) = process::Command::new("cosmic-osd").arg("log-out").spawn()
+                        {
+                            return PowerAction::Logout.perform();
+                        }
+                    }
+                    PowerAction::Reboot => {
+                        if let Err(_err) = process::Command::new("cosmic-osd").arg("restart").spawn()
+                        {
+                            return PowerAction::Reboot.perform();
+                        }
+                    }
+                    PowerAction::Shutdown => {
+                        if let Err(_err) =
+                            process::Command::new("cosmic-osd").arg("shutdown").spawn()
+                        {
+                            return PowerAction::Shutdown.perform();
+                        }
+                    }
+                    a => return a.perform(),
+                };
+            }
             Message::ApplicationSelected(_app) => {
                 // cosmic::desktop::spawn_desktop_exec(app.exec, None, None);
 
                 if let Some(p) = self.popup.take() {
                     return destroy_popup(p);
                 }
-
-                ()
             }
             Message::CategorySelected(category) => {
                 // delete search field
                 self.search_field = "".to_string();
-                
+
                 self.available_applications = load_apps()
                     .into_iter()
                     .filter(|app| app.categories.contains(&category))
@@ -192,6 +223,11 @@ impl cosmic::Application for Window {
             Message::OpenDiskManagement => todo!("Disk management not yet implemented"),
             Message::OpenSystemConfig => todo!("System config not yet implemented"),
             Message::OpenSystemMonitor => todo!("System monitor not yet implemented"),
+            Message::Zbus(result) => {
+                if let Err(e) = result {
+                    eprintln!("cosmic-classic-menu ERROR: '{}'", e);
+                }
+            }
         }
         Task::none()
     }
@@ -222,7 +258,7 @@ impl cosmic::Application for Window {
         let Spacing {
             space_xxs,
             space_s,
-            space_m,
+            
             space_l,
             ..
         } = theme::active().cosmic().spacing;
@@ -234,28 +270,35 @@ impl cosmic::Application for Window {
                         cosmic::widget::button::icon(cosmic::widget::icon::from_name(
                             "system-log-out-symbolic"
                         ))
-                        .on_press(Message::LogOutClicked)
+                        .on_press(Message::PowerOptionSelected(PowerAction::Logout))
+                        .icon_size(space_l)
+                        .height(space_l)
+                        .width(space_l),
+                        cosmic::widget::button::icon(cosmic::widget::icon::from_name(
+                            "system-suspend-symbolic"
+                        ))
+                        .on_press(Message::PowerOptionSelected(PowerAction::Suspend))
                         .icon_size(space_l)
                         .height(space_l)
                         .width(space_l),
                         cosmic::widget::button::icon(cosmic::widget::icon::from_name(
                             "system-lock-screen-symbolic"
                         ))
-                        .on_press(Message::LockScreenClicked)
+                        .on_press(Message::PowerOptionSelected(PowerAction::Lock))
                         .icon_size(space_l)
                         .height(space_l)
                         .width(space_l),
                         cosmic::widget::button::icon(cosmic::widget::icon::from_name(
                             "system-restart-symbolic"
                         ))
-                        .on_press(Message::RestartClicked)
+                        .on_press(Message::PowerOptionSelected(PowerAction::Reboot))
                         .icon_size(space_l)
                         .height(space_l)
                         .width(space_l),
                         cosmic::widget::button::icon(cosmic::widget::icon::from_name(
                             "system-shutdown-symbolic"
                         ))
-                        .on_press(Message::ShutdownClicked)
+                        .on_press(Message::PowerOptionSelected(PowerAction::Shutdown))
                         .icon_size(space_l)
                         .height(space_l)
                         .width(space_l),
