@@ -18,8 +18,8 @@ use freedesktop_desktop_entry::DesktopEntry;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::{process, env};
 use std::sync::Arc;
+use std::{env, process};
 
 use crate::logic::{available_categories, load_apps};
 use crate::power_options::{lock, log_out, restart, shutdown, suspend};
@@ -53,10 +53,37 @@ pub enum Message {
     ApplicationSelected(Arc<DesktopEntryData>),
     CategorySelected(String),
     ShowConfig,
-    OpenDiskManagement,
-    OpenSystemConfig,
-    OpenSystemMonitor,
+    LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
+}
+
+#[derive(Clone, Debug)]
+pub enum SystemTool {
+    SystemSettings,
+    SystemMonitor,
+    DiskManagement,
+}
+
+impl SystemTool {
+    fn perform(&self) {
+        match self {
+            SystemTool::SystemSettings => {
+                if let Err(_) = std::process::Command::new("cosmic-settings").spawn() {
+                    eprintln!("COSMIC Settings cannot be launched!");
+                }
+            }
+            SystemTool::SystemMonitor => {
+                if let Err(_) = std::process::Command::new("gnome-system-monitor").spawn() {
+                    eprintln!("GNOME System Monitor cannot be launched!");
+                }
+            }
+            SystemTool::DiskManagement => {
+                if let Err(_) = std::process::Command::new("gnome-disks").spawn() {
+                    eprintln!("GNOME Disks cannot be launched!");
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -182,13 +209,15 @@ impl cosmic::Application for Window {
             Message::PowerOptionSelected(action) => {
                 match action {
                     PowerAction::Logout => {
-                        if let Err(_err) = process::Command::new("cosmic-osd").arg("log-out").spawn()
+                        if let Err(_err) =
+                            process::Command::new("cosmic-osd").arg("log-out").spawn()
                         {
                             return PowerAction::Logout.perform();
                         }
                     }
                     PowerAction::Reboot => {
-                        if let Err(_err) = process::Command::new("cosmic-osd").arg("restart").spawn()
+                        if let Err(_err) =
+                            process::Command::new("cosmic-osd").arg("restart").spawn()
                         {
                             return PowerAction::Reboot.perform();
                         }
@@ -207,9 +236,10 @@ impl cosmic::Application for Window {
                 let app_exec: String = app.exec.to_owned().unwrap();
                 let env_vars: Vec<(String, String)> = env::vars().collect();
                 let app_id: Option<String> = Some(app.id.clone());
-                
+
                 tokio::spawn(async move {
-                    cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref()).await;
+                    cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref())
+                        .await;
                 });
 
                 if let Some(p) = self.popup.take() {
@@ -226,9 +256,13 @@ impl cosmic::Application for Window {
                     .collect();
             }
             Message::ShowConfig => todo!("Configuration not yet implemented"),
-            Message::OpenDiskManagement => todo!("Disk management not yet implemented"),
-            Message::OpenSystemConfig => todo!("System config not yet implemented"),
-            Message::OpenSystemMonitor => todo!("System monitor not yet implemented"),
+            Message::LaunchTool(tool) => {
+                tool.perform();
+
+                if let Some(p) = self.popup.take() {
+                    return destroy_popup(p);
+                }
+            },
             Message::Zbus(result) => {
                 if let Err(e) = result {
                     eprintln!("cosmic-classic-menu ERROR: '{}'", e);
@@ -264,7 +298,7 @@ impl cosmic::Application for Window {
         let Spacing {
             space_xxs,
             space_s,
-            
+
             space_l,
             ..
         } = theme::active().cosmic().spacing;
@@ -408,17 +442,17 @@ impl cosmic::Application for Window {
                     menu_button(vec![row![cosmic::widget::text::body("System Settings"),]
                         .align_y(Alignment::Center)
                         .into()])
-                    .on_press(Message::OpenSystemConfig)
+                    .on_press(Message::LaunchTool(SystemTool::SystemSettings))
                     .into(),
                     menu_button(vec![row![cosmic::widget::text::body("System monitor"),]
                         .align_y(Alignment::Center)
                         .into()])
-                    .on_press(Message::OpenSystemMonitor)
+                    .on_press(Message::LaunchTool(SystemTool::SystemMonitor))
                     .into(),
                     menu_button(vec![row![cosmic::widget::text::body("Disks"),]
                         .align_y(Alignment::Center)
                         .into()])
-                    .on_press(Message::OpenDiskManagement)
+                    .on_press(Message::LaunchTool(SystemTool::DiskManagement))
                     .into(),
                     menu_button(vec![row![cosmic::widget::text::body("Power options"),]
                         .align_y(Alignment::Center)
