@@ -9,19 +9,17 @@ use cosmic::iced::{
     Alignment, Length, Limits, Task,
 };
 use cosmic::iced_runtime::core::window;
-use cosmic::iced_widget::button;
 use cosmic::widget::menu::menu_button;
 use cosmic::widget::{container, text_input, Column};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 use freedesktop_desktop_entry::DesktopEntry;
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::{env, process};
 
-use crate::logic::{available_categories, load_apps};
+use crate::logic::{load_apps, ApplicationCategory};
 use crate::power_options::{lock, log_out, restart, shutdown, suspend};
 
 const ID: &str = "com.championpeak87.cosmic-classic-menu";
@@ -37,10 +35,10 @@ pub struct Window {
     config: Config,
     popup: Option<Id>,
     search_field: String,
-    available_categories: HashSet<&'static str>,
     available_applications: Vec<Arc<DesktopEntryData>>,
     all_applications: Vec<Arc<DesktopEntryData>>,
     popup_type: PopupType,
+    selected_category: Option<ApplicationCategory>,
 }
 
 /// Messages to be sent to the Libcosmic Update function
@@ -51,7 +49,7 @@ pub enum Message {
     SearchFieldInput(String),
     PowerOptionSelected(PowerAction),
     ApplicationSelected(Arc<DesktopEntryData>),
-    CategorySelected(String),
+    CategorySelected(ApplicationCategory),
     ShowConfig,
     LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
@@ -138,9 +136,9 @@ impl cosmic::Application for Window {
             popup: None,
             search_field: String::new(),
             available_applications: all_apps.clone(),
-            available_categories: available_categories(),
             all_applications: all_apps,
             popup_type: PopupType::MainMenu,
+            selected_category: Some(ApplicationCategory::All),
         };
 
         // Return the state and no Task
@@ -183,6 +181,7 @@ impl cosmic::Application for Window {
             Message::PopupClosed(id) => {
                 // delete search field
                 self.search_field = "".to_string();
+                self.selected_category = Some(ApplicationCategory::All);
                 self.available_applications = self.all_applications.clone();
 
                 if self.popup.as_ref() == Some(&id) {
@@ -190,8 +189,10 @@ impl cosmic::Application for Window {
                 }
             }
             Message::SearchFieldInput(input) => {
+                self.selected_category = None;
                 if input.is_empty() {
                     self.available_applications = self.all_applications.clone();
+                    self.selected_category = Some(ApplicationCategory::All);
                 } else {
                     self.available_applications = self
                         .all_applications
@@ -249,11 +250,22 @@ impl cosmic::Application for Window {
             Message::CategorySelected(category) => {
                 // delete search field
                 self.search_field = "".to_string();
+                self.selected_category = Some(category.clone());
 
-                self.available_applications = load_apps()
-                    .into_iter()
-                    .filter(|app| app.categories.contains(&category))
-                    .collect();
+                let category_mime_name: String = category.get_mime_name().to_string();
+
+                if category == ApplicationCategory::All {
+                    self.available_applications = self.all_applications.clone();
+                } else if category == ApplicationCategory::RecentlyUsed {
+                    // TODO: Implement recently used apps
+                } else {
+                    self.available_applications = self
+                        .all_applications
+                        .iter()
+                        .filter(|&app| app.categories.contains(&category_mime_name))
+                        .cloned()
+                        .collect();
+                }
             }
             Message::ShowConfig => todo!("Configuration not yet implemented"),
             Message::LaunchTool(tool) => {
@@ -262,7 +274,7 @@ impl cosmic::Application for Window {
                 if let Some(p) = self.popup.take() {
                     return destroy_popup(p);
                 }
-            },
+            }
             Message::Zbus(result) => {
                 if let Err(e) = result {
                     eprintln!("cosmic-classic-menu ERROR: '{}'", e);
@@ -392,29 +404,108 @@ impl cosmic::Application for Window {
                         )
                         .width(Length::Fill)
                     });
-                let places_list = self.available_categories.clone().into_iter().fold(
-                    cosmic::widget::column(),
+                let categories_list = ApplicationCategory::into_iter().fold(
+                    cosmic::widget::column::with_capacity(ApplicationCategory::into_iter().len()),
                     |col, category| {
+                        if category == ApplicationCategory::All
+                            || category == ApplicationCategory::RecentlyUsed
+                        {
+                            // Handle category ALL and RECENTLYUSED separately
+                            return col;
+                        }
+
                         col.push(
-                            button(category)
-                                .on_press(Message::CategorySelected(category.to_string()))
-                                .width(Length::Fill),
+                            cosmic::widget::button::custom(
+                                row![
+                                    cosmic::applet::padded_control(
+                                        cosmic::widget::icon::from_name(category.get_icon_name())
+                                            .symbolic(true)
+                                    )
+                                    .padding([0, space_xxs]),
+                                    cosmic::widget::text(category.get_name())
+                                ]
+                                .align_y(Alignment::Center),
+                            )
+                            .class(
+                                if let Some(selected_category_unwrapped) = self.selected_category {
+                                    if selected_category_unwrapped == category {
+                                        cosmic::theme::Button::Suggested
+                                    } else {
+                                        cosmic::theme::Button::default()
+                                    }
+                                } else {
+                                    cosmic::theme::Button::default()
+                                },
+                            )
+                            .on_press(Message::CategorySelected(category))
+                            .width(Length::Fill),
                         )
                         .width(Length::Fill)
                     },
                 );
+                let categories_pane = column![
+                    cosmic::widget::button::custom(
+                        row![
+                            cosmic::applet::padded_control(
+                                cosmic::widget::icon::from_name(
+                                    ApplicationCategory::All.get_icon_name()
+                                )
+                                .symbolic(true)
+                            )
+                            .padding([0, space_xxs]),
+                            cosmic::widget::text(ApplicationCategory::All.get_name())
+                        ]
+                        .align_y(Alignment::Center)
+                    )
+                    .class(
+                        if self.selected_category == Some(ApplicationCategory::All) {
+                            cosmic::theme::Button::Suggested
+                        } else {
+                            cosmic::theme::Button::default()
+                        }
+                    )
+                    .on_press(Message::CategorySelected(ApplicationCategory::All))
+                    .width(Length::Fill),
+                    cosmic::widget::button::custom(
+                        row![
+                            cosmic::applet::padded_control(
+                                cosmic::widget::icon::from_name(
+                                    ApplicationCategory::RecentlyUsed.get_icon_name()
+                                )
+                                .symbolic(true)
+                            )
+                            .padding([0, space_xxs]),
+                            cosmic::widget::text(ApplicationCategory::RecentlyUsed.get_name())
+                        ]
+                        .align_y(Alignment::Center)
+                    )
+                    .class(
+                        if self.selected_category == Some(ApplicationCategory::RecentlyUsed) {
+                            cosmic::theme::Button::Suggested
+                        } else {
+                            cosmic::theme::Button::default()
+                        }
+                    )
+                    .on_press(Message::CategorySelected(ApplicationCategory::RecentlyUsed))
+                    .width(Length::Fill),
+                    cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default())
+                        .padding(space_xxs),
+                    categories_list
+                ];
 
                 let menu_layout = column![
                     power_menu,
                     search_field,
                     cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default())
-                        .padding([space_xxs, space_s])
+                        .padding([space_xxs, 0])
                         .width(Length::Fill),
                     row![
-                        scrollable(app_list).width(Length::FillPortion(20)),
-                        cosmic::applet::padded_control(cosmic::widget::divider::vertical::default())
-                            .padding([space_xxs,space_xxs,space_s,space_s]),
-                        scrollable(places_list).width(Length::FillPortion(10))
+                        cosmic::applet::padded_control(scrollable(app_list))
+                            .width(Length::FillPortion(20))
+                            .padding([0, 0, space_xxs, 0]),
+                        cosmic::applet::padded_control(scrollable(categories_pane))
+                            .width(Length::FillPortion(10))
+                            .padding([0, 0, 0, space_xxs])
                     ]
                 ]
                 .padding([space_xxs, space_s]);
