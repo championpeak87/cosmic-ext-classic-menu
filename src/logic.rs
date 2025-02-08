@@ -71,7 +71,7 @@ impl ApplicationCategory {
             ApplicationCategory::Development => "applications-engineering-symbolic",
             ApplicationCategory::Games => "applications-games-symbolic",
             ApplicationCategory::Graphics => "applications-graphics-symbolic",
-            ApplicationCategory::Network => "applications-engineering-symbolic",
+            ApplicationCategory::Network => "network-workgroup-symbolic",
             ApplicationCategory::Office => "applications-office-symbolic",
             ApplicationCategory::Science => "applications-science-symbolic",
             ApplicationCategory::Settings => "preferences-system-symbolic",

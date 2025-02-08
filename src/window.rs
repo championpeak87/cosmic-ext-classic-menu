@@ -24,8 +24,8 @@ use crate::power_options::{lock, log_out, restart, shutdown, suspend};
 
 const ID: &str = "com.championpeak87.cosmic-classic-menu";
 const CONFIG_VERS: u64 = 1;
-const POPUP_MAX_WIDTH: f32 = 400.0;
-const POPUP_MIN_WIDTH: f32 = 400.0;
+const POPUP_MAX_WIDTH: f32 = 450.0;
+const POPUP_MIN_WIDTH: f32 = 450.0;
 const POPUP_MAX_HEIGHT: f32 = 600.0;
 const POPUP_MIN_HEIGHT: f32 = 600.0;
 
@@ -50,7 +50,6 @@ pub enum Message {
     PowerOptionSelected(PowerAction),
     ApplicationSelected(Arc<DesktopEntryData>),
     CategorySelected(ApplicationCategory),
-    ShowConfig,
     LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
 }
@@ -258,6 +257,7 @@ impl cosmic::Application for Window {
                     self.available_applications = self.all_applications.clone();
                 } else if category == ApplicationCategory::RecentlyUsed {
                     // TODO: Implement recently used apps
+                    self.available_applications = Vec::with_capacity(0);
                 } else {
                     self.available_applications = self
                         .all_applications
@@ -267,7 +267,6 @@ impl cosmic::Application for Window {
                         .collect();
                 }
             }
-            Message::ShowConfig => todo!("Configuration not yet implemented"),
             Message::LaunchTool(tool) => {
                 tool.perform();
 
@@ -310,6 +309,7 @@ impl cosmic::Application for Window {
         let Spacing {
             space_xxs,
             space_s,
+            space_m,
 
             space_l,
             ..
@@ -404,21 +404,30 @@ impl cosmic::Application for Window {
                         )
                         .width(Length::Fill)
                     });
-                let categories_list = ApplicationCategory::into_iter().fold(
+
+                let filtered_categories: Vec<ApplicationCategory> =
+                    ApplicationCategory::into_iter()
+                        .filter(|&x| {
+                            self.all_applications
+                                .iter()
+                                .filter(|&app| {
+                                    let category_mime_name: String = x.get_mime_name().to_string();
+                                    app.categories.contains(&category_mime_name)
+                                })
+                                .count()
+                                > 0
+                        })
+                        .collect();
+
+                let categories_list = filtered_categories.into_iter().fold(
                     cosmic::widget::column::with_capacity(ApplicationCategory::into_iter().len()),
                     |col, category| {
-                        if category == ApplicationCategory::All
-                            || category == ApplicationCategory::RecentlyUsed
-                        {
-                            // Handle category ALL and RECENTLYUSED separately
-                            return col;
-                        }
-
                         col.push(
                             cosmic::widget::button::custom(
                                 row![
                                     cosmic::applet::padded_control(
                                         cosmic::widget::icon::from_name(category.get_icon_name())
+                                            .size(space_m)
                                             .symbolic(true)
                                     )
                                     .padding([0, space_xxs]),
@@ -451,6 +460,7 @@ impl cosmic::Application for Window {
                                     ApplicationCategory::All.get_icon_name()
                                 )
                                 .symbolic(true)
+                                .size(space_m)
                             )
                             .padding([0, space_xxs]),
                             cosmic::widget::text(ApplicationCategory::All.get_name())
@@ -473,6 +483,7 @@ impl cosmic::Application for Window {
                                     ApplicationCategory::RecentlyUsed.get_icon_name()
                                 )
                                 .symbolic(true)
+                                .size(space_m)
                             )
                             .padding([0, space_xxs]),
                             cosmic::widget::text(ApplicationCategory::RecentlyUsed.get_name())
@@ -500,11 +511,28 @@ impl cosmic::Application for Window {
                         .padding([space_xxs, 0])
                         .width(Length::Fill),
                     row![
-                        cosmic::applet::padded_control(scrollable(app_list))
-                            .width(Length::FillPortion(20))
-                            .padding([0, 0, space_xxs, 0]),
+                        if self.available_applications.len() > 0 {
+                            cosmic::applet::padded_control(scrollable(app_list))
+                                .width(Length::FillPortion(2))
+                                .height(Length::Fill)
+                                .padding([0, 0, space_xxs, 0])
+                        } else {
+                            container(
+                                column![
+                                    cosmic::widget::icon::from_name("emblem-important-symbolic")
+                                        .size(space_l),
+                                    cosmic::widget::text("No apps found!")
+                                ]
+                                .align_x(Alignment::Center),
+                            )
+                            .align_x(Alignment::Center)
+                            .align_y(Alignment::Center)
+                            .width(Length::FillPortion(2))
+                            .height(Length::Fill)
+                            .padding([0, 0, space_xxs, 0])
+                        },
                         cosmic::applet::padded_control(scrollable(categories_pane))
-                            .width(Length::FillPortion(10))
+                            .width(Length::FillPortion(1))
                             .padding([0, 0, 0, space_xxs])
                     ]
                 ]
@@ -520,42 +548,30 @@ impl cosmic::Application for Window {
             }
             PopupType::ContextMenu => {
                 let content = vec![
-                    menu_button(vec![
-                        row![cosmic::widget::text::body("Menu configuration"),]
-                            .align_y(Alignment::Center)
-                            .into(),
-                    ])
-                    .on_press(Message::ShowConfig)
-                    .into(),
-                    cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default())
-                        .padding([space_xxs, space_s])
-                        .into(),
                     menu_button(vec![row![cosmic::widget::text::body("System Settings"),]
                         .align_y(Alignment::Center)
                         .into()])
+                    .class(cosmic::theme::Button::AppletMenu)
                     .on_press(Message::LaunchTool(SystemTool::SystemSettings))
                     .into(),
                     menu_button(vec![row![cosmic::widget::text::body("System monitor"),]
                         .align_y(Alignment::Center)
                         .into()])
+                    .class(cosmic::theme::Button::AppletMenu)
                     .on_press(Message::LaunchTool(SystemTool::SystemMonitor))
                     .into(),
                     menu_button(vec![row![cosmic::widget::text::body("Disks"),]
                         .align_y(Alignment::Center)
                         .into()])
+                    .class(cosmic::theme::Button::AppletMenu)
                     .on_press(Message::LaunchTool(SystemTool::DiskManagement))
-                    .into(),
-                    menu_button(vec![row![cosmic::widget::text::body("Power options"),]
-                        .align_y(Alignment::Center)
-                        .into()])
-                    .on_press(Message::ShowConfig)
                     .into(),
                 ];
 
                 return self
                     .core
                     .applet
-                    .popup_container(Column::with_children(content).padding([space_xxs, space_s]))
+                    .popup_container(Column::with_children(content))
                     .into();
             }
         }
