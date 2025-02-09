@@ -19,6 +19,10 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::{env, process};
 
+use crate::config::{
+    load_config, update_config, AppListPosition, PowerOptionsPosition, SearchFieldPosition,
+    APP_LIST_POSITION, POWER_OPTIONS_POSITION, SEARCH_FIELD_POSITION,
+};
 use crate::fl;
 use crate::logic::{load_apps, ApplicationCategory};
 use crate::power_options::{lock, log_out, restart, shutdown, suspend};
@@ -40,6 +44,9 @@ pub struct Window {
     all_applications: Vec<Arc<DesktopEntryData>>,
     popup_type: PopupType,
     selected_category: Option<ApplicationCategory>,
+    power_menu_position: PowerOptionsPosition,
+    app_menu_position: AppListPosition,
+    search_field_position: SearchFieldPosition,
 }
 
 /// Messages to be sent to the Libcosmic Update function
@@ -129,17 +136,67 @@ impl cosmic::Application for Window {
     fn init(core: Core, _flags: Self::Flags) -> (Window, Task<cosmic::app::Message<Message>>) {
         // Set the start up state of the application using the above variables
         let all_apps = load_apps();
+        let config = Config::new(ID, CONFIG_VERS).unwrap();
 
         let window = Window {
             core,
-            config: Config::new(ID, CONFIG_VERS).unwrap(),
             popup: None,
             search_field: String::new(),
             available_applications: all_apps.clone(),
             all_applications: all_apps,
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::All),
+            power_menu_position: match load_config::<PowerOptionsPosition>(
+                POWER_OPTIONS_POSITION,
+                CONFIG_VERS,
+            )
+            .0
+            {
+                Some(x) => x,
+                None => {
+                    // create default config
+                    update_config(
+                        config.clone(),
+                        POWER_OPTIONS_POSITION,
+                        PowerOptionsPosition::Top,
+                    );
+
+                    PowerOptionsPosition::Top
+                }
+            },
+            app_menu_position: match load_config::<AppListPosition>(APP_LIST_POSITION, CONFIG_VERS)
+                .0
+            {
+                Some(x) => x,
+                None => {
+                    // create default config
+                    update_config(config.clone(), APP_LIST_POSITION, AppListPosition::Left);
+
+                    AppListPosition::Left
+                }
+            },
+            search_field_position: match load_config::<SearchFieldPosition>(
+                SEARCH_FIELD_POSITION,
+                CONFIG_VERS,
+            )
+            .0
+            {
+                Some(x) => x,
+                None => {
+                    // create default config
+                    update_config(
+                        config.clone(),
+                        SEARCH_FIELD_POSITION,
+                        SearchFieldPosition::Top,
+                    );
+
+                    SearchFieldPosition::Top
+                }
+            },
+            config: config,
         };
+
+        dbg!(&window.app_menu_position);
 
         // Return the state and no Task
         (window, Task::none())
@@ -508,39 +565,70 @@ impl cosmic::Application for Window {
                     categories_list
                 ];
 
-                let menu_layout = column![
-                    power_menu,
-                    search_field,
-                    cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default())
-                        .padding([space_xxs, 0])
-                        .width(Length::Fill),
-                    row![
-                        if self.available_applications.len() > 0 {
-                            cosmic::applet::padded_control(scrollable(app_list))
-                                .width(Length::FillPortion(2))
-                                .height(Length::Fill)
-                                .padding([0, 0, space_xxs, 0])
-                        } else {
-                            container(
-                                column![
-                                    cosmic::widget::icon::from_name("emblem-important-symbolic")
-                                        .size(space_l),
-                                    cosmic::widget::text(fl!("no-apps"))
-                                ]
-                                .align_x(Alignment::Center),
-                            )
-                            .align_x(Alignment::Center)
-                            .align_y(Alignment::Center)
-                            .width(Length::FillPortion(2))
-                            .height(Length::Fill)
-                            .padding([0, 0, space_xxs, 0])
-                        },
-                        cosmic::applet::padded_control(scrollable(categories_pane))
-                            .width(Length::FillPortion(1))
-                            .padding([0, 0, 0, space_xxs])
-                    ]
-                ]
-                .padding([space_xxs, space_s]);
+                let app_container = if self.available_applications.len() > 0 {
+                    cosmic::applet::padded_control(scrollable(app_list))
+                        .width(Length::FillPortion(2))
+                        .height(Length::Fill)
+                        .padding([0, 0, space_xxs, 0])
+                } else {
+                    container(
+                        column![
+                            cosmic::widget::icon::from_name("emblem-important-symbolic")
+                                .size(space_l),
+                            cosmic::widget::text(fl!("no-apps"))
+                        ]
+                        .align_x(Alignment::Center),
+                    )
+                    .align_x(Alignment::Center)
+                    .align_y(Alignment::Center)
+                    .width(Length::FillPortion(2))
+                    .height(Length::Fill)
+                    .padding([0, 0, space_xxs, 0])
+                };
+                let categories_container =
+                    cosmic::applet::padded_control(scrollable(categories_pane))
+                        .width(Length::FillPortion(1))
+                        .padding([0, 0, 0, space_xxs]);
+
+                let mut dual_pane_vec: [Element<Message>; 2] = [text("").into(), text("").into()];
+                dual_pane_vec[match self.app_menu_position {
+                    AppListPosition::Left => 0,
+                    AppListPosition::Right => 1,
+                }] = app_container.into();
+                dual_pane_vec[match self.app_menu_position {
+                    AppListPosition::Left => 1,
+                    AppListPosition::Right => 0,
+                }] = categories_container.into();
+
+                let mut menu_layout_vec: [Element<Message>; 4] = [text("").into(), text("").into(), text("").into(), text("").into()];
+                menu_layout_vec[match self.power_menu_position {
+                    PowerOptionsPosition::Top => 0,
+                    PowerOptionsPosition::Bottom => 3,
+                }] = power_menu.into();
+                menu_layout_vec[match self.search_field_position {
+                    SearchFieldPosition::Top => 1,
+                    SearchFieldPosition::Bottom => 2,
+                }] = search_field.into();
+                menu_layout_vec[match self.search_field_position {
+                    SearchFieldPosition::Top => 2,
+                    SearchFieldPosition::Bottom => 1,
+                }] = cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default())
+                    .padding([space_xxs, 0])
+                    .width(Length::Fill)
+                    .into();
+                menu_layout_vec[match self.power_menu_position {
+                    PowerOptionsPosition::Top => match self.search_field_position {
+                        SearchFieldPosition::Top => 3,
+                        SearchFieldPosition::Bottom => 2,
+                    },
+                    PowerOptionsPosition::Bottom => match self.search_field_position {
+                        SearchFieldPosition::Top => 2,
+                        SearchFieldPosition::Bottom => 0,
+                    },
+                }] = cosmic::widget::row::with_children(dual_pane_vec.into_iter().collect()).into();
+
+                let menu_layout = cosmic::widget::column::with_children(menu_layout_vec.into_iter().collect())
+                    .padding([space_xxs, space_s]);
 
                 return self
                     .core
