@@ -10,7 +10,7 @@ use cosmic::iced::{
 };
 use cosmic::iced_runtime::core::window;
 use cosmic::widget::menu::menu_button;
-use cosmic::widget::{container, text_input, Column};
+use cosmic::widget::{container, Column};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 use freedesktop_desktop_entry::DesktopEntry;
@@ -19,15 +19,16 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::{env, process};
 
+use crate::fl;
 use crate::logic::{load_apps, ApplicationCategory};
 use crate::power_options::{lock, log_out, restart, shutdown, suspend};
 
 const ID: &str = "com.championpeak87.cosmic-classic-menu";
 const CONFIG_VERS: u64 = 1;
-const POPUP_MAX_WIDTH: f32 = 450.0;
-const POPUP_MIN_WIDTH: f32 = 450.0;
-const POPUP_MAX_HEIGHT: f32 = 600.0;
-const POPUP_MIN_HEIGHT: f32 = 600.0;
+const POPUP_MAX_WIDTH: f32 = 500.0;
+const POPUP_MIN_WIDTH: f32 = 500.0;
+const POPUP_MAX_HEIGHT: f32 = 650.0;
+const POPUP_MIN_HEIGHT: f32 = 650.0;
 
 /// Holds the applet's state
 pub struct Window {
@@ -199,7 +200,7 @@ impl cosmic::Application for Window {
                         .filter(|x| {
                             x.name
                                 .to_lowercase()
-                                .starts_with(input.to_lowercase().as_str())
+                                .contains(input.to_lowercase().as_str())
                         })
                         .cloned()
                         .collect();
@@ -291,8 +292,10 @@ impl cosmic::Application for Window {
                 cosmic::widget::mouse_area(
                     cosmic::widget::button::custom(
                         row![
-                            cosmic::widget::icon::from_name("com.system76.CosmicAppLibrary"),
-                            text("Menu"),
+                            cosmic::widget::icon::from_name(
+                                "com.championpeak87.cosmic-classic-menu"
+                            ),
+                            text(fl!("menu-label")),
                         ]
                         .align_y(Alignment::Center),
                     )
@@ -309,8 +312,6 @@ impl cosmic::Application for Window {
         let Spacing {
             space_xxs,
             space_s,
-            space_m,
-
             space_l,
             ..
         } = theme::active().cosmic().spacing;
@@ -359,11 +360,14 @@ impl cosmic::Application for Window {
                     .align_y(Alignment::Center),
                 )
                 .width(Length::Fill)
+                .padding([space_xxs, 0])
                 .align_x(Alignment::End);
 
-                let search_field = text_input("Search app", &self.search_field)
-                    .on_input(Message::SearchFieldInput)
-                    .padding([space_xxs, space_s]);
+                let search_field =
+                    cosmic::widget::search_input(fl!("search-placeholder"), &self.search_field)
+                        .on_input(Message::SearchFieldInput)
+                        .always_active()
+                        .padding([space_xxs, space_s]);
 
                 let app_list: cosmic::widget::Column<Message> = self
                     .available_applications
@@ -427,7 +431,7 @@ impl cosmic::Application for Window {
                                 row![
                                     cosmic::applet::padded_control(
                                         cosmic::widget::icon::from_name(category.get_icon_name())
-                                            .size(space_m)
+                                            .size(space_s)
                                             .symbolic(true)
                                     )
                                     .padding([0, space_xxs]),
@@ -460,7 +464,7 @@ impl cosmic::Application for Window {
                                     ApplicationCategory::All.get_icon_name()
                                 )
                                 .symbolic(true)
-                                .size(space_m)
+                                .size(space_s)
                             )
                             .padding([0, space_xxs]),
                             cosmic::widget::text(ApplicationCategory::All.get_name())
@@ -483,7 +487,7 @@ impl cosmic::Application for Window {
                                     ApplicationCategory::RecentlyUsed.get_icon_name()
                                 )
                                 .symbolic(true)
-                                .size(space_m)
+                                .size(space_s)
                             )
                             .padding([0, space_xxs]),
                             cosmic::widget::text(ApplicationCategory::RecentlyUsed.get_name())
@@ -521,7 +525,7 @@ impl cosmic::Application for Window {
                                 column![
                                     cosmic::widget::icon::from_name("emblem-important-symbolic")
                                         .size(space_l),
-                                    cosmic::widget::text("No apps found!")
+                                    cosmic::widget::text(fl!("no-apps"))
                                 ]
                                 .align_x(Alignment::Center),
                             )
@@ -548,19 +552,23 @@ impl cosmic::Application for Window {
             }
             PopupType::ContextMenu => {
                 let content = vec![
-                    menu_button(vec![row![cosmic::widget::text::body("System Settings"),]
-                        .align_y(Alignment::Center)
-                        .into()])
+                    menu_button(vec![
+                        row![cosmic::widget::text::body(fl!("system-config")),]
+                            .align_y(Alignment::Center)
+                            .into(),
+                    ])
                     .class(cosmic::theme::Button::AppletMenu)
                     .on_press(Message::LaunchTool(SystemTool::SystemSettings))
                     .into(),
-                    menu_button(vec![row![cosmic::widget::text::body("System monitor"),]
-                        .align_y(Alignment::Center)
-                        .into()])
+                    menu_button(vec![row![cosmic::widget::text::body(fl!(
+                        "system-monitor"
+                    )),]
+                    .align_y(Alignment::Center)
+                    .into()])
                     .class(cosmic::theme::Button::AppletMenu)
                     .on_press(Message::LaunchTool(SystemTool::SystemMonitor))
                     .into(),
-                    menu_button(vec![row![cosmic::widget::text::body("Disks"),]
+                    menu_button(vec![row![cosmic::widget::text::body(fl!("disks")),]
                         .align_y(Alignment::Center)
                         .into()])
                     .class(cosmic::theme::Button::AppletMenu)

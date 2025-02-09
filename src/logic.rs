@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use crate::fl;
 
 use cosmic::desktop::DesktopEntryData;
 
@@ -44,21 +45,21 @@ pub enum ApplicationCategory {
 }
 
 impl ApplicationCategory {
-    pub fn get_name(self) -> &'static str {
+    pub fn get_name(self) -> String {
         match self {
-            ApplicationCategory::All => "All applications",
-            ApplicationCategory::RecentlyUsed => "Recently used",
-            ApplicationCategory::Audio => "Audio",
-            ApplicationCategory::Video => "Video",
-            ApplicationCategory::Development => "Development",
-            ApplicationCategory::Games => "Games",
-            ApplicationCategory::Graphics => "Graphics",
-            ApplicationCategory::Network => "Network",
-            ApplicationCategory::Office => "Office",
-            ApplicationCategory::Science => "Science",
-            ApplicationCategory::Settings => "Settings",
-            ApplicationCategory::System => "System",
-            ApplicationCategory::Utility => "Utility",
+            ApplicationCategory::All => fl!("all-applications"),
+            ApplicationCategory::RecentlyUsed => fl!("recently-used"),
+            ApplicationCategory::Audio => fl!("audio"),
+            ApplicationCategory::Video => fl!("video"),
+            ApplicationCategory::Development => fl!("development"),
+            ApplicationCategory::Games => fl!("games"),
+            ApplicationCategory::Graphics => fl!("graphics"),
+            ApplicationCategory::Network => fl!("network"),
+            ApplicationCategory::Office => fl!("office"),
+            ApplicationCategory::Science => fl!("science"),
+            ApplicationCategory::Settings => fl!("settings"),
+            ApplicationCategory::System => fl!("system"),
+            ApplicationCategory::Utility => fl!("utility"),
         }
     }
 
