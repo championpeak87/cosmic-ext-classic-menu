@@ -15,13 +15,15 @@ use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 use freedesktop_desktop_entry::DesktopEntry;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::{env, process};
 
 use crate::config::{
-    load_config, update_config, AppListPosition, PowerOptionsPosition, SearchFieldPosition,
-    APP_LIST_POSITION, POWER_OPTIONS_POSITION, SEARCH_FIELD_POSITION,
+    load_config, update_config, AppListPosition, PowerOptionsPosition, RecentApplication,
+    RecentApplicationConfig, SearchFieldPosition, APP_LIST_POSITION, POWER_OPTIONS_POSITION,
+    RECENT_APPLICATIONS, SEARCH_FIELD_POSITION,
 };
 use crate::fl;
 use crate::logic::{load_apps, ApplicationCategory};
@@ -196,8 +198,6 @@ impl cosmic::Application for Window {
             config: config,
         };
 
-        dbg!(&window.app_menu_position);
-
         // Return the state and no Task
         (window, Task::none())
     }
@@ -300,6 +300,45 @@ impl cosmic::Application for Window {
                         .await;
                 });
 
+                let recent_app_key: String = String::from(RECENT_APPLICATIONS);
+                let mut recent_applications: HashMap<String, RecentApplication> =
+                    match load_config::<RecentApplicationConfig>(&recent_app_key, CONFIG_VERS).0 {
+                        Some(x) => {
+                            x.recent_applications
+                                .iter()
+                                .fold(HashMap::new(), |mut acc, i| {
+                                    acc.insert(i.app_id.clone(), i.clone());
+                                    acc
+                                })
+                        }
+                        None => HashMap::new(),
+                    };
+
+                let recent_application: Option<&mut RecentApplication> =
+                    recent_applications.get_mut(&app.id.to_string());
+                if let Some(x) = recent_application {
+                    if x.launch_count < u32::MAX {
+                        x.launch_count += 1;
+                    }
+                } else {
+                    let new_recent_application: RecentApplication = RecentApplication {
+                        app_id: app.id.clone(),
+                        launch_count: 1,
+                    };
+                    recent_applications.insert(app.id.clone(), new_recent_application);
+                }
+
+                let recent_applications_values: Vec<RecentApplication> =
+                    recent_applications.values().cloned().collect();
+                let recent_application_config: RecentApplicationConfig = RecentApplicationConfig {
+                    recent_applications: recent_applications_values,
+                };
+                update_config(
+                    self.config.clone(),
+                    RECENT_APPLICATIONS,
+                    recent_application_config,
+                );
+
                 if let Some(p) = self.popup.take() {
                     return destroy_popup(p);
                 }
@@ -314,8 +353,38 @@ impl cosmic::Application for Window {
                 if category == ApplicationCategory::All {
                     self.available_applications = self.all_applications.clone();
                 } else if category == ApplicationCategory::RecentlyUsed {
-                    // TODO: Implement recently used apps
-                    self.available_applications = Vec::with_capacity(0);
+                    // TODO: Improve performance
+                    let all_applications_entries: HashMap<String, &DesktopEntryData> = self
+                        .all_applications
+                        .iter()
+                        .fold(HashMap::new(), |mut acc, i| {
+                            acc.insert(i.id.clone(), i);
+                            acc
+                        });
+
+                    self.available_applications = match load_config::<RecentApplicationConfig>(
+                        RECENT_APPLICATIONS,
+                        CONFIG_VERS,
+                    )
+                    .0
+                    {
+                        Some(mut x) => {
+                            x.recent_applications
+                                .sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
+
+                            x.recent_applications.iter().fold(Vec::new(), |mut acc, x| {
+                                match all_applications_entries.get(&x.app_id) {
+                                    Some(&app) => {
+                                        acc.push(Arc::new(app.clone()));
+
+                                        acc
+                                    }
+                                    None => acc,
+                                }
+                            })
+                        }
+                        None => Vec::new(),
+                    }
                 } else {
                     self.available_applications = self
                         .all_applications
@@ -600,7 +669,12 @@ impl cosmic::Application for Window {
                     AppListPosition::Right => 0,
                 }] = categories_container.into();
 
-                let mut menu_layout_vec: [Element<Message>; 4] = [text("").into(), text("").into(), text("").into(), text("").into()];
+                let mut menu_layout_vec: [Element<Message>; 4] = [
+                    text("").into(),
+                    text("").into(),
+                    text("").into(),
+                    text("").into(),
+                ];
                 menu_layout_vec[match self.power_menu_position {
                     PowerOptionsPosition::Top => 0,
                     PowerOptionsPosition::Bottom => 3,
@@ -627,8 +701,9 @@ impl cosmic::Application for Window {
                     },
                 }] = cosmic::widget::row::with_children(dual_pane_vec.into_iter().collect()).into();
 
-                let menu_layout = cosmic::widget::column::with_children(menu_layout_vec.into_iter().collect())
-                    .padding([space_xxs, space_s]);
+                let menu_layout =
+                    cosmic::widget::column::with_children(menu_layout_vec.into_iter().collect())
+                        .padding([space_xxs, space_s]);
 
                 return self
                     .core

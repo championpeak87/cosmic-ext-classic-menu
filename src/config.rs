@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::fmt::{Display, self};
 
-use cosmic::cosmic_config::{Config, ConfigGet, ConfigSet};
+use cosmic::cosmic_config::{Config, ConfigGet, ConfigSet, cosmic_config_derive::CosmicConfigEntry};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub fn update_config<T>(config: Config, key: &str, value: T)
@@ -47,6 +47,7 @@ where
 pub const POWER_OPTIONS_POSITION: &str = "power_options_position";
 pub const APP_LIST_POSITION: &str = "app_list_position";
 pub const SEARCH_FIELD_POSITION: &str = "search_field_position";
+pub const RECENT_APPLICATIONS: &str = "recent_applications";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum PowerOptionsPosition {
@@ -90,5 +91,30 @@ impl Display for SearchFieldPosition {
             SearchFieldPosition::Top => write!(f, "Top"),
             SearchFieldPosition::Bottom => write!(f, "Bottom"),
         }
+    }
+}
+
+#[derive(Debug, Serialize, Default, Clone, Deserialize)]
+pub struct RecentApplicationConfig {
+    pub recent_applications: Vec<RecentApplication>
+}
+
+impl Display for RecentApplicationConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let json = serde_json::to_string(self).map_err(|_| fmt::Error)?;
+        write!(f, "{}", json)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RecentApplication {
+    pub app_id: String,
+    pub launch_count: u32
+}
+
+impl Display for RecentApplication {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).map_err(|_| fmt::Error)?;
+        write!(f, "{}", json)
     }
 }
