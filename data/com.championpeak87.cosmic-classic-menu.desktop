@@ -1,7 +1,8 @@
 [Desktop Entry]
 Name=COSMIC Classic Menu
+Icon=com.championpeak87.cosmic-classic-menu
 Type=Application
-Exec=gui-scale-applet
+Exec=/usr/bin/cosmic-classic-menu
 Terminal=false
 Categories=COSMIC;
 Keywords=COSMIC;Iced;
