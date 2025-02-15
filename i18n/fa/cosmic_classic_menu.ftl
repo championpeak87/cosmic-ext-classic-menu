@@ -16,9 +16,9 @@ system=سیستم
 utility=ابزارها
 
 # منوی زمینه
-system-monitor=مانیتور سیستم
-system-config=پیکربندی سیستم
-disks=دیسک‌ها
+system-monitor-label=مانیتور سیستم
+settings-label=پیکربندی سیستم
+disks-label=دیسک‌ها
 
 # منوی اصلی
 search-placeholder=برای جستجوی برنامه‌ها تایپ کنید

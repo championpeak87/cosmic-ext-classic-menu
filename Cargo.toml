@@ -22,6 +22,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing-log = "0.2.0"
 serde_json = "1.0"
+fuzzy-matcher = "0.3.7"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"

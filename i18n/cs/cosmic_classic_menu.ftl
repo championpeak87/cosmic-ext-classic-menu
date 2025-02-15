@@ -14,9 +14,9 @@ system=System
 utility=Utility
 
 # kontextové menu
-system-monitor=Monitor systému
-system-config=Konfigurace systému
-disks=Disky
+system-monitor-label=Monitor systému
+settings-label=Konfigurace systému
+disks-label=Disky
 
 # hlavní menu
 search-placeholder=Hledejte aplikace

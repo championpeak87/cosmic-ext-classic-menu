@@ -1,6 +1,6 @@
 use std::fmt::{Display, self};
 
-use cosmic::cosmic_config::{Config, ConfigGet, ConfigSet, cosmic_config_derive::CosmicConfigEntry};
+use cosmic::cosmic_config::{Config, ConfigGet, ConfigSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub fn update_config<T>(config: Config, key: &str, value: T)
@@ -40,6 +40,21 @@ where
         Err(_e) => {
             update_config(config, key, "");
             (None, "Created config for key".to_owned())
+        }
+    }
+}
+
+pub fn load_or_default_config<T>(config: Config, key: &str, config_vers: u64, default: T) -> T
+where
+    T: DeserializeOwned + Clone + Serialize + Display,
+{
+    let config_get = load_config::<T>(key, config_vers).0;
+
+    match config_get {
+        Some(value) => value,
+        None => {
+            update_config(config, key, default.clone());
+            default
         }
     }
 }

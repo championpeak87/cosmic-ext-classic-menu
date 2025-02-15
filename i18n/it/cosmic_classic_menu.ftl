@@ -16,9 +16,9 @@ system=Sistema
 utility=Utilità
 
 # menu contestuale
-system-monitor=Monitor del sistema
-system-config=Configurazione del sistema
-disks=Dischi
+system-monitor-label=Monitor del sistema
+settings-label=Configurazione del sistema
+disks-label=Dischi
 
 # menu principale
 search-placeholder=Digita per cercare app

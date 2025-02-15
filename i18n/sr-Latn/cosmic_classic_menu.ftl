@@ -16,9 +16,9 @@ system=Sistem
 utility=Alatke
 
 # kontekst meni
-system-monitor=Sistemski monitor
-system-config=Sistemska konfiguracija
-disks=Diskovi
+system-monitor-label=Sistemski monitor
+settings-label=Sistemska konfiguracija
+disks-label=Diskovi
 
 # glavni meni
 search-placeholder=Kucajte za pretragu aplikacija

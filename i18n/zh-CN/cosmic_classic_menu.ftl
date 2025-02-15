@@ -16,9 +16,9 @@ system=系统
 utility=工具
 
 # 上下文菜单
-system-monitor=系统监视器
-system-config=系统配置
-disks=磁盘
+system-monitor-label=系统监视器
+settings-label=系统配置
+disks-label=磁盘
 
 # 主菜单
 search-placeholder=输入以搜索应用

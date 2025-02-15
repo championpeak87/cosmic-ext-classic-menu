@@ -16,9 +16,9 @@ system=सिस्टम
 utility=उपयोगिता
 
 # संदर्भ मेनू
-system-monitor=सिस्टम मॉनिटर
-system-config=सिस्टम कॉन्फ़िगरेशन
-disks=डिस्क
+system-monitor-label=सिस्टम मॉनिटर
+settings-label=सिस्टम कॉन्फ़िगरेशन
+disks-label=डिस्क
 
 # मुख्य मेनू
 search-placeholder=एप्लिकेशन खोजने के लिए टाइप करें

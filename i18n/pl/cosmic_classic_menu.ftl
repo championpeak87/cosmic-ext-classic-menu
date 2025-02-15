@@ -16,9 +16,9 @@ system=System
 utility=Narzędzia
 
 # menu kontekstowe
-system-monitor=Monitor systemu
-system-config=Konfiguracja systemu
-disks=Dyski
+system-monitor-label=Monitor systemu
+settings-label=Konfiguracja systemu
+disks-label=Dyski
 
 # menu główne
 search-placeholder=Wpisz, aby wyszukać aplikacje

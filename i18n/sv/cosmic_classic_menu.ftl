@@ -16,9 +16,9 @@ system=System
 utility=Verktyg
 
 # sammanhangsmeny
-system-monitor=Systemövervakare
-system-config=Systemkonfiguration
-disks=Diskar
+system-monitor-label=Systemövervakare
+settings-label=Systemkonfiguration
+disks-label=Diskar
 
 # huvudmeny
 search-placeholder=Skriv för att söka appar

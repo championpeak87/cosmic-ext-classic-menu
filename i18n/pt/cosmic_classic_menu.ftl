@@ -16,9 +16,9 @@ system=Sistema
 utility=Utilitário
 
 # menu de contexto
-system-monitor=Monitor de sistema
-system-config=Configuração do sistema
-disks=Discos
+system-monitor-label=Monitor de sistema
+settings-label=Configuração do sistema
+disks-label=Discos
 
 # menu principal
 search-placeholder=Digite para procurar apps

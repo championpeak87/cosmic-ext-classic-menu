@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::{sync::Arc, string::String};
 use crate::fl;
 
 use cosmic::desktop::DesktopEntryData;
+use freedesktop_desktop_entry::DesktopEntry;
 
 pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
     let locale = current_locale::current_locale().ok();
@@ -27,6 +28,19 @@ pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
     all_entries
 }
 
+pub fn get_comment(app: &Arc<DesktopEntryData>) -> Option<String> {
+    if let Some(path) = &app.path {
+        let locale = current_locale::current_locale().ok();
+        let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
+
+        if let Ok(entry) = desktop_entry {
+            return Some(entry.comment(locale.as_slice()).unwrap_or_default().into_owned());
+        }
+    }
+
+    None
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ApplicationCategory {
     All,
@@ -45,7 +59,7 @@ pub enum ApplicationCategory {
 }
 
 impl ApplicationCategory {
-    pub fn get_name(self) -> String {
+    pub fn get_display_name(self) -> String {
         match self {
             ApplicationCategory::All => fl!("all-applications"),
             ApplicationCategory::RecentlyUsed => fl!("recently-used"),
@@ -97,24 +111,5 @@ impl ApplicationCategory {
             ApplicationCategory::System => "System",
             ApplicationCategory::Utility => "Utility",
         }
-    }
-
-    pub fn into_iter() -> core::array::IntoIter<ApplicationCategory, 13> {
-        [
-            ApplicationCategory::All,
-            ApplicationCategory::RecentlyUsed,
-            ApplicationCategory::Audio,
-            ApplicationCategory::Video,
-            ApplicationCategory::Development,
-            ApplicationCategory::Games,
-            ApplicationCategory::Graphics,
-            ApplicationCategory::Network,
-            ApplicationCategory::Office,
-            ApplicationCategory::Science,
-            ApplicationCategory::Settings,
-            ApplicationCategory::System,
-            ApplicationCategory::Utility,
-        ]
-        .into_iter()
     }
 }

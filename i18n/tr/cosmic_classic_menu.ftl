@@ -16,9 +16,9 @@ system=Sistem
 utility=Yardımcı Programlar
 
 # bağlam menüsü
-system-monitor=Sistem monitörü
-system-config=Sistem yapılandırması
-disks=Diskler
+system-monitor-label=Sistem monitörü
+settings-label=Sistem yapılandırması
+disks-label=Diskler
 
 # ana menü
 search-placeholder=Uygulama aramak için yazın

@@ -16,9 +16,9 @@ system=Систем
 utility=Алатке
 
 # контекстни мени
-system-monitor=Системски монитор
-system-config=Конфигурација система
-disks=Дискови
+system-monitor-label=Системски монитор
+settings-label=Конфигурација система
+disks-label=Дискови
 
 # главни мени
 search-placeholder=Куцајте за претрагу апликација

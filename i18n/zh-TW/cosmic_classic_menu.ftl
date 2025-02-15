@@ -16,9 +16,9 @@ system=系統
 utility=工具
 
 # 右鍵選單
-system-monitor=系統監視器
-system-config=系統配置
-disks=磁碟
+system-monitor-label=系統監視器
+settings-label=系統配置
+disks-label=磁碟
 
 # 主選單
 search-placeholder=輸入以搜尋應用程式

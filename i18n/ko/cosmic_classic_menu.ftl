@@ -16,9 +16,9 @@ system=시스템
 utility=유틸리티
 
 # 컨텍스트 메뉴
-system-monitor=시스템 모니터
-system-config=시스템 구성
-disks=디스크
+system-monitor-label=시스템 모니터
+settings-label=시스템 구성
+disks-label=디스크
 
 # 메인 메뉴
 search-placeholder=앱 검색을 입력하십시오

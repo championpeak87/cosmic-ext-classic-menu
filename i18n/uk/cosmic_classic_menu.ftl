@@ -16,9 +16,9 @@ system=Система
 utility=Утиліти
 
 # контекстне меню
-system-monitor=Монітор системи
-system-config=Конфігурація системи
-disks=Диски
+system-monitor-label=Монітор системи
+settings-label=Конфігурація системи
+disks-label=Диски
 
 # головне меню
 search-placeholder=Введіть для пошуку програм

@@ -16,9 +16,9 @@ system=نظام
 utility=أدوات مساعدة
 
 # قائمة السياق
-system-monitor=مراقب النظام
-system-config=تكوين النظام
-disks=أقراص
+system-monitor-label=مراقب النظام
+settings-label=تكوين النظام
+disks-label=أقراص
 
 # القائمة الرئيسية
 search-placeholder=اكتب للبحث عن التطبيقات

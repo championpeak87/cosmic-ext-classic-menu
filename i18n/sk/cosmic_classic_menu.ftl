@@ -16,9 +16,9 @@ system = Systém
 utility = Utility
 
 # context menu
-system-monitor = Monitor systému
-system-config = Nastavenia systému
-disks = Disky
+system-monitor-label = Monitor systému
+settings-label = Nastavenia systému
+disks-label = Disky
 
 # main menu
 search-placeholder = Vyhľadávanie aplikácií

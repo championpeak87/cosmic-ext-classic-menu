@@ -16,9 +16,9 @@ system=ಸಿಸ್ಟಮ್
 utility=ಉಪಕರಣಗಳು
 
 # ಹೊತ್ತಿಗೆ ಮೆನು
-system-monitor=ಸಿಸ್ಟಮ್ ಮಾನಿಟರ್
-system-config=ಸಿಸ್ಟಮ್ ಕಾನ್ಫಿಗರೇಶನ್
-disks=ಡಿಸ್ಕ್‌ಗಳು
+system-monitor-label=ಸಿಸ್ಟಮ್ ಮಾನಿಟರ್
+settings-label=ಸಿಸ್ಟಮ್ ಕಾನ್ಫಿಗರೇಶನ್
+disks-label=ಡಿಸ್ಕ್‌ಗಳು
 
 # ಮುಖ್ಯ ಮೆನು
 search-placeholder=ಅಪ್ಲಿಕೇಶನ್‌ಗಳನ್ನು ಹುಡುಕಲು ಟೈಪ್ ಮಾಡಿ

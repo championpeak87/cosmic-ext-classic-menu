@@ -16,9 +16,9 @@ system=Rendszer
 utility=Segédeszközök
 
 # kontextus menü
-system-monitor=Rendszerfigyelő
-system-config=Rendszerkonfiguráció
-disks=Meghajtók
+system-monitor-label=Rendszerfigyelő
+settings-label=Rendszerkonfiguráció
+disks-label=Meghajtók
 
 # főmenü
 search-placeholder=Gépeljen az alkalmazások kereséséhez

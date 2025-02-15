@@ -16,9 +16,9 @@ system=System
 utility=Hilfsprogramme
 
 # Kontextmenü
-system-monitor=Systemmonitor
-system-config=Systemkonfiguration
-disks=Festplatten
+system-monitor-label=Systemmonitor
+settings-label=Systemkonfiguration
+disks-label=Festplatten
 
 # Hauptmenü
 search-placeholder=App-Suche eingeben
