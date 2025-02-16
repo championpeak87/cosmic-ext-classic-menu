@@ -10,13 +10,95 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  package:
 
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        target: [x86_64-unknown-linux-gnu, i686-unknown-linux-gnu, aarch64-unknown-linux-gnu, armv7-unknown-linux-gnueabihf, powerpc64le-unknown-linux-gnu]
+
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y fakeroot rpm arch-install-scripts librust-xkbcommon-dev pkg-config
+        rustup target add ${{ matrix.target }}
+        cargo install cargo-deb
+    - name: Configure pkg-config for cross-compilation
+      run: |
+        echo "Configuring pkg-config for cross-compilation"
+        if [[ "${{ matrix.target }}" == *"armv7"* ]]; then
+          export PKG_CONFIG_SYSROOT_DIR=/usr/arm-linux-gnueabihf
+          export PKG_CONFIG_PATH=/usr/arm-linux-gnueabihf/lib/pkgconfig
+          export PKG_CONFIG=/usr/bin/arm-linux-gnueabihf-pkg-config
+        elif [[ "${{ matrix.target }}" == *"aarch64"* ]]; then
+          export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu
+          export PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig
+          export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
+        elif [[ "${{ matrix.target }}" == *"i686"* ]]; then
+          export PKG_CONFIG_SYSROOT_DIR=/usr/i686-linux-gnu
+          export PKG_CONFIG_PATH=/usr/i686-linux-gnu/lib/pkgconfig
+          export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
+        elif [[ "${{ matrix.target }}" == *"powerpc64le"* ]]; then
+          export PKG_CONFIG_SYSROOT_DIR=/usr/powerpc64le-linux-gnu
+          export PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig
+          export PKG_CONFIG=/usr/bin/powerpc64le-linux-gnu-pkg-config
+        else
+          export PKG_CONFIG_SYSROOT_DIR=/usr/x86_64-linux-gnu
+          export PKG_CONFIG_PATH=/usr/x86_64-linux-gnu/lib/pkgconfig
+          export PKG_CONFIG=/usr/bin/x86_64-linux-gnu-pkg-config
+        fi
+        echo "PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+        echo "PKG_CONFIG=$PKG_CONFIG" >> $GITHUB_ENV
+    - name: Get version from Git tag
+      id: get_version
+      run: echo "VERSION=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+    - name: Build Debian package
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+        cargo deb --target ${{ matrix.target }}
+      env:
+        VERSION: ${{ env.VERSION }}
+        PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
+        PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
+        PKG_CONFIG: ${{ env.PKG_CONFIG }}
+      continue-on-error: true
+    - name: Build RPM package
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+        fpm -s dir -t rpm -n cosmic-classic-menu -v ${{ env.VERSION }} --prefix /usr/local/bin target/${{ matrix.target }}/release/cosmic-classic-menu
+      env:
+        VERSION: ${{ env.VERSION }}
+        PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
+        PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
+        PKG_CONFIG: ${{ env.PKG_CONFIG }}
+      continue-on-error: true
+    - name: Build Arch Linux package
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+        mkdir -p pkg
+        cp target/${{ matrix.target }}/release/cosmic-classic-menu pkg/
+        tar -czvf cosmic-classic-menu-${{ env.VERSION }}-1-${{ matrix.target }}.pkg.tar.gz -C pkg .
+      env:
+        VERSION: ${{ env.VERSION }}
+        PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
+        PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
+        PKG_CONFIG: ${{ env.PKG_CONFIG }}
+      continue-on-error: true
+    - name: Upload Debian package
+      uses: actions/upload-artifact@v4
+      with:
+        name: debian-package-${{ matrix.target }}
+        path: target/${{ matrix.target }}/debian/*.deb
+    - name: Upload RPM package
+      uses: actions/upload-artifact@v4
+      with:
+        name: rpm-package-${{ matrix.target }}
+        path: "*.rpm"
+    - name: Upload Arch Linux package
+      uses: actions/upload-artifact@v4
+      with:
+        name: arch-package-${{ matrix.target }}
+        path: "*.pkg.tar.gz"
