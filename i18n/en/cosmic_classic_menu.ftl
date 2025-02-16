@@ -1,26 +1,26 @@
-# kategorie
-all-applications=Všechny aplikace
-recently-used=Nedávno použité
+# categories
+all-applications=All applications
+recently-used=Recently used
 audio=Audio
 video=Video
-development=Vývoj
-games=Hry
-graphics=Grafika
-network=Síť
-office=Kancelář
-science=Věda
-settings=Nastavení
+development=Development
+games=Games
+graphics=Graphics
+network=Network
+office=Office
+science=Science
+settings=Settings
 system=System
 utility=Utility
 
-# kontextové menu
-system-monitor-label=Monitor systému
-settings-label=Konfigurace systému
-disks-label=Disky
+# context menu
+system-monitor-label=System Monitor
+settings-label=System Settings
+disks-label=Disks
 
-# hlavní menu
-search-placeholder=Hledejte aplikace
-no-apps=Nebyly nalezeny žádné aplikace
+# main menu
+search-placeholder=Search apps
+no-apps=No applications found
 
-# tlačítko appletu
+# applet button
 menu-label=Menu
