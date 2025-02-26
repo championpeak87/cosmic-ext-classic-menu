@@ -1,6 +1,8 @@
-# Cosmic Classic Menu
+# COSMIC Classic Menu
 
 Cosmic Classic Menu is a customizable application launcher for the Cosmic desktop environment. It provides a classic-style menu for launching applications, accessing system tools, and managing power options.
+
+![COSMIC Classic Menu Screenshot](cosmic-classic-menu.png)
 
 ## Features
 
@@ -13,7 +15,7 @@ Cosmic Classic Menu is a customizable application launcher for the Cosmic deskto
 
 ## Installation
 
-To install Cosmic Classic Menu, follow these steps:
+To install COSMIC Classic Menu, follow these steps:
 
 1. Clone the repository:
     ```sh
@@ -33,7 +35,7 @@ To install Cosmic Classic Menu, follow these steps:
 
 ## Usage
 
-To launch the Cosmic Classic Menu, run the following command:
+To launch the COSMIC Classic Menu, run the following command:
 ```sh
 cosmic-classic-menu
 
