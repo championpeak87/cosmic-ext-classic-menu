@@ -444,9 +444,32 @@ impl Window {
                 .width(Length::Shrink)
                 .padding(5);
 
-        let dual_pane = row![app_list, vertical_spacer, categories_pane].padding([space_xxs, 0]);
-        let menu_layout =
-            column![power_menu, search_field, dual_pane].padding([space_xxs, space_s]);
+        let dual_pane = match self.app_menu_position {
+            AppListPosition::Left => {
+                row![app_list, vertical_spacer, categories_pane].padding([space_xxs, 0])
+            }
+            AppListPosition::Right => {
+                row![categories_pane, vertical_spacer, app_list].padding([space_xxs, 0])
+            }
+        };
+        let menu_layout = match self.power_menu_position {
+            PowerOptionsPosition::Top => match self.search_field_position {
+                SearchFieldPosition::Top => {
+                    column![search_field, dual_pane, power_menu].padding([space_xxs, space_s])
+                }
+                SearchFieldPosition::Bottom => {
+                    column![dual_pane, search_field, power_menu].padding([space_xxs, space_s])
+                }
+            },
+            PowerOptionsPosition::Bottom => match self.search_field_position {
+                SearchFieldPosition::Top => {
+                    column![search_field, dual_pane, power_menu].padding([space_xxs, space_s])
+                }
+                SearchFieldPosition::Bottom => {
+                    column![dual_pane, search_field, power_menu].padding([space_xxs, space_s])
+                }
+            },
+        };
 
         self.core
             .applet
@@ -526,7 +549,7 @@ impl Window {
     fn create_app_list(&self) -> Element<Message> {
         let Spacing {
             space_xl,
-            
+
             space_xxl,
             space_s,
             ..

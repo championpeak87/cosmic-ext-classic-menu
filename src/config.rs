@@ -64,7 +64,7 @@ pub const APP_LIST_POSITION: &str = "app_list_position";
 pub const SEARCH_FIELD_POSITION: &str = "search_field_position";
 pub const RECENT_APPLICATIONS: &str = "recent_applications";
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum PowerOptionsPosition {
     Top,
     Bottom,
@@ -79,7 +79,7 @@ impl Display for PowerOptionsPosition {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum AppListPosition {
     Left,
     Right,
@@ -94,7 +94,7 @@ impl Display for AppListPosition {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum SearchFieldPosition {
     Top,
     Bottom,
