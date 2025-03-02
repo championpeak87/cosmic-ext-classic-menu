@@ -42,7 +42,6 @@ pub struct Window {
     popup: Option<Id>,
     search_field: String,
     available_applications: Vec<Arc<DesktopEntryData>>,
-    all_applications: Vec<Arc<DesktopEntryData>>,
     popup_type: PopupType,
     selected_category: Option<ApplicationCategory>,
     power_menu_position: PowerOptionsPosition,
@@ -135,15 +134,13 @@ impl cosmic::Application for Window {
     }
 
     fn init(core: Core, _flags: Self::Flags) -> (Window, Task<cosmic::app::Message<Message>>) {
-        let all_apps = load_apps();
         let config = Config::new(ID, CONFIG_VERS).unwrap();
 
         let window = Window {
             core,
             popup: None,
             search_field: String::new(),
-            available_applications: all_apps.clone(),
-            all_applications: all_apps,
+            available_applications: load_apps(),
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::All),
             power_menu_position: load_or_default_config::<PowerOptionsPosition>(
@@ -220,6 +217,10 @@ impl cosmic::Application for Window {
 impl Window {
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<cosmic::app::Message<Message>> {
         self.popup_type = popup_type;
+        if self.popup_type == PopupType::MainMenu {
+            self.available_applications = load_apps();
+        } 
+          
         if let Some(p) = self.popup.take() {
             destroy_popup(p)
         } else {
@@ -247,7 +248,7 @@ impl Window {
     fn close_popup(&mut self, id: Id) -> Task<cosmic::app::Message<Message>> {
         self.search_field.clear();
         self.selected_category = Some(ApplicationCategory::All);
-        self.available_applications = self.all_applications.clone();
+        self.available_applications = Vec::new();
 
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
@@ -261,11 +262,10 @@ impl Window {
         let matcher = SkimMatcherV2::default();
 
         if input.is_empty() {
-            self.available_applications = self.all_applications.clone();
+            self.available_applications = load_apps();
             self.selected_category = Some(ApplicationCategory::All);
         } else {
-            self.available_applications = self
-                .all_applications
+            self.available_applications = load_apps()
                 .iter()
                 .filter(|app| matcher.fuzzy_match(&app.name, input).is_some())
                 .cloned()
@@ -366,12 +366,11 @@ impl Window {
         self.selected_category = Some(category.clone());
 
         if category == ApplicationCategory::All {
-            self.available_applications = self.all_applications.clone();
+            self.available_applications = load_apps();
         } else if category == ApplicationCategory::RecentlyUsed {
             self.available_applications = self.get_recent_applications();
         } else {
-            self.available_applications = self
-                .all_applications
+            self.available_applications = load_apps()
                 .iter()
                 .filter(|app| {
                     app.categories
@@ -385,8 +384,8 @@ impl Window {
     }
 
     fn get_recent_applications(&self) -> Vec<Arc<DesktopEntryData>> {
-        let all_applications_entries: HashMap<String, &Arc<DesktopEntryData>> = self
-            .all_applications
+        let all_apps = load_apps();
+        let all_applications_entries: HashMap<String, &Arc<DesktopEntryData>> = all_apps
             .iter()
             .map(|app| (app.id.clone(), app))
             .collect();
