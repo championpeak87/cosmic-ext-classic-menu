@@ -1,5 +1,5 @@
 Name:           cosmic-classic-menu
-Version:        0.0.1
+Version:        0.0.2
 Release:        1%{?dist}
 Summary:        COSMIC Classic Menu Application
 
@@ -35,5 +35,8 @@ install -Dm0644 data/icons/com.championpeak87.cosmic-classic-menu.svg %{buildroo
 %{_datadir}/icons/hicolor/scalable/apps/com.championpeak87.cosmic-classic-menu.svg
 
 %changelog
+* Sun Mar 09 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.2-1
+- Initial package of COSMIC Classic Menu applet
+
 * Wed Feb 19 2025 Kamil Lihan <k.lihan@outlook.com> - 0.0.1
 - Initial package
