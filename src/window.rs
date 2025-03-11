@@ -599,7 +599,7 @@ impl Window {
                 .class(if self.selected_category == Some(category.clone()) {
                     cosmic::theme::Button::Suggested
                 } else {
-                    cosmic::theme::Button::MenuItem
+                    cosmic::theme::Button::AppletMenu
                 })
                 .width(Length::Fill)
                 .into()
