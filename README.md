@@ -36,10 +36,13 @@ To install COSMIC Classic Menu, follow these steps:
 ### Fedora 
 
 A Fedora COPR repository is available
-    ```sh
-    dnf copr enable championpeak87/cosmic-classic-menu
-    dnf install cosmic-classic-menu
-    ```
+
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-classic-menu/package/cosmic-classic-menu/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-classic-menu/package/cosmic-classic-menu/)
+
+```sh
+dnf copr enable championpeak87/cosmic-classic-menu
+dnf install cosmic-classic-menu
+```
 
 ### Debian / Ubuntu
 
