@@ -20,9 +20,10 @@ use std::sync::Arc;
 use std::{env, process};
 
 use crate::config::{
-    load_config, load_or_default_config, update_config, AppListPosition, PowerOptionsPosition,
-    RecentApplication, RecentApplicationConfig, SearchFieldPosition, APP_LIST_POSITION,
-    POWER_OPTIONS_POSITION, RECENT_APPLICATIONS, SEARCH_FIELD_POSITION,
+    load_config, load_or_default_config, update_config, AppListView, HorizontalPosition,
+    RecentApplication, RecentApplicationConfig, VerticalPosition, APP_LIST_POSITION, APP_LIST_VIEW,
+    DEFAULT_VIEW, POWER_OPTIONS_ALIGNMENT, POWER_OPTIONS_POSITION, RECENT_APPLICATIONS,
+    SEARCH_FIELD_POSITION, SEARCH_POWER_ONELINE,
 };
 use crate::fl;
 use crate::logic::{get_comment, load_apps, ApplicationCategory};
@@ -45,9 +46,72 @@ pub struct Window {
     all_applications: Vec<Arc<DesktopEntryData>>,
     popup_type: PopupType,
     selected_category: Option<ApplicationCategory>,
-    power_menu_position: PowerOptionsPosition,
-    app_menu_position: AppListPosition,
-    search_field_position: SearchFieldPosition,
+    power_menu_position: VerticalPosition,
+    app_menu_position: HorizontalPosition,
+    search_field_position: VerticalPosition,
+    search_power_oneline: bool,
+    power_options_alignment: HorizontalPosition,
+    app_list_view: AppListView,
+}
+
+impl Default for Window {
+    fn default() -> Self {
+        let all_apps = load_apps();
+        let config = Config::new(ID, CONFIG_VERS).unwrap();
+        let default_view: ApplicationCategory = load_or_default_config::<ApplicationCategory>(
+            config.clone(),
+            DEFAULT_VIEW,
+            CONFIG_VERS,
+            ApplicationCategory::All,
+        );
+
+        Self {
+            core: Core::default(),
+            popup: None,
+            search_field: String::new(),
+            available_applications: all_apps.clone(),
+            all_applications: all_apps,
+            popup_type: PopupType::MainMenu,
+            selected_category: Some(default_view),
+            power_menu_position: load_or_default_config::<VerticalPosition>(
+                config.clone(),
+                POWER_OPTIONS_POSITION,
+                CONFIG_VERS,
+                VerticalPosition::Top,
+            ),
+            app_menu_position: load_or_default_config::<HorizontalPosition>(
+                config.clone(),
+                APP_LIST_POSITION,
+                CONFIG_VERS,
+                HorizontalPosition::Left,
+            ),
+            search_field_position: load_or_default_config::<VerticalPosition>(
+                config.clone(),
+                SEARCH_FIELD_POSITION,
+                CONFIG_VERS,
+                VerticalPosition::Top,
+            ),
+            search_power_oneline: load_or_default_config::<bool>(
+                config.clone(),
+                SEARCH_POWER_ONELINE,
+                CONFIG_VERS,
+                false,
+            ),
+            power_options_alignment: load_or_default_config::<HorizontalPosition>(
+                config.clone(),
+                POWER_OPTIONS_ALIGNMENT,
+                CONFIG_VERS,
+                HorizontalPosition::Right,
+            ),
+            app_list_view: load_or_default_config::<AppListView>(
+                config.clone(),
+                APP_LIST_VIEW,
+                CONFIG_VERS,
+                AppListView::List,
+            ),
+            config,
+        }
+    }
 }
 
 /// Messages to be sent to the Libcosmic Update function
@@ -135,36 +199,9 @@ impl cosmic::Application for Window {
     }
 
     fn init(core: Core, _flags: Self::Flags) -> (Window, Task<cosmic::app::Message<Message>>) {
-        let all_apps = load_apps();
-        let config = Config::new(ID, CONFIG_VERS).unwrap();
-
         let window = Window {
             core,
-            popup: None,
-            search_field: String::new(),
-            available_applications: all_apps.clone(),
-            all_applications: all_apps,
-            popup_type: PopupType::MainMenu,
-            selected_category: Some(ApplicationCategory::All),
-            power_menu_position: load_or_default_config::<PowerOptionsPosition>(
-                config.clone(),
-                POWER_OPTIONS_POSITION,
-                CONFIG_VERS,
-                PowerOptionsPosition::Top,
-            ),
-            app_menu_position: load_or_default_config::<AppListPosition>(
-                config.clone(),
-                APP_LIST_POSITION,
-                CONFIG_VERS,
-                AppListPosition::Left,
-            ),
-            search_field_position: load_or_default_config::<SearchFieldPosition>(
-                config.clone(),
-                SEARCH_FIELD_POSITION,
-                CONFIG_VERS,
-                SearchFieldPosition::Top,
-            ),
-            config,
+            ..Default::default()
         };
 
         (window, Task::none())
@@ -176,7 +213,11 @@ impl cosmic::Application for Window {
 
     fn update(&mut self, message: Self::Message) -> Task<cosmic::app::Message<Self::Message>> {
         match message {
-            Message::TogglePopup(popup_type) => self.toggle_popup(popup_type),
+            Message::TogglePopup(popup_type) => {
+                // update config
+                self.update_config();
+                self.toggle_popup(popup_type)
+            },
             Message::PopupClosed(id) => self.close_popup(id),
             Message::SearchFieldInput(input) => self.update_search_field(&input),
             Message::PowerOptionSelected(action) => self.perform_power_action(action),
@@ -254,6 +295,45 @@ impl Window {
         }
 
         Task::none()
+    }
+
+    fn update_config(&mut self) {
+        self.power_menu_position = load_or_default_config::<VerticalPosition>(
+            self.config.clone(),
+            POWER_OPTIONS_POSITION,
+            CONFIG_VERS,
+            VerticalPosition::Top,
+        );
+        self.app_menu_position = load_or_default_config::<HorizontalPosition>(
+            self.config.clone(),
+            APP_LIST_POSITION,
+            CONFIG_VERS,
+            HorizontalPosition::Left,
+        );
+        self.search_field_position = load_or_default_config::<VerticalPosition>(
+            self.config.clone(),
+            SEARCH_FIELD_POSITION,
+            CONFIG_VERS,
+            VerticalPosition::Top,
+        );
+        self.search_power_oneline = load_or_default_config::<bool>(
+            self.config.clone(),
+            SEARCH_POWER_ONELINE,
+            CONFIG_VERS,
+            false,
+        );
+        self.power_options_alignment = load_or_default_config::<HorizontalPosition>(
+            self.config.clone(),
+            POWER_OPTIONS_ALIGNMENT,
+            CONFIG_VERS,
+            HorizontalPosition::Right,
+        );
+        self.app_list_view = load_or_default_config::<AppListView>(
+            self.config.clone(),
+            APP_LIST_VIEW,
+            CONFIG_VERS,
+            AppListView::List,
+        );
     }
 
     fn update_search_field(&mut self, input: &str) -> Task<cosmic::app::Message<Message>> {
@@ -429,6 +509,14 @@ impl Window {
     }
 
     fn view_main_menu(&self) -> Element<Message> {
+        match self.app_list_view {
+            AppListView::List => self.view_main_menu_list(),
+            // TODO: Implement grid view
+            // AppListView::Grid => self.view_main_menu_grid(),
+        }
+    }
+
+    fn view_main_menu_list(&self) -> Element<Message> {
         let Spacing {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
@@ -445,31 +533,38 @@ impl Window {
                 .padding(5);
 
         let dual_pane = match self.app_menu_position {
-            AppListPosition::Left => {
+            HorizontalPosition::Left => {
                 row![app_list, vertical_spacer, categories_pane].padding([space_xxs, 0])
             }
-            AppListPosition::Right => {
+            HorizontalPosition::Right => {
                 row![categories_pane, vertical_spacer, app_list].padding([space_xxs, 0])
             }
         };
-        let menu_layout = match self.power_menu_position {
-            PowerOptionsPosition::Top => match self.search_field_position {
-                SearchFieldPosition::Top => {
-                    column![search_field, dual_pane, power_menu].padding([space_xxs, space_s])
-                }
-                SearchFieldPosition::Bottom => {
-                    column![dual_pane, search_field, power_menu].padding([space_xxs, space_s])
-                }
-            },
-            PowerOptionsPosition::Bottom => match self.search_field_position {
-                SearchFieldPosition::Top => {
-                    column![search_field, dual_pane, power_menu].padding([space_xxs, space_s])
-                }
-                SearchFieldPosition::Bottom => {
-                    column![dual_pane, search_field, power_menu].padding([space_xxs, space_s])
-                }
-            },
-        };
+        let menu_layout =
+            match self.power_menu_position {
+                VerticalPosition::Top => match self.search_field_position {
+                    VerticalPosition::Top => match self.search_power_oneline {
+                        true => column![row![search_field, power_menu], dual_pane]
+                            .padding([space_xxs, space_s]),
+                        false => column![power_menu, search_field, dual_pane]
+                            .padding([space_xxs, space_s]),
+                    },
+                    VerticalPosition::Bottom => {
+                        column![power_menu, dual_pane, search_field].padding([space_xxs, space_s])
+                    }
+                },
+                VerticalPosition::Bottom => match self.search_field_position {
+                    VerticalPosition::Top => {
+                        column![search_field, dual_pane, power_menu].padding([space_xxs, space_s])
+                    }
+                    VerticalPosition::Bottom => match self.search_power_oneline {
+                        true => column![dual_pane, row![search_field, power_menu]]
+                            .padding([space_xxs, space_s]),
+                        false => column![dual_pane, search_field, power_menu]
+                            .padding([space_xxs, space_s]),
+                    },
+                },
+            };
 
         self.core
             .applet
@@ -528,9 +623,15 @@ impl Window {
             .padding([space_xxs, space_s])
             .align_y(Alignment::Center),
         )
-        .width(Length::Fill)
+        .width(match self.search_power_oneline {
+            true => Length::Shrink,
+            false => Length::Fill,
+        })
         .padding([space_xxs, 0])
-        .align_x(Alignment::End)
+        .align_x(match self.power_options_alignment {
+            HorizontalPosition::Left => Alignment::Start,
+            HorizontalPosition::Right => Alignment::End,
+        })
         .into()
     }
 
@@ -542,6 +643,7 @@ impl Window {
         cosmic::widget::search_input(fl!("search-placeholder"), &self.search_field)
             .on_input(Message::SearchFieldInput)
             .always_active()
+            .width(Length::Fill)
             .padding([space_xxs, space_s])
             .into()
     }

@@ -63,48 +63,52 @@ pub const POWER_OPTIONS_POSITION: &str = "power_options_position";
 pub const APP_LIST_POSITION: &str = "app_list_position";
 pub const SEARCH_FIELD_POSITION: &str = "search_field_position";
 pub const RECENT_APPLICATIONS: &str = "recent_applications";
+pub const SEARCH_POWER_ONELINE: &str = "search_power_oneline";
+pub const POWER_OPTIONS_ALIGNMENT: &str = "power_options_alignment";
+pub const APP_LIST_VIEW: &str = "app_list_view";
+pub const DEFAULT_VIEW: &str = "default_view";
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub enum PowerOptionsPosition {
-    Top,
-    Bottom,
-}
-
-impl Display for PowerOptionsPosition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PowerOptionsPosition::Top => write!(f, "Top"),
-            PowerOptionsPosition::Bottom => write!(f, "Bottom"),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub enum AppListPosition {
+pub enum HorizontalPosition {
     Left,
     Right,
 }
 
-impl Display for AppListPosition {
+impl Display for HorizontalPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AppListPosition::Left => write!(f, "Left"),
-            AppListPosition::Right => write!(f, "Right"),
+            HorizontalPosition::Left => write!(f, "Left"),
+            HorizontalPosition::Right => write!(f, "Right"),
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub enum SearchFieldPosition {
+pub enum VerticalPosition {
     Top,
     Bottom,
 }
 
-impl Display for SearchFieldPosition {
+impl Display for VerticalPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SearchFieldPosition::Top => write!(f, "Top"),
-            SearchFieldPosition::Bottom => write!(f, "Bottom"),
+            VerticalPosition::Top => write!(f, "Top"),
+            VerticalPosition::Bottom => write!(f, "Bottom"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub enum AppListView {
+    List,
+    // TODO: Grid to be implemented
+    // Grid
+}
+
+impl Display for AppListView {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppListView::List => write!(f, "List"),
         }
     }
 }
