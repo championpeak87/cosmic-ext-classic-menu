@@ -33,6 +33,18 @@ To install COSMIC Classic Menu, follow these steps:
     cargo install --path .
     ```
 
+### Fedora 
+
+A Fedora COPR repository is available
+    ```sh
+    dnf copr enable championpeak87/cosmic-classic-menu
+    dnf install cosmic-classic-menu
+    ```
+
+### Debian / Ubuntu
+
+Instructions coming soon.
+
 ## Usage
 
 To launch the COSMIC Classic Menu, run the following command:
