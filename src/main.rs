@@ -1,25 +1,20 @@
+// SPDX-License-Identifier: GPL-3.0-only
+
+mod applet;
+mod i18n;
 mod config;
-mod window;
 mod logic;
 mod power_options;
 mod cosmic_session;
 mod session_manager;
-mod localize;
-
-use crate::window::Window;
-
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> cosmic::iced::Result {
-    tracing_subscriber::fmt::init();
-    let _ = tracing_log::LogTracer::init();
+    // Get the system's preferred languages.
+    let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
 
-    tracing::info!("Starting cosmic-classic-menu with version {VERSION}");
-
-    localize::localize();
-
-    cosmic::applet::run::<Window>(())?;
-
-    Ok(())
+    // Enable localizations to be applied.
+    i18n::init(&requested_languages);
+    
+    cosmic::applet::run::<applet::CosmicClassicMenu>(())
 }
+

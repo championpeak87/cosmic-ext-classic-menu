@@ -1,57 +1,60 @@
-use cosmic::app::Core;
-use cosmic::cosmic_config::Config;
+// SPDX-License-Identifier: GPL-3.0-only
+
+use cosmic::app::{Core, Task};
 use cosmic::cosmic_theme::Spacing;
-use cosmic::desktop::DesktopEntryData;
+use cosmic::desktop::{DesktopEntryData, IconSourceExt};
 use cosmic::iced::ContentFit;
 use cosmic::iced::{
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
     widget::{column, row},
     window::Id,
-    Alignment, Length, Limits, Task,
+    Alignment, Length, Limits,
 };
 use cosmic::iced_runtime::core::window;
 use cosmic::widget::container;
 use cosmic::widget::{scrollable, text};
-use cosmic::{theme, Element};
+use cosmic::{theme, Application, Element};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::{env, process};
 
-use crate::config::{
-    load_config, load_or_default_config, update_config, AppListPosition, PowerOptionsPosition,
-    RecentApplication, RecentApplicationConfig, SearchFieldPosition, APP_LIST_POSITION,
-    POWER_OPTIONS_POSITION, RECENT_APPLICATIONS, SEARCH_FIELD_POSITION,
-};
+use crate::config::{Config, RecentApplication};
 use crate::fl;
-use crate::logic::{get_comment, load_apps, ApplicationCategory};
-use crate::power_options::{lock, log_out, restart, shutdown, suspend};
+use crate::logic::ApplicationCategory;
 
-const ID: &str = "com.championpeak87.cosmic-classic-menu";
-const CONFIG_VERS: u64 = 1;
 const POPUP_MAX_WIDTH: f32 = 500.0;
 const POPUP_MIN_WIDTH: f32 = 500.0;
 const POPUP_MAX_HEIGHT: f32 = 650.0;
 const POPUP_MIN_HEIGHT: f32 = 650.0;
 
-/// Holds the applet's state
-pub struct Window {
+/// This is the struct that represents your application.
+/// It is used to define the data that will be used by your application.
+#[derive(Default)]
+pub struct CosmicClassicMenu {
+    /// Application state which is managed by the COSMIC runtime.
     core: Core,
-    config: Config,
+    /// The popup id.
     popup: Option<Id>,
+    /// The configuration that is used to store the application settings.
+    config: Config,
+    /// The search field that is used to filter the applications.
     search_field: String,
+    /// The list of available applications that are displayed in the menu.
     available_applications: Vec<Arc<DesktopEntryData>>,
+    /// The list of all applications that are loaded from the system.
     all_applications: Vec<Arc<DesktopEntryData>>,
+    /// The popup type that is used to determine which popup to display.
     popup_type: PopupType,
+    /// The selected category that is used to filter the applications.
     selected_category: Option<ApplicationCategory>,
-    power_menu_position: PowerOptionsPosition,
-    app_menu_position: AppListPosition,
-    search_field_position: SearchFieldPosition,
 }
 
-/// Messages to be sent to the Libcosmic Update function
-#[derive(Clone, Debug)]
+/// This is the enum that contains all the possible variants that your application will need to transmit messages.
+/// This is used to communicate between the different parts of your application.
+/// If your application does not need to send messages, you can use an empty enum or `()`.
+#[derive(Debug, Clone)]
 pub enum Message {
     TogglePopup(PopupType),
     PopupClosed(Id),
@@ -102,14 +105,22 @@ pub enum PowerAction {
 }
 
 impl PowerAction {
-    fn perform(self) -> cosmic::iced::Task<cosmic::app::Message<Message>> {
-        let msg = |m| cosmic::app::message::app(Message::Zbus(m));
+    fn perform(self) -> cosmic::iced::Task<cosmic::Action<Message>> {
+        let msg = |m| cosmic::Action::App(Message::Zbus(m));
         match self {
-            PowerAction::Lock => cosmic::iced::Task::perform(lock(), msg),
-            PowerAction::Logout => cosmic::iced::Task::perform(log_out(), msg),
-            PowerAction::Reboot => cosmic::iced::Task::perform(restart(), msg),
-            PowerAction::Shutdown => cosmic::iced::Task::perform(shutdown(), msg),
-            PowerAction::Suspend => cosmic::iced::Task::perform(suspend(), msg),
+            PowerAction::Lock => cosmic::iced::Task::perform(crate::power_options::lock(), msg),
+            PowerAction::Logout => {
+                cosmic::iced::Task::perform(crate::power_options::log_out(), msg)
+            }
+            PowerAction::Reboot => {
+                cosmic::iced::Task::perform(crate::power_options::restart(), msg)
+            }
+            PowerAction::Shutdown => {
+                cosmic::iced::Task::perform(crate::power_options::shutdown(), msg)
+            }
+            PowerAction::Suspend => {
+                cosmic::iced::Task::perform(crate::power_options::suspend(), msg)
+            }
         }
     }
 }
@@ -120,11 +131,25 @@ pub enum PopupType {
     ContextMenu,
 }
 
-impl cosmic::Application for Window {
+impl Default for PopupType {
+    fn default() -> Self {
+        PopupType::MainMenu
+    }
+}
+
+/// Implement the `Application` trait for your application.
+/// This is where you define the behavior of your application.
+///
+/// The `Application` trait requires you to define the following types and constants:
+/// - `Executor` is the async executor that will be used to run your application's commands.
+/// - `Flags` is the data that your application needs to use before it starts.
+/// - `Message` is the enum that contains all the possible variants that your application will need to transmit messages.
+/// - `APP_ID` is the unique identifier of your application.
+impl Application for CosmicClassicMenu {
     type Executor = cosmic::executor::multi::Executor;
     type Flags = ();
     type Message = Message;
-    const APP_ID: &'static str = ID;
+    const APP_ID: &'static str = "com.championpeak87.CosmicClassicMenu";
 
     fn core(&self) -> &Core {
         &self.core
@@ -134,11 +159,17 @@ impl cosmic::Application for Window {
         &mut self.core
     }
 
-    fn init(core: Core, _flags: Self::Flags) -> (Window, Task<cosmic::app::Message<Message>>) {
-        let all_apps = load_apps();
-        let config = Config::new(ID, CONFIG_VERS).unwrap();
+    /// This is the entry point of your application, it is where you initialize your application.
+    ///
+    /// Any work that needs to be done before the application starts should be done here.
+    ///
+    /// - `core` is used to passed on for you by libcosmic to use in the core of your own application.
+    /// - `flags` is used to pass in any data that your application needs to use before it starts.
+    /// - `Task` type is used to send messages to your application. `Task::none()` can be used to send no messages to your application.
+    fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
+        let all_apps = crate::logic::load_apps();
 
-        let window = Window {
+        let window = CosmicClassicMenu {
             core,
             popup: None,
             search_field: String::new(),
@@ -146,47 +177,22 @@ impl cosmic::Application for Window {
             all_applications: all_apps,
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::All),
-            power_menu_position: load_or_default_config::<PowerOptionsPosition>(
-                config.clone(),
-                POWER_OPTIONS_POSITION,
-                CONFIG_VERS,
-                PowerOptionsPosition::Top,
-            ),
-            app_menu_position: load_or_default_config::<AppListPosition>(
-                config.clone(),
-                APP_LIST_POSITION,
-                CONFIG_VERS,
-                AppListPosition::Left,
-            ),
-            search_field_position: load_or_default_config::<SearchFieldPosition>(
-                config.clone(),
-                SEARCH_FIELD_POSITION,
-                CONFIG_VERS,
-                SearchFieldPosition::Top,
-            ),
-            config,
+            config: Config::default(),
         };
 
         (window, Task::none())
     }
 
-    fn on_close_requested(&self, id: window::Id) -> Option<Message> {
+    fn on_close_requested(&self, id: Id) -> Option<Message> {
         Some(Message::PopupClosed(id))
     }
 
-    fn update(&mut self, message: Self::Message) -> Task<cosmic::app::Message<Self::Message>> {
-        match message {
-            Message::TogglePopup(popup_type) => self.toggle_popup(popup_type),
-            Message::PopupClosed(id) => self.close_popup(id),
-            Message::SearchFieldInput(input) => self.update_search_field(&input),
-            Message::PowerOptionSelected(action) => self.perform_power_action(action),
-            Message::ApplicationSelected(app) => self.launch_application(app),
-            Message::CategorySelected(category) => self.select_category(category),
-            Message::LaunchTool(tool) => self.launch_tool(tool),
-            Message::Zbus(result) => self.handle_zbus_result(result),
-        }
-    }
-
+    /// This is the main view of your application, it is the root of your widget tree.
+    ///
+    /// The `Element` type is used to represent the visual elements of your application,
+    /// it has a `Message` associated with it, which dictates what type of message it can send.
+    ///
+    /// To get a better sense of which widgets are available, check out the `widget` module.
     fn view(&self) -> Element<Self::Message> {
         self.core
             .applet
@@ -194,9 +200,7 @@ impl cosmic::Application for Window {
                 cosmic::widget::mouse_area(
                     cosmic::widget::button::custom(
                         row![
-                            cosmic::widget::icon::from_name(
-                                "com.championpeak87.cosmic-classic-menu"
-                            ),
+                            cosmic::widget::icon::from_name("com.championpeak87.CosmicClassicMenu"),
                             text(fl!("menu-label")),
                         ]
                         .align_y(Alignment::Center),
@@ -215,10 +219,30 @@ impl cosmic::Application for Window {
             PopupType::ContextMenu => self.view_context_menu(),
         }
     }
+
+    /// Application messages are handled here. The application state can be modified based on
+    /// what message was received. Tasks may be returned for asynchronous execution on a
+    /// background thread managed by the application's executor.
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
+        match message {
+            Message::TogglePopup(popup_type) => self.toggle_popup(popup_type),
+            Message::PopupClosed(id) => self.close_popup(id),
+            Message::SearchFieldInput(input) => self.update_search_field(&input),
+            Message::PowerOptionSelected(action) => self.perform_power_action(action),
+            Message::ApplicationSelected(app) => self.launch_application(app),
+            Message::CategorySelected(category) => self.select_category(category),
+            Message::LaunchTool(tool) => self.launch_tool(tool),
+            Message::Zbus(result) => self.handle_zbus_result(result),
+        }
+    }
+
+    fn style(&self) -> Option<cosmic::iced_runtime::Appearance> {
+        Some(cosmic::applet::style())
+    }
 }
 
-impl Window {
-    fn toggle_popup(&mut self, popup_type: PopupType) -> Task<cosmic::app::Message<Message>> {
+impl CosmicClassicMenu {
+    fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
         self.popup_type = popup_type;
         if let Some(p) = self.popup.take() {
             destroy_popup(p)
@@ -244,7 +268,7 @@ impl Window {
         }
     }
 
-    fn close_popup(&mut self, id: Id) -> Task<cosmic::app::Message<Message>> {
+    fn close_popup(&mut self, id: Id) -> Task<Message> {
         self.search_field.clear();
         self.selected_category = Some(ApplicationCategory::All);
         self.available_applications = self.all_applications.clone();
@@ -256,7 +280,7 @@ impl Window {
         Task::none()
     }
 
-    fn update_search_field(&mut self, input: &str) -> Task<cosmic::app::Message<Message>> {
+    fn update_search_field(&mut self, input: &str) -> Task<Message> {
         self.selected_category = None;
         let matcher = SkimMatcherV2::default();
 
@@ -276,7 +300,7 @@ impl Window {
         Task::none()
     }
 
-    fn perform_power_action(&mut self, action: PowerAction) -> Task<cosmic::app::Message<Message>> {
+    fn perform_power_action(&mut self, action: PowerAction) -> Task<Message> {
         match action {
             PowerAction::Logout => {
                 if let Err(_) = process::Command::new("cosmic-osd").arg("log-out").spawn() {
@@ -303,12 +327,9 @@ impl Window {
         Task::none()
     }
 
-    fn launch_application(
-        &mut self,
-        app: Arc<DesktopEntryData>,
-    ) -> Task<cosmic::app::Message<Message>> {
+    fn launch_application(&mut self, app: Arc<DesktopEntryData>) -> Task<Message> {
         let app_exec = app.exec.clone().unwrap();
-        let env_vars: Vec<(String, String)> = env::vars().collect();
+        let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
 
         tokio::spawn(async move {
@@ -324,51 +345,31 @@ impl Window {
     }
 
     fn update_recent_applications(&mut self, app: Arc<DesktopEntryData>) {
-        let recent_app_key = String::from(RECENT_APPLICATIONS);
-        let mut recent_applications: HashMap<String, RecentApplication> =
-            match load_config::<RecentApplicationConfig>(&recent_app_key, CONFIG_VERS).0 {
-                Some(x) => x
-                    .recent_applications
-                    .into_iter()
-                    .map(|app| (app.app_id.clone(), app))
-                    .collect(),
-                None => HashMap::new(),
-            };
-
-        let recent_application = recent_applications
-            .entry(app.id.clone())
-            .or_insert_with(|| RecentApplication {
+        let current_recent_application = self
+            .config
+            .recent_applications
+            .iter_mut()
+            .find(|x| x.app_id == app.id);
+        if let Some(recent_app) = current_recent_application {
+            if recent_app.launch_count < u32::MAX {
+                recent_app.launch_count += 1;
+            }
+        } else {
+            self.config.recent_applications.push(RecentApplication {
                 app_id: app.id.clone(),
-                launch_count: 0,
+                launch_count: 1,
             });
-
-        if recent_application.launch_count < u32::MAX {
-            recent_application.launch_count += 1;
         }
-
-        let recent_applications_values: Vec<RecentApplication> =
-            recent_applications.values().cloned().collect();
-        let recent_application_config = RecentApplicationConfig {
-            recent_applications: recent_applications_values,
-        };
-        update_config(
-            self.config.clone(),
-            RECENT_APPLICATIONS,
-            recent_application_config,
-        );
     }
 
-    fn select_category(
-        &mut self,
-        category: ApplicationCategory,
-    ) -> Task<cosmic::app::Message<Message>> {
+    fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
         self.search_field.clear();
         self.selected_category = Some(category.clone());
 
         if category == ApplicationCategory::All {
             self.available_applications = self.all_applications.clone();
         } else if category == ApplicationCategory::RecentlyUsed {
-            self.available_applications = self.get_recent_applications();
+            // self.available_applications = self.get_recent_applications();
         } else {
             self.available_applications = self
                 .all_applications
@@ -385,31 +386,23 @@ impl Window {
     }
 
     fn get_recent_applications(&self) -> Vec<Arc<DesktopEntryData>> {
-        let all_applications_entries: HashMap<String, &Arc<DesktopEntryData>> = self
+        let recent_applications: &Vec<RecentApplication> = &self.config.recent_applications;
+        let all_applications_entries: HashMap<String, Arc<DesktopEntryData>> = self
             .all_applications
             .iter()
-            .map(|app| (app.id.clone(), app))
+            .map(|app| (app.id.clone(), Arc::clone(app)))
             .collect();
 
-        match load_config::<RecentApplicationConfig>(RECENT_APPLICATIONS, CONFIG_VERS).0 {
-            Some(mut x) => {
-                x.recent_applications
-                    .sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
-                x.recent_applications
-                    .iter()
-                    .filter_map(|app| {
-                        all_applications_entries
-                            .get(&app.app_id)
-                            .cloned()
-                            .map(Arc::clone)
-                    })
-                    .collect()
-            }
-            None => Vec::new(),
-        }
+        // recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
+        recent_applications.iter().filter_map(|app| {
+            all_applications_entries
+                .get(&app.app_id)
+                .cloned()
+        })
+        .collect()
     }
 
-    fn launch_tool(&mut self, tool: SystemTool) -> Task<cosmic::app::Message<Message>> {
+    fn launch_tool(&mut self, tool: SystemTool) -> Task<Message> {
         tool.perform();
         if let Some(p) = self.popup.take() {
             return destroy_popup(p);
@@ -417,10 +410,7 @@ impl Window {
         Task::none()
     }
 
-    fn handle_zbus_result(
-        &self,
-        result: Result<(), zbus::Error>,
-    ) -> Task<cosmic::app::Message<Message>> {
+    fn handle_zbus_result(&self, result: Result<(), zbus::Error>) -> Task<Message> {
         if let Err(e) = result {
             eprintln!("cosmic-classic-menu ERROR: '{}'", e);
         }
@@ -526,7 +516,7 @@ impl Window {
     fn create_app_list(&self) -> Element<Message> {
         let Spacing {
             space_xl,
-            
+
             space_xxl,
             space_s,
             ..
@@ -545,7 +535,7 @@ impl Window {
                             .content_fit(ContentFit::ScaleDown),
                         column![
                             text(&app.name),
-                            text(get_comment(&app).unwrap_or_default()).size(8.0),
+                            text(crate::logic::get_comment(&app).unwrap_or_default()).size(8.0),
                         ]
                         .padding([0, space_s]),
                     ])
