@@ -5,7 +5,11 @@ use cosmic::desktop::DesktopEntryData;
 use freedesktop_desktop_entry::DesktopEntry;
 
 pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
-    let locale = current_locale::current_locale().ok();
+    let mut locale = current_locale::current_locale().ok();
+    if let Some(_locale) = locale {
+        // TODO: Temporary fix for the locale issue
+        locale = Some(_locale.split_at(2).0.to_string());
+    }
     let mut all_entries: Vec<Arc<DesktopEntryData>> =
         cosmic::desktop::load_applications(locale.as_slice(), false)
             .into_iter()
@@ -18,7 +22,11 @@ pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
 
 pub fn get_comment(app: &Arc<DesktopEntryData>) -> Option<String> {
     if let Some(path) = &app.path {
-        let locale = current_locale::current_locale().ok();
+        let mut locale = current_locale::current_locale().ok();
+        if let Some(_locale) = locale {
+            // TODO: Temporary fix for the locale issue
+            locale = Some(_locale.split_at(2).0.to_string());
+        }
         let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
 
         if let Ok(entry) = desktop_entry {
