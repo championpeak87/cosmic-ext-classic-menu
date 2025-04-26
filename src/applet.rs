@@ -10,15 +10,14 @@ use cosmic::iced::{
     window::Id,
     Alignment, Length, Limits,
 };
-use cosmic::iced_runtime::core::window;
 use cosmic::widget::container;
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Application, Element};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use std::collections::HashMap;
+use std::process;
 use std::sync::Arc;
-use std::{env, process};
 
 use crate::config::{Config, RecentApplication};
 use crate::fl;
@@ -43,8 +42,6 @@ pub struct CosmicClassicMenu {
     search_field: String,
     /// The list of available applications that are displayed in the menu.
     available_applications: Vec<Arc<DesktopEntryData>>,
-    /// The list of all applications that are loaded from the system.
-    all_applications: Vec<Arc<DesktopEntryData>>,
     /// The popup type that is used to determine which popup to display.
     popup_type: PopupType,
     /// The selected category that is used to filter the applications.
@@ -173,8 +170,7 @@ impl Application for CosmicClassicMenu {
             core,
             popup: None,
             search_field: String::new(),
-            available_applications: all_apps.clone(),
-            all_applications: all_apps,
+            available_applications: all_apps,
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::All),
             config: Config::default(),
@@ -244,6 +240,10 @@ impl Application for CosmicClassicMenu {
 impl CosmicClassicMenu {
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
         self.popup_type = popup_type;
+        if self.popup_type == PopupType::MainMenu {
+            self.available_applications = crate::logic::load_apps();
+        }
+
         if let Some(p) = self.popup.take() {
             destroy_popup(p)
         } else {
@@ -271,7 +271,7 @@ impl CosmicClassicMenu {
     fn close_popup(&mut self, id: Id) -> Task<Message> {
         self.search_field.clear();
         self.selected_category = Some(ApplicationCategory::All);
-        self.available_applications = self.all_applications.clone();
+        self.available_applications = Vec::new();
 
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
@@ -285,11 +285,10 @@ impl CosmicClassicMenu {
         let matcher = SkimMatcherV2::default();
 
         if input.is_empty() {
-            self.available_applications = self.all_applications.clone();
+            self.available_applications = crate::logic::load_apps();
             self.selected_category = Some(ApplicationCategory::All);
         } else {
-            self.available_applications = self
-                .all_applications
+            self.available_applications = crate::logic::load_apps()
                 .iter()
                 .filter(|app| matcher.fuzzy_match(&app.name, input).is_some())
                 .cloned()
@@ -367,12 +366,11 @@ impl CosmicClassicMenu {
         self.selected_category = Some(category.clone());
 
         if category == ApplicationCategory::All {
-            self.available_applications = self.all_applications.clone();
+            self.available_applications = crate::logic::load_apps();
         } else if category == ApplicationCategory::RecentlyUsed {
-            // self.available_applications = self.get_recent_applications();
+            self.available_applications = self.get_recent_applications();
         } else {
-            self.available_applications = self
-                .all_applications
+            self.available_applications = crate::logic::load_apps()
                 .iter()
                 .filter(|app| {
                     app.categories
@@ -387,19 +385,17 @@ impl CosmicClassicMenu {
 
     fn get_recent_applications(&self) -> Vec<Arc<DesktopEntryData>> {
         let recent_applications: &Vec<RecentApplication> = &self.config.recent_applications;
-        let all_applications_entries: HashMap<String, Arc<DesktopEntryData>> = self
-            .all_applications
-            .iter()
-            .map(|app| (app.id.clone(), Arc::clone(app)))
-            .collect();
+        let all_applications_entries: HashMap<String, Arc<DesktopEntryData>> =
+            crate::logic::load_apps()
+                .iter()
+                .map(|app| (app.id.clone(), Arc::clone(app)))
+                .collect();
 
         // recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
-        recent_applications.iter().filter_map(|app| {
-            all_applications_entries
-                .get(&app.app_id)
-                .cloned()
-        })
-        .collect()
+        recent_applications
+            .iter()
+            .filter_map(|app| all_applications_entries.get(&app.app_id).cloned())
+            .collect()
     }
 
     fn launch_tool(&mut self, tool: SystemTool) -> Task<Message> {
