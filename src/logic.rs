@@ -1,8 +1,9 @@
 use crate::fl;
-use std::{string::String, sync::Arc};
+use std::{fmt::Display, string::String, sync::Arc};
 
 use cosmic::desktop::DesktopEntryData;
 use freedesktop_desktop_entry::DesktopEntry;
+use serde::{Deserialize, Serialize};
 
 pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
     let mut locale = current_locale::current_locale().ok();
@@ -42,7 +43,7 @@ pub fn get_comment(app: &Arc<DesktopEntryData>) -> Option<String> {
     None
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ApplicationCategory {
     All,
     RecentlyUsed,
@@ -112,5 +113,11 @@ impl ApplicationCategory {
             ApplicationCategory::System => "System",
             ApplicationCategory::Utility => "Utility",
         }
+    }
+}
+
+impl Display for ApplicationCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.get_mime_name())
     }
 }

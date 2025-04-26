@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::process;
 use std::sync::Arc;
 
-use crate::config::{Config, RecentApplication};
+use crate::config::{Config, HorizontalPosition, RecentApplication, VerticalPosition};
 use crate::fl;
 use crate::logic::ApplicationCategory;
 
@@ -415,6 +415,11 @@ impl CosmicClassicMenu {
     }
 
     fn view_main_menu(&self) -> Element<Message> {
+        // TODO: Implement grid view
+        self.view_main_menu_list()
+    }
+
+    fn view_main_menu_list(&self) -> Element<Message> {
         let Spacing {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
@@ -430,15 +435,39 @@ impl CosmicClassicMenu {
                 .width(Length::Shrink)
                 .padding(5);
 
-        let dual_pane = row![app_list, vertical_spacer, categories_pane].padding([space_xxs, 0]);
+        let dual_pane = match self.config.app_menu_position {
+            HorizontalPosition::Left => {
+                row![app_list, vertical_spacer, categories_pane].padding([space_xxs, 0])
+            }
+            HorizontalPosition::Right => {
+                row![categories_pane, vertical_spacer, app_list].padding([space_xxs, 0])
+            }
+        };
         let menu_layout =
-            column![power_menu, search_field, dual_pane].padding([space_xxs, space_s]);
+            match self.config.power_menu_position {
+                VerticalPosition::Top => match self.config.search_field_position {
+                    VerticalPosition::Top => column![power_menu, search_field, dual_pane]
+                            .padding([space_xxs, space_s]),
+                    VerticalPosition::Bottom => {
+                        column![power_menu, dual_pane, search_field].padding([space_xxs, space_s])
+                    }
+                },
+                VerticalPosition::Bottom => match self.config.search_field_position {
+                    VerticalPosition::Top => {
+                        column![search_field, dual_pane, power_menu].padding([space_xxs, space_s])
+                    }
+                    VerticalPosition::Bottom => column![dual_pane, search_field, power_menu]
+                            .padding([space_xxs, space_s]),
+                },
+            };
 
         self.core
             .applet
             .popup_container(menu_layout)
             .max_height(POPUP_MAX_HEIGHT)
             .min_height(POPUP_MAX_HEIGHT)
+            .max_width(POPUP_MAX_WIDTH)
+            .min_width(POPUP_MIN_WIDTH)
             .into()
     }
 
@@ -505,6 +534,7 @@ impl CosmicClassicMenu {
         cosmic::widget::search_input(fl!("search-placeholder"), &self.search_field)
             .on_input(Message::SearchFieldInput)
             .always_active()
+            .width(Length::Fill)
             .padding([space_xxs, space_s])
             .into()
     }
