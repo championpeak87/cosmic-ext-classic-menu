@@ -1,4 +1,4 @@
-# COSMIC Classic Menu
+# cosmic-classic-menu
 
 Cosmic Classic Menu is a customizable application launcher for the Cosmic desktop environment. It provides a classic-style menu for launching applications, accessing system tools, and managing power options.
 
@@ -13,81 +13,39 @@ Cosmic Classic Menu is a customizable application launcher for the Cosmic deskto
 - Power options (shutdown, restart, logout, etc.)
 - System tools (settings, system monitor, disk management)
 
-## Installation
+## Installation 
 
-To install COSMIC Classic Menu, follow these steps:
+Clone the repository:
 
-1. Clone the repository:
-    ```sh
-    git clone https://github.com/championpeak87/cosmic-classic-menu.git
-    cd cosmic-classic-menu
-    ```
-
-2. Build the project using Cargo:
-    ```sh
-    cargo build --release
-    ```
-
-3. Install the application:
-    ```sh
-    cargo install --path .
-    ```
-
-### Fedora 
-
-A Fedora COPR repository is available
-
-[![Copr build status](https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-classic-menu/package/cosmic-classic-menu/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-classic-menu/package/cosmic-classic-menu/)
-
-```sh
-dnf copr enable championpeak87/cosmic-classic-menu
-dnf install cosmic-classic-menu
-```
-
-### Debian / Ubuntu
-
-Instructions coming soon.
-
-## Usage
-
-To launch the COSMIC Classic Menu, run the following command:
-```sh
-cosmic-classic-menu
-
-## Configuration
-
-The configuration file is located at ~/.config/cosmic/cosmic-classic-menu/v1. You can customize various settings such as the position of the application list, power options, and search field.
-
-## Development
-To contribute to the development of Cosmic Classic Menu, follow these steps:
-
-Fork the repository and clone your fork:
-```sh
-git clone https://github.com/your-username/cosmic-classic-menu.git
+```bash
+git clone https://github.com/championpeak87/cosmic-classic-menu cosmic-classic-menu
 cd cosmic-classic-menu
 ```
 
-Create a new branch for your feature or bugfix:
-```sh
-git checkout -b my-feature-branch
+Build and install the project:
+
+```bash
+just build-release
+sudo just install
 ```
 
-Make your changes and commit them:
-```sh
-git commit -am "feat: add new feature"
-```
+For alternative packaging methods, use the one of the following recipes:
 
-Push your changes to your fork:
-```sh
-git push origin my-feature-branch
-```
+- `deb`: run `just build-deb` and `sudo just install-deb`
+- `rpm`: run `just build-rpm` and `sudo just install-rpm`
 
-Create a pull request on GitHub.
+For vendoring, use `just vendor` and `just vendor-build`
+
+## Contributing
+
+A [justfile](./justfile) is included with common recipes used by other COSMIC projects:
+
+- `just build-debug` compiles with debug profile
+- `just run` builds and runs the application
+- `just check` runs clippy on the project to check for linter warnings
+- `just check-json` can be used by IDEs that support LSP
 
 ## License
-This project is licensed under the GPL License. See the LICENSE file for details.
 
-## Acknowledgements
-- Cosmic Desktop Environment
-- fuzzy-matcher
-- freedesktop-desktop-entry
+Code is distributed with the [GPL-3.0-only license][./LICENSE]
+

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.championpeak87.CosmicClassicMenu</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <project_group>COSMIC</project_group>
+  <developer_name>Kamil Lihan</developer_name>
+  <update_contact>k.lihan@outlook.com</update_contact>
+  <url type="homepage">https://github.com/championpeak87/cosmic-classic-menu</url>
+  <url type="bugtracker"></url>
+  <name>COSMIC Classic Menu</name>
+  <summary>A launcher applet for COSMIC Desktop</summary>
+  <description>
+    <p>A launcher applet for COSMIC Desktop</p>
+  </description>
+  <launchable type="desktop-id">com.championpeak87.CosmicClassicMenu.desktop</launchable>
+  <icon type="remote">https://github.com/championpeak87/cosmic-classic-menu/raw/master/res/icons/hicolor/scalable/apps/com.championpeak87.CosmicClassicMenu.svg</icon>
+  <screenshots>
+  </screenshots>
+  <categories>
+  </categories>
+  <provides>
+    <id>com.championpeak87.CosmicClassicMenu</id>
+    <mimetypes>
+      <mimetype>text/plain</mimetype>
+    </mimetypes>
+    <binaries>
+      <binary>cosmic-classic-menu</binary>
+    </binaries>
+  </provides>
+</component>
