@@ -1,51 +1,47 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use cosmic::app::{Core, Task};
-use cosmic::cosmic_theme::Spacing;
-use cosmic::desktop::{DesktopEntryData, IconSourceExt};
-use cosmic::iced::ContentFit;
+use cosmic::desktop::DesktopEntryData;
 use cosmic::iced::{
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
     widget::{column, row},
     window::Id,
-    Alignment, Length, Limits,
+    Alignment,
 };
-use cosmic::widget::container;
-use cosmic::widget::{scrollable, text};
-use cosmic::{theme, Application, Element};
+use cosmic::{Application, Element};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+use users::get_current_username;
 use std::collections::HashMap;
 use std::process;
 use std::sync::Arc;
 
-use crate::config::{Config, HorizontalPosition, RecentApplication, VerticalPosition};
+use crate::applet_button::AppletButton;
+use crate::applet_menu::AppletMenu;
+use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
 use crate::logic::ApplicationCategory;
-
-const POPUP_MAX_WIDTH: f32 = 500.0;
-const POPUP_MIN_WIDTH: f32 = 500.0;
-const POPUP_MAX_HEIGHT: f32 = 650.0;
-const POPUP_MIN_HEIGHT: f32 = 650.0;
 
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
 #[derive(Default)]
 pub struct CosmicClassicMenu {
     /// Application state which is managed by the COSMIC runtime.
-    core: Core,
+    pub core: Core,
     /// The popup id.
     popup: Option<Id>,
     /// The configuration that is used to store the application settings.
-    config: Config,
+    pub config: CosmicClassicMenuConfig,
     /// The search field that is used to filter the applications.
-    search_field: String,
+    pub search_field: String,
     /// The list of available applications that are displayed in the menu.
-    available_applications: Vec<Arc<DesktopEntryData>>,
+    pub available_applications: Vec<Arc<DesktopEntryData>>,
     /// The popup type that is used to determine which popup to display.
-    popup_type: PopupType,
+    pub popup_type: PopupType,
     /// The selected category that is used to filter the applications.
-    selected_category: Option<ApplicationCategory>,
+    pub selected_category: Option<ApplicationCategory>,
+    /// Currently logged user
+    pub current_user: String,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -60,6 +56,7 @@ pub enum Message {
     ApplicationSelected(Arc<DesktopEntryData>),
     CategorySelected(ApplicationCategory),
     LaunchTool(SystemTool),
+    UpdateAppList(Vec<Arc<DesktopEntryData>>),
     Zbus(Result<(), zbus::Error>),
 }
 
@@ -164,19 +161,27 @@ impl Application for CosmicClassicMenu {
     /// - `flags` is used to pass in any data that your application needs to use before it starts.
     /// - `Task` type is used to send messages to your application. `Task::none()` can be used to send no messages to your application.
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
-        let all_apps = crate::logic::load_apps();
-
         let window = CosmicClassicMenu {
             core,
             popup: None,
             search_field: String::new(),
-            available_applications: all_apps,
+            available_applications: Vec::new(),
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::All),
-            config: Config::default(),
+            config: CosmicClassicMenuConfig::config(),
+            current_user: get_current_username()
+                .unwrap_or_else(|| "Unknown".into())
+                .to_string_lossy()
+                .to_string(),
         };
 
-        (window, Task::none())
+        // fetch all available apps asynchronously
+        let update_all_apps_task =
+            Task::perform(async move { crate::logic::load_apps() }, |result| {
+                cosmic::Action::App(Message::UpdateAppList(result))
+            });
+
+        (window, update_all_apps_task)
     }
 
     fn on_close_requested(&self, id: Id) -> Option<Message> {
@@ -190,23 +195,43 @@ impl Application for CosmicClassicMenu {
     ///
     /// To get a better sense of which widgets are available, check out the `widget` module.
     fn view(&self) -> Element<Self::Message> {
-        self.core
-            .applet
-            .autosize_window(
-                cosmic::widget::mouse_area(
-                    cosmic::widget::button::custom(
-                        row![
-                            cosmic::widget::icon::from_name("com.championpeak87.CosmicClassicMenu"),
-                            text(fl!("menu-label")),
-                        ]
-                        .align_y(Alignment::Center),
-                    )
-                    .on_press(Message::TogglePopup(PopupType::MainMenu))
-                    .class(cosmic::theme::Button::AppletIcon),
-                )
-                .on_right_press(Message::TogglePopup(PopupType::ContextMenu)),
-            )
-            .into()
+        let applet_button_style = &self.config.applet_button_style;
+        let panel_type = &self.core.applet.panel_type;
+        let size = &self.core.applet.size;
+
+        match applet_button_style {
+            AppletButtonStyle::IconOnly => AppletButton::view_icon_only(&self),
+            AppletButtonStyle::LabelOnly => AppletButton::view_label_only(&self),
+            AppletButtonStyle::IconAndLabel => AppletButton::view_icon_and_label(&self),
+            AppletButtonStyle::Auto => match panel_type {
+                cosmic::applet::PanelType::Panel => match size {
+                    cosmic::applet::Size::Hardcoded(hardcoded_size) => {
+                        if hardcoded_size.0
+                            < cosmic::applet::cosmic_panel_config::PanelSize::M
+                                .get_applet_icon_size(false) as u16
+                        {
+                            AppletButton::view_label_only(&self)
+                        } else {
+                            AppletButton::view_icon_only(&self)
+                        }
+                    }
+                    cosmic::applet::Size::PanelSize(panel_size) => match panel_size {
+                        cosmic::applet::cosmic_panel_config::PanelSize::XS
+                        | cosmic::applet::cosmic_panel_config::PanelSize::S => {
+                            AppletButton::view_label_only(&self)
+                        }
+                        cosmic::applet::cosmic_panel_config::PanelSize::M
+                        | cosmic::applet::cosmic_panel_config::PanelSize::L
+                        | cosmic::applet::cosmic_panel_config::PanelSize::XL => {
+                            AppletButton::view_icon_only(&self)
+                        }
+                    },
+                },
+                cosmic::applet::PanelType::Dock | cosmic::applet::PanelType::Other(_) => {
+                    AppletButton::view_icon_only(&self)
+                }
+            },
+        }
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
@@ -229,6 +254,10 @@ impl Application for CosmicClassicMenu {
             Message::CategorySelected(category) => self.select_category(category),
             Message::LaunchTool(tool) => self.launch_tool(tool),
             Message::Zbus(result) => self.handle_zbus_result(result),
+            Message::UpdateAppList(desktop_entry_datas) => {
+                self.available_applications = desktop_entry_datas;
+                Task::none()
+            }
         }
     }
 
@@ -250,19 +279,13 @@ impl CosmicClassicMenu {
             let new_id = Id::unique();
             self.popup.replace(new_id);
 
-            let mut popup_settings = self.core.applet.get_popup_settings(
+            let popup_settings = self.core.applet.get_popup_settings(
                 self.core.main_window_id().unwrap(),
                 new_id,
                 None,
                 None,
                 None,
             );
-
-            popup_settings.positioner.size_limits = Limits::NONE
-                .max_width(POPUP_MAX_WIDTH)
-                .min_width(POPUP_MIN_WIDTH)
-                .min_height(POPUP_MIN_HEIGHT)
-                .max_height(POPUP_MAX_HEIGHT);
 
             get_popup(popup_settings)
         }
@@ -416,224 +439,7 @@ impl CosmicClassicMenu {
 
     fn view_main_menu(&self) -> Element<Message> {
         // TODO: Implement grid view
-        self.view_main_menu_list()
-    }
-
-    fn view_main_menu_list(&self) -> Element<Message> {
-        let Spacing {
-            space_xxs, space_s, ..
-        } = theme::active().cosmic().spacing;
-
-        let power_menu = self.create_power_menu();
-        let search_field = self.create_search_field();
-        let app_list = self.create_app_list();
-        let categories_pane = self.create_categories_pane();
-        let vertical_spacer =
-            cosmic::applet::padded_control(cosmic::widget::divider::vertical::default())
-                .align_x(Alignment::Center)
-                .align_y(Alignment::Center)
-                .width(Length::Shrink)
-                .padding(5);
-
-        let dual_pane = match self.config.app_menu_position {
-            HorizontalPosition::Left => {
-                row![app_list, vertical_spacer, categories_pane].padding([space_xxs, 0])
-            }
-            HorizontalPosition::Right => {
-                row![categories_pane, vertical_spacer, app_list].padding([space_xxs, 0])
-            }
-        };
-        let menu_layout =
-            match self.config.power_menu_position {
-                VerticalPosition::Top => match self.config.search_field_position {
-                    VerticalPosition::Top => column![power_menu, search_field, dual_pane]
-                            .padding([space_xxs, space_s]),
-                    VerticalPosition::Bottom => {
-                        column![power_menu, dual_pane, search_field].padding([space_xxs, space_s])
-                    }
-                },
-                VerticalPosition::Bottom => match self.config.search_field_position {
-                    VerticalPosition::Top => {
-                        column![search_field, dual_pane, power_menu].padding([space_xxs, space_s])
-                    }
-                    VerticalPosition::Bottom => column![dual_pane, search_field, power_menu]
-                            .padding([space_xxs, space_s]),
-                },
-            };
-
-        self.core
-            .applet
-            .popup_container(menu_layout)
-            .max_height(POPUP_MAX_HEIGHT)
-            .min_height(POPUP_MAX_HEIGHT)
-            .max_width(POPUP_MAX_WIDTH)
-            .min_width(POPUP_MIN_WIDTH)
-            .into()
-    }
-
-    fn create_power_menu(&self) -> Element<Message> {
-        let Spacing {
-            space_xxs,
-            space_s,
-            space_l,
-            ..
-        } = theme::active().cosmic().spacing;
-
-        container(
-            row![
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-log-out-symbolic"
-                ))
-                .on_press(Message::PowerOptionSelected(PowerAction::Logout))
-                .icon_size(space_l)
-                .height(space_l)
-                .width(space_l),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-suspend-symbolic"
-                ))
-                .on_press(Message::PowerOptionSelected(PowerAction::Suspend))
-                .icon_size(space_l)
-                .height(space_l)
-                .width(space_l),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-lock-screen-symbolic"
-                ))
-                .on_press(Message::PowerOptionSelected(PowerAction::Lock))
-                .icon_size(space_l)
-                .height(space_l)
-                .width(space_l),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-restart-symbolic"
-                ))
-                .on_press(Message::PowerOptionSelected(PowerAction::Reboot))
-                .icon_size(space_l)
-                .height(space_l)
-                .width(space_l),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-shutdown-symbolic"
-                ))
-                .on_press(Message::PowerOptionSelected(PowerAction::Shutdown))
-                .icon_size(space_l)
-                .height(space_l)
-                .width(space_l),
-            ]
-            .padding([space_xxs, space_s])
-            .align_y(Alignment::Center),
-        )
-        .width(Length::Fill)
-        .padding([space_xxs, 0])
-        .align_x(Alignment::End)
-        .into()
-    }
-
-    fn create_search_field(&self) -> Element<Message> {
-        let Spacing {
-            space_xxs, space_s, ..
-        } = theme::active().cosmic().spacing;
-
-        cosmic::widget::search_input(fl!("search-placeholder"), &self.search_field)
-            .on_input(Message::SearchFieldInput)
-            .always_active()
-            .width(Length::Fill)
-            .padding([space_xxs, space_s])
-            .into()
-    }
-
-    fn create_app_list(&self) -> Element<Message> {
-        let Spacing {
-            space_xl,
-
-            space_xxl,
-            space_s,
-            ..
-        } = theme::active().cosmic().spacing;
-
-        let app_list: cosmic::widget::Column<Message> = self
-            .available_applications
-            .iter()
-            .map(|app| {
-                cosmic::widget::button::custom(
-                    container(row![
-                        app.icon
-                            .as_cosmic_icon()
-                            .width(Length::Fixed(space_xl.into()))
-                            .height(Length::Fixed(space_xl.into()))
-                            .content_fit(ContentFit::ScaleDown),
-                        column![
-                            text(&app.name),
-                            text(crate::logic::get_comment(&app).unwrap_or_default()).size(8.0),
-                        ]
-                        .padding([0, space_s]),
-                    ])
-                    .align_y(Alignment::Center),
-                )
-                .on_press(Message::ApplicationSelected(app.clone()))
-                .class(cosmic::theme::Button::MenuItem)
-                .width(Length::Fill)
-                .height(space_xxl)
-                .into()
-            })
-            .collect();
-
-        scrollable(app_list)
-            .height(Length::Fill)
-            .width(Length::FillPortion(2))
-            .into()
-    }
-
-    fn create_categories_pane(&self) -> Element<Message> {
-        let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
-
-        let categories: [ApplicationCategory; 13] = [
-            ApplicationCategory::All,
-            ApplicationCategory::RecentlyUsed,
-            ApplicationCategory::Audio,
-            ApplicationCategory::Video,
-            ApplicationCategory::Development,
-            ApplicationCategory::Games,
-            ApplicationCategory::Graphics,
-            ApplicationCategory::Network,
-            ApplicationCategory::Office,
-            ApplicationCategory::Science,
-            ApplicationCategory::Settings,
-            ApplicationCategory::System,
-            ApplicationCategory::Utility,
-        ];
-
-        let mut categories_pane: Vec<Element<Message>> = categories
-            .iter()
-            .map(|category| {
-                cosmic::widget::button::custom(
-                    row![
-                        container(cosmic::widget::icon::from_name(category.get_icon_name()))
-                            .padding([0, space_m]),
-                        text(category.get_display_name()),
-                    ]
-                    .align_y(Alignment::Center),
-                )
-                .on_press(Message::CategorySelected(category.clone()))
-                .class(if self.selected_category == Some(category.clone()) {
-                    cosmic::theme::Button::Suggested
-                } else {
-                    cosmic::theme::Button::AppletMenu
-                })
-                .width(Length::Fill)
-                .into()
-            })
-            .collect();
-
-        let horizontal_divider =
-            cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default())
-                .align_x(Alignment::Center)
-                .align_y(Alignment::Center)
-                .padding(5)
-                .into();
-        categories_pane.insert(2, horizontal_divider);
-
-        cosmic::widget::column::with_children(categories_pane)
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .into()
+        AppletMenu::view_main_menu_list(&self)
     }
 
     fn view_context_menu(&self) -> Element<Message> {
@@ -653,14 +459,9 @@ impl CosmicClassicMenu {
                 row![cosmic::widget::text::body(fl!("disks-label")),].align_y(Alignment::Center)
             )
             .class(cosmic::theme::Button::AppletMenu)
-            .on_press(Message::LaunchTool(SystemTool::DiskManagement))
+            .on_press(Message::LaunchTool(SystemTool::DiskManagement)),
         ];
 
-        self.core
-            .applet
-            .popup_container(context_menu)
-            .max_width(POPUP_MAX_WIDTH)
-            .min_width(POPUP_MIN_WIDTH)
-            .into()
+        self.core.applet.popup_container(context_menu).into()
     }
 }

@@ -6,3 +6,5 @@ debug/
 target/
 vendor/
 vendor.tar
+.devcontainer
+.vscode

@@ -17,8 +17,10 @@ tokio = "1.31"
 freedesktop-desktop-entry = "0.7.7"
 current_locale = "0.1.1"
 serde = "1.0.210"
-rustix = "0.38.44"
+rustix = "1.0.5"
 logind-zbus = "5.1.0"
+once_cell = "1.21.3"
+users = "0.11.0"
 
 
 [dependencies.i18n-embed]
@@ -40,7 +42,7 @@ assets = [
     ["target/release/cosmic-classic-menu", "usr/bin/", "755"],
     ["res/com.championpeak87.CosmicClassicMenu.desktop", "usr/share/applications/", "644"],
     ["res/com.championpeak87.CosmicClassicMenu.metainfo.xml", "usr/share/metainfo/", "644"],
-    ["res/icons/hicolor/scalable/apps/com.championpeak87.CosmicClassicMenu.svg", "usr/share/icons/hicolor/", "644"],
+    ["res/icons/hicolor/scalable/apps/com.championpeak87.CosmicClassicMenu.svg", "usr/share/icons/hicolor/scalable/apps", "644"],
 ]
 
 [package.metadata.generate-rpm]

@@ -12,7 +12,7 @@ pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
         locale = Some(_locale.split_at(2).0.to_string());
     }
     let mut all_entries: Vec<Arc<DesktopEntryData>> =
-        cosmic::desktop::load_applications(locale.as_slice(), false)
+        cosmic::desktop::load_applications(locale.as_slice(), false, None)
             .into_iter()
             .map(Arc::new)
             .collect();

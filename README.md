@@ -13,6 +13,13 @@ Cosmic Classic Menu is a customizable application launcher for the Cosmic deskto
 - Power options (shutdown, restart, logout, etc.)
 - System tools (settings, system monitor, disk management)
 
+## ToDo
+
+- Right click menu for applications
+- Favorites applications
+- Configuration panel
+- Browsing app list with arrow keys
+
 ## Installation 
 
 Clone the repository:
