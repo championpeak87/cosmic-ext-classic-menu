@@ -1,26 +1,80 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use cosmic::cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, CosmicConfigEntry};
+use cosmic::{cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, Config, CosmicConfigEntry}, Application};
+use crate::fl;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
 #[version = 1]
 #[id = "cosmic-classic-menu"]
-pub struct Config {
-    pub power_menu_position: VerticalPosition,
+pub struct CosmicClassicMenuConfig {
     pub app_menu_position: HorizontalPosition,
     pub search_field_position: VerticalPosition,
+    pub applet_button_style: AppletButtonStyle,
+    pub user_widget: UserWidgetStyle,
+    pub button_label: String,
+    pub button_icon: String,
     pub recent_applications: Vec<RecentApplication>
 }
 
-impl Default for Config {
+impl Default for CosmicClassicMenuConfig {
     fn default() -> Self {
-        Config {
-            power_menu_position: VerticalPosition::default(),
+        CosmicClassicMenuConfig {
             app_menu_position: HorizontalPosition::default(),
             search_field_position: VerticalPosition::default(),
-            recent_applications: vec![]
+            applet_button_style: AppletButtonStyle::default(),
+            user_widget: UserWidgetStyle::default(),
+            button_label: fl!("menu-label").to_owned(),
+            button_icon: "com.championpeak87.CosmicClassicMenu".to_owned(),
+            recent_applications: vec![],
         }
+    }
+}
+
+impl CosmicClassicMenuConfig {
+    pub fn config_handler() -> Option<Config> {
+        Config::new(crate::applet::CosmicClassicMenu::APP_ID, 1).ok()
+    }
+
+    pub fn config() -> CosmicClassicMenuConfig {
+        match Self::config_handler() {
+            Some(config_handler) => {
+                CosmicClassicMenuConfig::get_entry(&config_handler).unwrap_or_else(|(_errs, config)| {
+                    config
+                })
+            }
+            None => CosmicClassicMenuConfig::default(),
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+
+pub enum AppletButtonStyle {
+    IconOnly,
+    LabelOnly,
+    IconAndLabel,
+    Auto
+}
+
+impl Default for AppletButtonStyle {
+    fn default() -> Self {
+        AppletButtonStyle::Auto
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+
+pub enum UserWidgetStyle {
+    UsernamePrefered,
+    RealNamePrefered,
+    None
+}
+
+impl Default for UserWidgetStyle {
+    fn default() -> Self {
+        UserWidgetStyle::UsernamePrefered
     }
 }
 
