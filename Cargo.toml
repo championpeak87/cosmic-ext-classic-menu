@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-classic-menu"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 authors = ["Kamil Lihan <k.lihan@outlook.com>"]
 license = "GPL-3.0-only"

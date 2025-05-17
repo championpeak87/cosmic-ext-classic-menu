@@ -5,7 +5,6 @@ use cosmic::Element;
 use once_cell::sync::Lazy;
 
 use crate::applet::{CosmicClassicMenu, Message, PopupType};
-use crate::fl;
 
 static AUTOSIZE_MAIN_ID: Lazy<cosmic::widget::Id> =
     Lazy::new(|| cosmic::widget::Id::new("autosize-main"));
@@ -26,11 +25,13 @@ impl AppletButton {
     /// # Returns
     /// An `Element<Message>` representing the icon-only applet button.
     pub fn view_icon_only(applet: &CosmicClassicMenu) -> Element<Message> {
+        let button_icon = &applet.config.button_icon;
+
         mouse_area(
             applet
                 .core
                 .applet
-                .icon_button("com.championpeak87.CosmicClassicMenu")
+                .icon_button(button_icon.as_str())
                 .on_press(Message::TogglePopup(PopupType::MainMenu)),
         )
         .on_right_press(Message::TogglePopup(PopupType::ContextMenu))
@@ -49,8 +50,11 @@ impl AppletButton {
     /// # Returns
     /// An `Element<Message>` representing the label-only applet button.
     pub fn view_label_only(applet: &CosmicClassicMenu) -> Element<Message> {
+        let button_label = &applet.config.button_label;
+
         let content = row!(
-            applet.core.applet.text(fl!("menu-label")),
+            applet.core.applet.text(button_label),
+            cosmic::widget::Space::new(5, Length::Shrink),
             cosmic::widget::vertical_space().height(Length::Fixed(
                 (applet.core.applet.suggested_size(true).1
                     + 2 * applet.core.applet.suggested_padding(true)) as f32
@@ -83,9 +87,12 @@ impl AppletButton {
     /// # Returns
     /// An `Element<Message>` representing the applet button with both an icon and a label.
     pub fn view_icon_and_label(applet: &CosmicClassicMenu) -> Element<Message> {
+        let button_label = &applet.config.button_label;
+        let button_icon = &applet.config.button_icon;
+
         let content = row!(
-            cosmic::widget::icon::from_name("com.championpeak87.CosmicClassicMenu"),
-            applet.core.applet.text(fl!("menu-label")),
+            cosmic::widget::icon::from_name(button_icon.as_str()),
+            applet.core.applet.text(button_label),
             cosmic::widget::vertical_space().height(Length::Fixed(
                 (applet.core.applet.suggested_size(true).1
                     + 2 * applet.core.applet.suggested_padding(true)) as f32

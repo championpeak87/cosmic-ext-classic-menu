@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use cosmic::{cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, Config, CosmicConfigEntry}, Application};
+use crate::fl;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
@@ -11,6 +12,8 @@ pub struct CosmicClassicMenuConfig {
     pub search_field_position: VerticalPosition,
     pub applet_button_style: AppletButtonStyle,
     pub user_widget: UserWidgetStyle,
+    pub button_label: String,
+    pub button_icon: String,
     pub recent_applications: Vec<RecentApplication>
 }
 
@@ -21,6 +24,8 @@ impl Default for CosmicClassicMenuConfig {
             search_field_position: VerticalPosition::default(),
             applet_button_style: AppletButtonStyle::default(),
             user_widget: UserWidgetStyle::default(),
+            button_label: fl!("menu-label").to_owned(),
+            button_icon: "com.championpeak87.CosmicClassicMenu".to_owned(),
             recent_applications: vec![],
         }
     }
