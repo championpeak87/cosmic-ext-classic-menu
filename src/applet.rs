@@ -11,7 +11,6 @@ use cosmic::iced::{
 use cosmic::{Application, Element};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
-use users::get_current_username;
 use std::collections::HashMap;
 use std::process;
 use std::sync::Arc;
@@ -20,7 +19,7 @@ use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
-use crate::logic::ApplicationCategory;
+use crate::logic::apps::{ApplicationCategory, User};
 
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
@@ -41,7 +40,7 @@ pub struct CosmicClassicMenu {
     /// The selected category that is used to filter the applications.
     pub selected_category: Option<ApplicationCategory>,
     /// Currently logged user
-    pub current_user: String,
+    pub current_user: Option<User>,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -58,6 +57,7 @@ pub enum Message {
     LaunchTool(SystemTool),
     UpdateAppList(Vec<Arc<DesktopEntryData>>),
     Zbus(Result<(), zbus::Error>),
+    UpdateLoggedUser(Result<User, zbus::Error>),
 }
 
 #[derive(Clone, Debug)]
@@ -169,19 +169,25 @@ impl Application for CosmicClassicMenu {
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::All),
             config: CosmicClassicMenuConfig::config(),
-            current_user: get_current_username()
-                .unwrap_or_else(|| "Unknown".into())
-                .to_string_lossy()
-                .to_string(),
+            current_user: None,
         };
 
         // fetch all available apps asynchronously
         let update_all_apps_task =
-            Task::perform(async move { crate::logic::load_apps() }, |result| {
+            Task::perform(async move { crate::logic::apps::load_apps() }, |result| {
                 cosmic::Action::App(Message::UpdateAppList(result))
             });
 
-        (window, update_all_apps_task)
+        // fetch current user asynchronously
+        let fetch_current_user_task =
+            Task::perform(crate::logic::apps::get_current_user(), |result| {
+                cosmic::Action::App(Message::UpdateLoggedUser(result))
+            });
+
+        (
+            window,
+            Task::batch(vec![update_all_apps_task, fetch_current_user_task]),
+        )
     }
 
     fn on_close_requested(&self, id: Id) -> Option<Message> {
@@ -258,6 +264,10 @@ impl Application for CosmicClassicMenu {
                 self.available_applications = desktop_entry_datas;
                 Task::none()
             }
+            Message::UpdateLoggedUser(user) => {
+                self.current_user = user.ok();
+                Task::none()
+            }
         }
     }
 
@@ -270,7 +280,7 @@ impl CosmicClassicMenu {
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
         self.popup_type = popup_type;
         if self.popup_type == PopupType::MainMenu {
-            self.available_applications = crate::logic::load_apps();
+            self.available_applications = crate::logic::apps::load_apps();
         }
 
         if let Some(p) = self.popup.take() {
@@ -308,10 +318,10 @@ impl CosmicClassicMenu {
         let matcher = SkimMatcherV2::default();
 
         if input.is_empty() {
-            self.available_applications = crate::logic::load_apps();
+            self.available_applications = crate::logic::apps::load_apps();
             self.selected_category = Some(ApplicationCategory::All);
         } else {
-            self.available_applications = crate::logic::load_apps()
+            self.available_applications = crate::logic::apps::load_apps()
                 .iter()
                 .filter(|app| matcher.fuzzy_match(&app.name, input).is_some())
                 .cloned()
@@ -389,11 +399,11 @@ impl CosmicClassicMenu {
         self.selected_category = Some(category.clone());
 
         if category == ApplicationCategory::All {
-            self.available_applications = crate::logic::load_apps();
+            self.available_applications = crate::logic::apps::load_apps();
         } else if category == ApplicationCategory::RecentlyUsed {
             self.available_applications = self.get_recent_applications();
         } else {
-            self.available_applications = crate::logic::load_apps()
+            self.available_applications = crate::logic::apps::load_apps()
                 .iter()
                 .filter(|app| {
                     app.categories
@@ -409,7 +419,7 @@ impl CosmicClassicMenu {
     fn get_recent_applications(&self) -> Vec<Arc<DesktopEntryData>> {
         let recent_applications: &Vec<RecentApplication> = &self.config.recent_applications;
         let all_applications_entries: HashMap<String, Arc<DesktopEntryData>> =
-            crate::logic::load_apps()
+            crate::logic::apps::load_apps()
                 .iter()
                 .map(|app| (app.id.clone(), Arc::clone(app)))
                 .collect();

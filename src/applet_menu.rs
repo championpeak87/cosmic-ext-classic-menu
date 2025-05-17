@@ -1,24 +1,20 @@
+use std::path::PathBuf;
+
 use cosmic::cosmic_theme::Spacing;
 use cosmic::desktop::IconSourceExt;
-use cosmic::iced::{ContentFit, Font, Limits, Pixels};
 use cosmic::iced::{
     widget::{column, row},
     Alignment, Length,
 };
-use cosmic::iced_core::text::LineHeight;
+use cosmic::iced::{ContentFit, Font, Limits};
 use cosmic::widget::{container, ListColumn};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
-use users::get_current_username;
 
 use crate::applet::{CosmicClassicMenu, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
-use crate::logic::ApplicationCategory;
-
-pub struct AppletContextMenu;
-
-impl AppletContextMenu {}
+use crate::logic::apps::ApplicationCategory;
 
 pub struct AppletMenu;
 
@@ -53,7 +49,9 @@ impl AppletMenu {
             }
         };
         let menu_layout = match applet.config.search_field_position {
-            VerticalPosition::Top => column![current_user, search_field, dual_pane].padding([space_xxs, space_s]),
+            VerticalPosition::Top => {
+                column![current_user, search_field, dual_pane].padding([space_xxs, space_s])
+            }
             VerticalPosition::Bottom => {
                 column![current_user, dual_pane, search_field].padding([space_xxs, space_s])
             }
@@ -120,12 +118,7 @@ impl AppletMenu {
 
     fn create_app_list(applet: &CosmicClassicMenu) -> Element<Message> {
         let Spacing {
-            space_l,
-            space_xl,
-
-            space_xxl,
-            space_s,
-            ..
+            space_l, space_xl, ..
         } = theme::active().cosmic().spacing;
 
         let app_list: ListColumn<Message> = applet.available_applications.iter().fold(
@@ -141,7 +134,8 @@ impl AppletMenu {
                         cosmic::widget::Space::new(5, Length::Fill),
                         column![
                             text(&app.name),
-                            text(crate::logic::get_comment(&app).unwrap_or_default()).size(8.0),
+                            text(crate::logic::apps::get_comment(&app).unwrap_or_default())
+                                .size(8.0),
                         ]
                         .padding([0, 0]),
                     ])
@@ -222,12 +216,69 @@ impl AppletMenu {
     }
 
     pub fn create_logged_user_widget(applet: &CosmicClassicMenu) -> Element<Message> {
-        text(&applet.current_user)
-        .font(Font {
-            weight: cosmic::iced::font::Weight::Bold,
-            ..Default::default()
-        })
-        .size(16)
-        .line_height(LineHeight::Relative(3.)).into()
+        if applet.config.user_widget == crate::config::UserWidgetStyle::None {
+            return cosmic::widget::Space::new(0, 0).into();
+        }
+
+        if let Some(user) = &applet.current_user {
+            let profile_picture_widget: Element<Message> =
+                if PathBuf::from(&user.profile_picture).exists() {
+                    cosmic::widget::image(&user.profile_picture)
+                        .width(Length::Fixed(40.))
+                        .height(Length::Fixed(40.))
+                        .content_fit(ContentFit::ScaleDown)
+                        .border_radius([5.; 4])
+                        .into()
+                } else {
+                    cosmic::widget::icon::from_name("user-idle-symbolic")
+                        .size(40)
+                        .symbolic(true)
+                        .into()
+                };
+
+            let nametag_widget: Element<Message> = match &applet.config.user_widget {
+                crate::config::UserWidgetStyle::UsernamePrefered => text(&user.username)
+                    .font(Font {
+                        weight: cosmic::iced::font::Weight::Bold,
+                        ..Default::default()
+                    })
+                    .size(16)
+                    .into(),
+                crate::config::UserWidgetStyle::RealNamePrefered => {
+                    if !&user.user_realname.is_empty() {
+                        column![
+                            text(&user.user_realname)
+                                .font(Font {
+                                    weight: cosmic::iced::font::Weight::Bold,
+                                    ..Default::default()
+                                })
+                                .size(16),
+                            text(&user.username).size(10),
+                        ]
+                        .into()
+                    } else {
+                        text(&user.username)
+                            .font(Font {
+                                weight: cosmic::iced::font::Weight::Bold,
+                                ..Default::default()
+                            })
+                            .size(16)
+                            .into()
+                    }
+                }
+                crate::config::UserWidgetStyle::None => cosmic::widget::Space::new(0, 0).into(),
+            };
+
+            row![
+                profile_picture_widget,
+                cosmic::widget::Space::new(5, Length::Shrink),
+                nametag_widget
+            ]
+            .align_y(Alignment::Center)
+            .padding([10., 0.])
+            .into()
+        } else {
+            cosmic::widget::Space::new(0, 0).into()
+        }
     }
 }

@@ -10,6 +10,7 @@ pub struct CosmicClassicMenuConfig {
     pub app_menu_position: HorizontalPosition,
     pub search_field_position: VerticalPosition,
     pub applet_button_style: AppletButtonStyle,
+    pub user_widget: UserWidgetStyle,
     pub recent_applications: Vec<RecentApplication>
 }
 
@@ -19,6 +20,7 @@ impl Default for CosmicClassicMenuConfig {
             app_menu_position: HorizontalPosition::default(),
             search_field_position: VerticalPosition::default(),
             applet_button_style: AppletButtonStyle::default(),
+            user_widget: UserWidgetStyle::default(),
             recent_applications: vec![],
         }
     }
@@ -54,6 +56,20 @@ pub enum AppletButtonStyle {
 impl Default for AppletButtonStyle {
     fn default() -> Self {
         AppletButtonStyle::Auto
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+
+pub enum UserWidgetStyle {
+    UsernamePrefered,
+    RealNamePrefered,
+    None
+}
+
+impl Default for UserWidgetStyle {
+    fn default() -> Self {
+        UserWidgetStyle::UsernamePrefered
     }
 }
 
