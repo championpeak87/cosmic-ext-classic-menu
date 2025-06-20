@@ -54,7 +54,6 @@ pub enum Message {
     ApplicationSelected(Arc<DesktopEntryData>),
     CategorySelected(ApplicationCategory),
     LaunchTool(SystemTool),
-    UpdateAppList(Vec<Arc<DesktopEntryData>>),
     Zbus(Result<(), zbus::Error>),
     UpdateLoggedUser(Result<User, zbus::Error>),
 }
@@ -163,19 +162,13 @@ impl Application for CosmicClassicMenu {
         let window = CosmicClassicMenu {
             core,
             popup: None,
-            search_field: String::new(),
-            available_applications: Vec::new(),
+            search_field: "".to_owned(),
+            available_applications: crate::logic::apps::load_apps(),
             popup_type: PopupType::MainMenu,
-            selected_category: Some(ApplicationCategory::All),
+            selected_category: Some(ApplicationCategory::ALL),
             config: CosmicClassicMenuConfig::config(),
             current_user: None,
         };
-
-        // fetch all available apps asynchronously
-        let update_all_apps_task =
-            Task::perform(async move { crate::logic::apps::load_apps() }, |result| {
-                cosmic::Action::App(Message::UpdateAppList(result))
-            });
 
         // fetch current user asynchronously
         let fetch_current_user_task =
@@ -186,7 +179,7 @@ impl Application for CosmicClassicMenu {
 <<<<<<< Updated upstream
         (
             window,
-            Task::batch(vec![update_all_apps_task, fetch_current_user_task]),
+            Task::batch(vec![fetch_current_user_task]),
         )
 =======
         (window, Task::batch(vec![fetch_current_user_task]))
@@ -263,10 +256,6 @@ impl Application for CosmicClassicMenu {
             Message::CategorySelected(category) => self.select_category(category),
             Message::LaunchTool(tool) => self.launch_tool(tool),
             Message::Zbus(result) => self.handle_zbus_result(result),
-            Message::UpdateAppList(desktop_entry_datas) => {
-                self.available_applications = desktop_entry_datas;
-                Task::none()
-            }
             Message::UpdateLoggedUser(user) => {
                 self.current_user = user.ok();
                 Task::none()
@@ -306,7 +295,7 @@ impl CosmicClassicMenu {
 
     fn close_popup(&mut self, id: Id) -> Task<Message> {
         self.search_field.clear();
-        self.selected_category = Some(ApplicationCategory::All);
+        self.selected_category = Some(ApplicationCategory::ALL);
         self.available_applications = Vec::new();
 
         if self.popup.as_ref() == Some(&id) {
@@ -322,7 +311,7 @@ impl CosmicClassicMenu {
 
         if input.is_empty() {
             self.available_applications = crate::logic::apps::load_apps();
-            self.selected_category = Some(ApplicationCategory::All);
+            self.selected_category = Some(ApplicationCategory::ALL);
         } else {
             self.available_applications = crate::logic::apps::load_apps()
                 .iter()
@@ -333,7 +322,7 @@ impl CosmicClassicMenu {
         self.search_field = input.to_string();
 
         Task::none()
-    }
+ }
 
     fn perform_power_action(&mut self, action: PowerAction) -> Task<Message> {
         match action {
@@ -405,9 +394,9 @@ impl CosmicClassicMenu {
         self.search_field.clear();
         self.selected_category = Some(category.clone());
 
-        if category == ApplicationCategory::All {
+        if category == ApplicationCategory::ALL {
             self.available_applications = crate::logic::apps::load_apps();
-        } else if category == ApplicationCategory::RecentlyUsed {
+        } else if category == ApplicationCategory::RECENTLY_USED {
             self.available_applications = self.get_recent_applications();
         } else {
             self.available_applications = crate::logic::apps::load_apps()
@@ -415,7 +404,7 @@ impl CosmicClassicMenu {
 <<<<<<< Updated upstream
                 .filter(|app| {
                     app.categories
-                        .contains(&category.get_mime_name().to_string())
+                        .contains(&category.mime_name.to_string())
                 })
 =======
                 .filter(|app| app.category.contains(&category.mime_name.to_string()))

@@ -160,19 +160,19 @@ impl AppletMenu {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
         let categories: [ApplicationCategory; 13] = [
-            ApplicationCategory::All,
-            ApplicationCategory::RecentlyUsed,
-            ApplicationCategory::Audio,
-            ApplicationCategory::Video,
-            ApplicationCategory::Development,
-            ApplicationCategory::Games,
-            ApplicationCategory::Graphics,
-            ApplicationCategory::Network,
-            ApplicationCategory::Office,
-            ApplicationCategory::Science,
-            ApplicationCategory::Settings,
-            ApplicationCategory::System,
-            ApplicationCategory::Utility,
+            ApplicationCategory::ALL,
+            ApplicationCategory::RECENTLY_USED,
+            ApplicationCategory::AUDIO,
+            ApplicationCategory::VIDEO,
+            ApplicationCategory::DEVELOPMENT,
+            ApplicationCategory::GAMES,
+            ApplicationCategory::GRAPHICS,
+            ApplicationCategory::NETWORK,
+            ApplicationCategory::OFFICE,
+            ApplicationCategory::SCIENCE,
+            ApplicationCategory::SETTINGS,
+            ApplicationCategory::SYSTEM,
+            ApplicationCategory::UTILITY,
         ];
 
         let mut categories_pane: Vec<Element<Message>> = categories
@@ -180,7 +180,7 @@ impl AppletMenu {
             .map(|category| {
                 cosmic::widget::button::custom(
                     row![
-                        container(cosmic::widget::icon::from_name(category.get_icon_name()))
+                        container(cosmic::widget::icon::from_name(category.icon_name))
                             .padding([0, space_m]),
                         text(category.get_display_name()),
                     ]
