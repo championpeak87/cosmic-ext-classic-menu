@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use cosmic::app::{Core, Task};
-use cosmic::desktop::DesktopEntryData;
+use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::iced::{
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
     widget::{column, row},
@@ -13,7 +13,6 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use std::collections::HashMap;
 use std::process;
-use std::sync::Arc;
 
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
@@ -184,10 +183,14 @@ impl Application for CosmicClassicMenu {
                 cosmic::Action::App(Message::UpdateLoggedUser(result))
             });
 
+<<<<<<< Updated upstream
         (
             window,
             Task::batch(vec![update_all_apps_task, fetch_current_user_task]),
         )
+=======
+        (window, Task::batch(vec![fetch_current_user_task]))
+>>>>>>> Stashed changes
     }
 
     fn on_close_requested(&self, id: Id) -> Option<Message> {
@@ -392,6 +395,10 @@ impl CosmicClassicMenu {
                 launch_count: 1,
             });
         }
+
+        self.config
+            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+            .expect("Failed to write recent applications config");
     }
 
     fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
@@ -405,10 +412,14 @@ impl CosmicClassicMenu {
         } else {
             self.available_applications = crate::logic::apps::load_apps()
                 .iter()
+<<<<<<< Updated upstream
                 .filter(|app| {
                     app.categories
                         .contains(&category.get_mime_name().to_string())
                 })
+=======
+                .filter(|app| app.category.contains(&category.mime_name.to_string()))
+>>>>>>> Stashed changes
                 .cloned()
                 .collect();
         }
