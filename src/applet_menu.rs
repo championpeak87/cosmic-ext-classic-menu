@@ -134,7 +134,7 @@ impl AppletMenu {
                         cosmic::widget::Space::new(5, Length::Fill),
                         column![
                             text(&app.name),
-                            text(crate::logic::apps::get_comment(&app).unwrap_or_default())
+                            text(app.comment.as_deref().unwrap_or_default())
                                 .size(8.0),
                         ]
                         .padding([0, 0]),

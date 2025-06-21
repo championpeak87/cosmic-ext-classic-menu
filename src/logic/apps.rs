@@ -1,48 +1,20 @@
-use crate::fl;
-use std::{fmt::Display, string::String, sync::Arc};
+use crate::{fl, model::application_entry::ApplicationEntry};
+use std::{fmt::Display, string::String};
 
-use cosmic::desktop::DesktopEntryData;
-use freedesktop_desktop_entry::DesktopEntry;
 use serde::{Deserialize, Serialize};
 use cached::proc_macro::cached;
 
 #[cached]
-pub fn load_apps() -> Vec<Arc<DesktopEntryData>> {
-    let mut locale = current_locale::current_locale().ok();
-    if let Some(_locale) = locale {
-        // TODO: Temporary fix for the locale issue
-        locale = Some(_locale.split_at(2).0.to_string());
-    }
-    let mut all_entries: Vec<Arc<DesktopEntryData>> =
+pub fn load_apps() -> Vec<ApplicationEntry> {
+    let locale = current_locale::current_locale().ok();
+    let mut all_entries: Vec<ApplicationEntry> =
         cosmic::desktop::load_applications(locale.as_slice(), false, None)
             .into_iter()
-            .map(Arc::new)
+            .map(Into::into)
             .collect();
     all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
     all_entries
-}
-
-pub fn get_comment(app: &Arc<DesktopEntryData>) -> Option<String> {
-    if let Some(path) = &app.path {
-        let mut locale = current_locale::current_locale().ok();
-        if let Some(_locale) = locale {
-            // TODO: Temporary fix for the locale issue
-            locale = Some(_locale.split_at(2).0.to_string());
-        }
-        let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
-
-        if let Ok(entry) = desktop_entry {
-            return Some(
-                entry
-                    .comment(locale.as_slice())
-                    .unwrap_or_default()
-                    .into_owned(),
-            );
-        }
-    }
-
-    None
 }
 
 pub async fn get_current_user() -> Result<User, zbus::Error> {

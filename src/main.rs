@@ -9,6 +9,7 @@ mod cosmic_session;
 mod session_manager;
 mod applet_button;
 mod applet_menu;
+mod model;
 
 fn main() -> cosmic::iced::Result {
     // Get the system's preferred languages.

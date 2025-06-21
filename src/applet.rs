@@ -19,6 +19,7 @@ use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
 use crate::logic::apps::{ApplicationCategory, User};
+use crate::model::application_entry::ApplicationEntry;
 
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
@@ -33,7 +34,7 @@ pub struct CosmicClassicMenu {
     /// The search field that is used to filter the applications.
     pub search_field: String,
     /// The list of available applications that are displayed in the menu.
-    pub available_applications: Vec<Arc<DesktopEntryData>>,
+    pub available_applications: Vec<ApplicationEntry>,
     /// The popup type that is used to determine which popup to display.
     pub popup_type: PopupType,
     /// The selected category that is used to filter the applications.
@@ -51,7 +52,7 @@ pub enum Message {
     PopupClosed(Id),
     SearchFieldInput(String),
     PowerOptionSelected(PowerAction),
-    ApplicationSelected(Arc<DesktopEntryData>),
+    ApplicationSelected(ApplicationEntry),
     CategorySelected(ApplicationCategory),
     LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
@@ -351,7 +352,7 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn launch_application(&mut self, app: Arc<DesktopEntryData>) -> Task<Message> {
+    fn launch_application(&mut self, app: ApplicationEntry) -> Task<Message> {
         let app_exec = app.exec.clone().unwrap();
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
@@ -368,7 +369,7 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn update_recent_applications(&mut self, app: Arc<DesktopEntryData>) {
+    fn update_recent_applications(&mut self, app: ApplicationEntry) {
         let current_recent_application = self
             .config
             .recent_applications
@@ -403,7 +404,7 @@ impl CosmicClassicMenu {
                 .iter()
 <<<<<<< Updated upstream
                 .filter(|app| {
-                    app.categories
+                    app.category
                         .contains(&category.mime_name.to_string())
                 })
 =======
@@ -416,12 +417,12 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn get_recent_applications(&self) -> Vec<Arc<DesktopEntryData>> {
+    fn get_recent_applications(&self) -> Vec<ApplicationEntry> {
         let recent_applications: &Vec<RecentApplication> = &self.config.recent_applications;
-        let all_applications_entries: HashMap<String, Arc<DesktopEntryData>> =
+        let all_applications_entries: HashMap<String, ApplicationEntry> =
             crate::logic::apps::load_apps()
-                .iter()
-                .map(|app| (app.id.clone(), Arc::clone(app)))
+                .into_iter()
+                .map(|app| (app.id.clone(), app))
                 .collect();
 
         // recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
