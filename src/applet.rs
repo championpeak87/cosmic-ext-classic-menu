@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::process;
 use std::sync::Arc;
 
+use cosmic::cosmic_config::CosmicConfigEntry;
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
@@ -392,6 +393,10 @@ impl CosmicClassicMenu {
                 launch_count: 1,
             });
         }
+
+        self.config
+            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+            .expect("Failed to write recent applications config");
     }
 
     fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
