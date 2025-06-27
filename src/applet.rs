@@ -16,6 +16,7 @@ use fuzzy_matcher::FuzzyMatcher;
 use std::collections::HashMap;
 use std::process;
 
+use cosmic::cosmic_config::CosmicConfigEntry;
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
