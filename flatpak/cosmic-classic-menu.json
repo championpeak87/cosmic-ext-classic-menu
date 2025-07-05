@@ -1,0 +1,40 @@
+{
+  "id": "com.championpeak87.cosmic-classic-menu",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "24.08",
+  "base": "com.system76.Cosmic.BaseApp",
+  "base-version": "stable",
+  "sdk": "org.freedesktop.Sdk",
+  "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
+  "command": "cosmic-classic-menu",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=all"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin",
+    "env": {
+      "CARGO_HOME": "/run/build/cosmic-classic-menu/cargo"
+    }
+  },
+  "modules": [
+    {
+      "name": "cosmic-classic-menu",
+      "buildsystem": "simple",
+      "build-commands": [
+        "just build-release --verbose --offline",
+        "just prefix=/app install"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/championpeak87/cosmic-classic-menu.git",
+          "commit": "chore/flatpak"
+        },
+        "cargo.json"
+      ]
+    }
+  ]
+}

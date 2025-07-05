@@ -177,14 +177,7 @@ impl Application for CosmicClassicMenu {
                 cosmic::Action::App(Message::UpdateLoggedUser(result))
             });
 
-<<<<<<< Updated upstream
-        (
-            window,
-            Task::batch(vec![fetch_current_user_task]),
-        )
-=======
         (window, Task::batch(vec![fetch_current_user_task]))
->>>>>>> Stashed changes
     }
 
     fn on_close_requested(&self, id: Id) -> Option<Message> {
@@ -225,7 +218,8 @@ impl Application for CosmicClassicMenu {
                         }
                         cosmic::applet::cosmic_panel_config::PanelSize::M
                         | cosmic::applet::cosmic_panel_config::PanelSize::L
-                        | cosmic::applet::cosmic_panel_config::PanelSize::XL => {
+                        | cosmic::applet::cosmic_panel_config::PanelSize::XL
+                        | cosmic::applet::cosmic_panel_config::PanelSize::Custom(_) => {
                             AppletButton::view_icon_only(&self)
                         }
                     },
@@ -323,7 +317,7 @@ impl CosmicClassicMenu {
         self.search_field = input.to_string();
 
         Task::none()
- }
+    }
 
     fn perform_power_action(&mut self, action: PowerAction) -> Task<Message> {
         match action {
@@ -356,9 +350,11 @@ impl CosmicClassicMenu {
         let app_exec = app.exec.clone().unwrap();
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
+        let is_terminal = app.is_terminal;
 
         tokio::spawn(async move {
-            cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref()).await;
+            cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref(), is_terminal)
+                .await;
         });
 
         self.update_recent_applications(app);
@@ -402,14 +398,7 @@ impl CosmicClassicMenu {
         } else {
             self.available_applications = crate::logic::apps::load_apps()
                 .iter()
-<<<<<<< Updated upstream
-                .filter(|app| {
-                    app.category
-                        .contains(&category.mime_name.to_string())
-                })
-=======
                 .filter(|app| app.category.contains(&category.mime_name.to_string()))
->>>>>>> Stashed changes
                 .cloned()
                 .collect();
         }

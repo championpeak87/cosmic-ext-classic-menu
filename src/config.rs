@@ -25,7 +25,7 @@ impl Default for CosmicClassicMenuConfig {
             applet_button_style: AppletButtonStyle::default(),
             user_widget: UserWidgetStyle::default(),
             button_label: fl!("menu-label").to_owned(),
-            button_icon: "com.championpeak87.CosmicClassicMenu".to_owned(),
+            button_icon: "open-menu-symbolic".to_owned(),
             recent_applications: vec![],
         }
     }

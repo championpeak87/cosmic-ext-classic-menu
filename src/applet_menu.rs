@@ -14,7 +14,7 @@ use cosmic::{theme, Element};
 use crate::applet::{CosmicClassicMenu, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
-use crate::logic::apps::ApplicationCategory;
+use crate::logic::apps::{load_apps, ApplicationCategory};
 
 pub struct AppletMenu;
 
@@ -134,8 +134,7 @@ impl AppletMenu {
                         cosmic::widget::Space::new(5, Length::Fill),
                         column![
                             text(&app.name),
-                            text(app.comment.as_deref().unwrap_or_default())
-                                .size(8.0),
+                            text(app.comment.as_deref().unwrap_or_default()).size(8.0),
                         ]
                         .padding([0, 0]),
                     ])
@@ -174,6 +173,19 @@ impl AppletMenu {
             ApplicationCategory::SYSTEM,
             ApplicationCategory::UTILITY,
         ];
+
+        let all_apps = load_apps();
+        let categories: Vec<ApplicationCategory> = categories
+            .iter()
+            .filter(|&category| {
+                // Filter out categories that have no applications
+                let category_string = category.mime_name.to_string();
+                all_apps
+                    .iter()
+                    .any(|app| app.category.contains(&category_string))
+            })
+            .cloned()
+            .collect();
 
         let mut categories_pane: Vec<Element<Message>> = categories
             .iter()
