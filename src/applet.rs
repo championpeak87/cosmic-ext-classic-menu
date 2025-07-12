@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+use cached::{cached_key, Cached, UnboundCache};
 use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::CosmicConfigEntry;
+use cosmic::iced::Subscription;
 use cosmic::iced::{
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
     widget::{column, row},
@@ -18,7 +20,7 @@ use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
-use crate::logic::apps::{ApplicationCategory, User};
+use crate::logic::apps::{desktop_files, load_apps, ApplicationCategory, Event, User, APPS_CACHE};
 use crate::model::application_entry::ApplicationEntry;
 
 /// This is the struct that represents your application.
@@ -57,6 +59,7 @@ pub enum Message {
     LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
     UpdateLoggedUser(Result<User, zbus::Error>),
+    FileEvent(Event)
 }
 
 #[derive(Clone, Debug)]
@@ -254,16 +257,33 @@ impl Application for CosmicClassicMenu {
             Message::UpdateLoggedUser(user) => {
                 self.current_user = user.ok();
                 Task::none()
-            }
+            },
+            Message::FileEvent(event) => self.handle_event(event),
         }
     }
 
     fn style(&self) -> Option<cosmic::iced_runtime::Appearance> {
         Some(cosmic::applet::style())
     }
+
+
+    fn subscription(&self) -> Subscription<Message> {
+        desktop_files(Id::unique()).map(Message::FileEvent)
+    }
 }
 
 impl CosmicClassicMenu {
+    pub fn handle_event(&mut self, event: Event) -> Task<Message> {
+        match event {
+            Event::Changed => {
+                // Invalidate the cache
+                APPS_CACHE.lock().unwrap().cache_reset();
+                Task::none()
+            }
+            _ => Task::none(),
+        }
+    }
+
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
         self.popup_type = popup_type;
         if self.popup_type == PopupType::MainMenu {

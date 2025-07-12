@@ -14,7 +14,7 @@ use cosmic::{theme, Element};
 use crate::applet::{CosmicClassicMenu, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
-use crate::logic::apps::{load_apps, ApplicationCategory};
+use crate::logic::apps::{load_apps, ApplicationCategory, APPS_CACHE};
 
 pub struct AppletMenu;
 

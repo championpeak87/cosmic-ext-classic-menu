@@ -24,16 +24,19 @@
       "name": "cosmic-classic-menu",
       "buildsystem": "simple",
       "build-commands": [
-        "just build-release --verbose --offline",
+        "just build-release --verbose",
         "just prefix=/app install"
       ],
+      "build-options": {
+        "build-args": [
+          "--share=network"
+        ]
+      },
       "sources": [
         {
-          "type": "git",
-          "url": "https://github.com/championpeak87/cosmic-classic-menu.git",
-          "commit": "chore/flatpak"
-        },
-        "cargo.json"
+          "type": "dir",
+          "path": ".."
+        }
       ]
     }
   ]

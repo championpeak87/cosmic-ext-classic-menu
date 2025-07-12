@@ -2,9 +2,22 @@ use crate::{fl, model::application_entry::ApplicationEntry};
 use std::{fmt::Display, string::String};
 
 use serde::{Deserialize, Serialize};
-use cached::proc_macro::cached;
+use cached::{proc_macro::cached, UnboundCache};
 
-#[cached]
+use cosmic::{
+    iced::{stream, Subscription},
+    iced_futures::futures::{self, SinkExt},
+};
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::fmt::Debug;
+use std::hash::Hash;
+use tokio::sync::mpsc;
+
+#[cached(
+    name = "APPS_CACHE",
+    ty = "UnboundCache<(), Vec<ApplicationEntry>>",
+    create = "{ UnboundCache::new() }"
+)]
 pub fn load_apps() -> Vec<ApplicationEntry> {
     let locale = current_locale::current_locale().ok();
     let mut all_entries: Vec<ApplicationEntry> =
@@ -15,6 +28,57 @@ pub fn load_apps() -> Vec<ApplicationEntry> {
     all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
     all_entries
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Event {
+    Changed,
+}
+
+pub fn desktop_files<I: 'static + Hash + Copy + Send + Sync + Debug>(
+    id: I,
+) -> cosmic::iced::Subscription<Event> {
+    Subscription::run_with_id(
+        id,
+        stream::channel(50, move |mut output| async move {
+            let handle = tokio::runtime::Handle::current();
+            let (tx, mut rx) = mpsc::channel(4);
+            let mut last_update = std::time::Instant::now();
+
+            // Automatically select the best implementation for your platform.
+            // You can also access each implementation directly e.g. INotifyWatcher.
+            let watcher = RecommendedWatcher::new(
+                move |res: Result<notify::Event, notify::Error>| {
+                    if let Ok(event) = res {
+                        match event.kind {
+                            EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
+                                let now = std::time::Instant::now();
+                                if now.duration_since(last_update).as_secs() > 3 {
+                                    _ = handle.block_on(tx.send(()));
+                                    last_update = now;
+                                }
+                            }
+
+                            _ => (),
+                        }
+                    }
+                },
+                Config::default(),
+            );
+
+            if let Ok(mut watcher) = watcher {
+                for path in freedesktop_desktop_entry::default_paths() {
+                    let _ = watcher.watch(path.as_ref(), RecursiveMode::Recursive);
+                }
+
+                while rx.recv().await.is_some() {
+                    _ = output.send(Event::Changed).await;
+                }
+            }
+
+            futures::future::pending().await
+        }),
+    )
 }
 
 pub async fn get_current_user() -> Result<User, zbus::Error> {
