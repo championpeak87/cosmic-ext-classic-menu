@@ -14,7 +14,7 @@ use cosmic::{theme, Element};
 use crate::applet::{CosmicClassicMenu, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
-use crate::logic::apps::ApplicationCategory;
+use crate::logic::apps::{load_apps, ApplicationCategory, APPS_CACHE};
 
 pub struct AppletMenu;
 
@@ -134,8 +134,7 @@ impl AppletMenu {
                         cosmic::widget::Space::new(5, Length::Fill),
                         column![
                             text(&app.name),
-                            text(crate::logic::apps::get_comment(&app).unwrap_or_default())
-                                .size(8.0),
+                            text(app.comment.as_deref().unwrap_or_default()).size(8.0),
                         ]
                         .padding([0, 0]),
                     ])
@@ -160,27 +159,40 @@ impl AppletMenu {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
         let categories: [ApplicationCategory; 13] = [
-            ApplicationCategory::All,
-            ApplicationCategory::RecentlyUsed,
-            ApplicationCategory::Audio,
-            ApplicationCategory::Video,
-            ApplicationCategory::Development,
-            ApplicationCategory::Games,
-            ApplicationCategory::Graphics,
-            ApplicationCategory::Network,
-            ApplicationCategory::Office,
-            ApplicationCategory::Science,
-            ApplicationCategory::Settings,
-            ApplicationCategory::System,
-            ApplicationCategory::Utility,
+            ApplicationCategory::ALL,
+            ApplicationCategory::RECENTLY_USED,
+            ApplicationCategory::AUDIO,
+            ApplicationCategory::VIDEO,
+            ApplicationCategory::DEVELOPMENT,
+            ApplicationCategory::GAMES,
+            ApplicationCategory::GRAPHICS,
+            ApplicationCategory::NETWORK,
+            ApplicationCategory::OFFICE,
+            ApplicationCategory::SCIENCE,
+            ApplicationCategory::SETTINGS,
+            ApplicationCategory::SYSTEM,
+            ApplicationCategory::UTILITY,
         ];
+
+        let all_apps = load_apps();
+        let categories: Vec<ApplicationCategory> = categories
+            .iter()
+            .filter(|&category| {
+                // Filter out categories that have no applications
+                let category_string = category.mime_name.to_string();
+                all_apps
+                    .iter()
+                    .any(|app| app.category.contains(&category_string))
+            })
+            .cloned()
+            .collect();
 
         let mut categories_pane: Vec<Element<Message>> = categories
             .iter()
             .map(|category| {
                 cosmic::widget::button::custom(
                     row![
-                        container(cosmic::widget::icon::from_name(category.get_icon_name()))
+                        container(cosmic::widget::icon::from_name(category.icon_name))
                             .padding([0, space_m]),
                         text(category.get_display_name()),
                     ]
