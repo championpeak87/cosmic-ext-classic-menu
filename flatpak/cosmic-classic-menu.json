@@ -13,6 +13,11 @@
     "--socket=fallback-x11",
     "--device=all"
   ],
+  "filesystem": [
+      "/usr/share/applications:ro",
+      "/usr/local/share/applications:ro",
+      "~/.local/share/applications:ro"
+  ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
     "env": {
@@ -24,19 +29,15 @@
       "name": "cosmic-classic-menu",
       "buildsystem": "simple",
       "build-commands": [
-        "just build-release --verbose",
+        "just build-release --verbose --offline",
         "just prefix=/app install"
       ],
-      "build-options": {
-        "build-args": [
-          "--share=network"
-        ]
-      },
       "sources": [
         {
           "type": "dir",
           "path": ".."
-        }
+        },
+        "./cargo-sources.json"
       ]
     }
   ]
