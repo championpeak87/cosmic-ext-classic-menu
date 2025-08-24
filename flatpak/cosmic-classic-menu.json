@@ -2,21 +2,18 @@
   "id": "com.championpeak87.cosmic-classic-menu",
   "runtime": "org.freedesktop.Platform",
   "runtime-version": "24.08",
-  "base": "com.system76.Cosmic.BaseApp",
-  "base-version": "stable",
   "sdk": "org.freedesktop.Sdk",
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
   "command": "cosmic-classic-menu",
   "finish-args": [
-    "--share=ipc",
+    "--share=network",
+    "--filesystem=xdg-config/cosmic:rw",
+    "--talk-name=com.system76.CosmicSettingsDaemon",
     "--socket=wayland",
-    "--socket=fallback-x11",
-    "--device=all"
-  ],
-  "filesystem": [
-      "/usr/share/applications:ro",
-      "/usr/local/share/applications:ro",
-      "~/.local/share/applications:ro"
+    "--device=dri",
+    "--talk-name=org.freedesktop.portal.Desktop",
+    "--talk-name=org.freedesktop.portal.Location",
+    "--filesystem=/usr/share/applications:ro"
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
@@ -29,8 +26,10 @@
       "name": "cosmic-classic-menu",
       "buildsystem": "simple",
       "build-commands": [
-        "just build-release --verbose --offline",
-        "just prefix=/app install"
+        "cargo --offline fetch --manifest-path Cargo.toml --verbose",
+        "cargo --offline build --release --verbose",
+        "install -Dm0755 ./target/release/cosmic-classic-menu /app/bin/cosmic-classic-menu",
+        "install -Dm0644 ./res/com.championpeak87.CosmicClassicMenu.desktop -t /app/share/applications/com.championpeak87.CosmicClassicMenu.desktop"
       ],
       "sources": [
         {

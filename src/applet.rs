@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use cached::{cached_key, Cached, UnboundCache};
+use cached::Cached;
 use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::iced::Subscription;
@@ -20,7 +20,7 @@ use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
-use crate::logic::apps::{desktop_files, load_apps, ApplicationCategory, Event, User, APPS_CACHE};
+use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User, APPS_CACHE};
 use crate::model::application_entry::ApplicationEntry;
 
 /// This is the struct that represents your application.
