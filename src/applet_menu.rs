@@ -215,7 +215,9 @@ impl AppletMenu {
                 .align_y(Alignment::Center)
                 .padding(5)
                 .into();
-        categories_pane.insert(2, horizontal_divider);
+        if !categories_pane.is_empty() {
+            categories_pane.insert(2, horizontal_divider);
+        }
 
         // add power menu to the bottom of the categories pane
         categories_pane.push(cosmic::widget::Space::new(Length::Fill, Length::Fill).into());
