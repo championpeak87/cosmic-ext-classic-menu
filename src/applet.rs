@@ -193,7 +193,7 @@ impl Application for CosmicClassicMenu {
     /// it has a `Message` associated with it, which dictates what type of message it can send.
     ///
     /// To get a better sense of which widgets are available, check out the `widget` module.
-    fn view(&self) -> Element<Self::Message> {
+    fn view(&self) -> Element<'_, Message> {
         let applet_button_style = &self.config.applet_button_style;
         let panel_type = &self.core.applet.panel_type;
         let size = &self.core.applet.size;
@@ -234,7 +234,7 @@ impl Application for CosmicClassicMenu {
         }
     }
 
-    fn view_window(&self, _id: Id) -> Element<Self::Message> {
+    fn view_window(&self, _id: Id) -> Element<'_, Message> {
         match self.popup_type {
             PopupType::MainMenu => self.view_main_menu(),
             PopupType::ContextMenu => self.view_context_menu(),
@@ -280,7 +280,6 @@ impl CosmicClassicMenu {
                 APPS_CACHE.lock().unwrap().cache_reset();
                 Task::none()
             }
-            _ => Task::none(),
         }
     }
 
@@ -457,12 +456,12 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn view_main_menu(&self) -> Element<Message> {
+    fn view_main_menu(&self) -> Element<'_, Message> {
         // TODO: Implement grid view
         AppletMenu::view_main_menu_list(&self)
     }
 
-    fn view_context_menu(&self) -> Element<Message> {
+    fn view_context_menu(&self) -> Element<'_, Message> {
         let context_menu = column![
             cosmic::applet::menu_button(
                 row![cosmic::widget::text::body(fl!("settings-label")),].align_y(Alignment::Center)

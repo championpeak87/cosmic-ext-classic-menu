@@ -1,6 +1,6 @@
 {
   "id": "com.championpeak87.cosmic-classic-menu",
-  "runtime": "org.freedesktop.Platform",
+  "runtime": "org.freedesktop.Platform",c
   "runtime-version": "24.08",
   "sdk": "org.freedesktop.Sdk",
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
@@ -9,11 +9,12 @@
     "--share=network",
     "--filesystem=xdg-config/cosmic:rw",
     "--talk-name=com.system76.CosmicSettingsDaemon",
+    "--system-talk-name=org.freedesktop.Accounts",
     "--socket=wayland",
     "--device=dri",
     "--talk-name=org.freedesktop.portal.Desktop",
     "--talk-name=org.freedesktop.portal.Location",
-    "--filesystem=/usr/share/applications:ro"
+    "--env=XDG_DATA_DIRS=$XDG_DATA_DIRS:/run/host/usr/share"
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",

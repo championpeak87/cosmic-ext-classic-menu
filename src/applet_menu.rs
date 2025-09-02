@@ -24,7 +24,26 @@ impl AppletMenu {
     const POPUP_MAX_HEIGHT: f32 = 700.0;
     const POPUP_MIN_HEIGHT: f32 = 700.0;
 
-    pub fn view_main_menu_list(applet: &CosmicClassicMenu) -> Element<Message> {
+    const SYSTEM_LOCKSCREEN_SYMBOLIC_ICON: &[u8] = include_bytes!(
+        "../res/icons/bundled/system-lock-screen-symbolic.svg"
+    );
+    const SYSTEM_LOGOUT_SYMBOLIC_ICON: &[u8] = include_bytes!(
+        "../res/icons/bundled/system-log-out-symbolic.svg"
+    );
+    const SYSTEM_REBOOT_SYMBOLIC_ICON: &[u8] = include_bytes!(
+        "../res/icons/bundled/system-reboot-symbolic.svg"
+    );
+    const SYSTEM_SHUTDOWN_SYMBOLIC_ICON: &[u8] = include_bytes!(
+        "../res/icons/bundled/system-shutdown-symbolic.svg"
+    );
+    const SYSTEM_SUSPEND_SYMBOLIC_ICON: &[u8] = include_bytes!(
+        "../res/icons/bundled/system-suspend-symbolic.svg"
+    );
+    const USER_IDLE_SYMBOLIC: &[u8] = include_bytes!(
+        "../res/icons/bundled/user-idle-symbolic.svg"
+    );
+
+    pub fn view_main_menu_list(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
@@ -71,28 +90,28 @@ impl AppletMenu {
             .into()
     }
 
-    fn create_power_menu(_applet: &CosmicClassicMenu) -> Element<Message> {
+    fn create_power_menu(_applet: &CosmicClassicMenu) -> Element<'_, Message> {
         container(
             row![
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-log-out-symbolic"
-                ))
+                cosmic::widget::button::icon(cosmic::widget::icon::from_svg_bytes(
+                    AppletMenu::SYSTEM_LOGOUT_SYMBOLIC_ICON,
+                ).symbolic(true))
                 .on_press(Message::PowerOptionSelected(PowerAction::Logout)),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-suspend-symbolic"
-                ))
+                cosmic::widget::button::icon(cosmic::widget::icon::from_svg_bytes(
+                    AppletMenu::SYSTEM_SUSPEND_SYMBOLIC_ICON,
+                ).symbolic(true))
                 .on_press(Message::PowerOptionSelected(PowerAction::Suspend)),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-lock-screen-symbolic"
-                ))
+                cosmic::widget::button::icon(cosmic::widget::icon::from_svg_bytes(
+                    AppletMenu::SYSTEM_LOCKSCREEN_SYMBOLIC_ICON,
+                ).symbolic(true))
                 .on_press(Message::PowerOptionSelected(PowerAction::Lock)),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-restart-symbolic"
-                ))
+                cosmic::widget::button::icon(cosmic::widget::icon::from_svg_bytes(
+                    AppletMenu::SYSTEM_REBOOT_SYMBOLIC_ICON,
+                ).symbolic(true))
                 .on_press(Message::PowerOptionSelected(PowerAction::Reboot)),
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-shutdown-symbolic"
-                ))
+                cosmic::widget::button::icon(cosmic::widget::icon::from_svg_bytes(
+                    AppletMenu::SYSTEM_SHUTDOWN_SYMBOLIC_ICON,
+                ).symbolic(true))
                 .on_press(Message::PowerOptionSelected(PowerAction::Shutdown)),
             ]
             .align_y(Alignment::Center),
@@ -103,7 +122,7 @@ impl AppletMenu {
         .into()
     }
 
-    fn create_search_field(applet: &CosmicClassicMenu) -> Element<Message> {
+    fn create_search_field(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
@@ -116,7 +135,7 @@ impl AppletMenu {
             .into()
     }
 
-    fn create_app_list(applet: &CosmicClassicMenu) -> Element<Message> {
+    fn create_app_list(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing {
             space_l, space_xl, ..
         } = theme::active().cosmic().spacing;
@@ -155,12 +174,10 @@ impl AppletMenu {
             .into()
     }
 
-    fn create_categories_pane(applet: &CosmicClassicMenu) -> Element<Message> {
+    fn create_categories_pane(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
-        let categories: [ApplicationCategory; 13] = [
-            ApplicationCategory::ALL,
-            ApplicationCategory::RECENTLY_USED,
+        let apps_categories: [ApplicationCategory; 11] = [
             ApplicationCategory::AUDIO,
             ApplicationCategory::VIDEO,
             ApplicationCategory::DEVELOPMENT,
@@ -175,7 +192,11 @@ impl AppletMenu {
         ];
 
         let all_apps = load_apps();
-        let categories: Vec<ApplicationCategory> = categories
+        let mut categories: Vec<ApplicationCategory> = Vec::new();
+        categories.push(ApplicationCategory::ALL);
+        categories.push(ApplicationCategory::RECENTLY_USED);
+        
+        apps_categories
             .iter()
             .filter(|&category| {
                 // Filter out categories that have no applications
@@ -185,14 +206,16 @@ impl AppletMenu {
                     .any(|app| app.category.contains(&category_string))
             })
             .cloned()
-            .collect();
+            .for_each(|x| categories.push(x));
 
         let mut categories_pane: Vec<Element<Message>> = categories
             .iter()
             .map(|category| {
                 cosmic::widget::button::custom(
                     row![
-                        container(cosmic::widget::icon::from_name(category.icon_name))
+                        container(cosmic::widget::icon::from_svg_bytes(category.icon_svg_bytes)
+                            .symbolic(true)
+                            .icon())
                             .padding([0, space_m]),
                         text(category.get_display_name()),
                     ]
@@ -229,7 +252,7 @@ impl AppletMenu {
             .into()
     }
 
-    pub fn create_logged_user_widget(applet: &CosmicClassicMenu) -> Element<Message> {
+    pub fn create_logged_user_widget(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         if applet.config.user_widget == crate::config::UserWidgetStyle::None {
             return cosmic::widget::Space::new(0, 0).into();
         }
@@ -244,9 +267,10 @@ impl AppletMenu {
                         .border_radius([5.; 4])
                         .into()
                 } else {
-                    cosmic::widget::icon::from_name("user-idle-symbolic")
-                        .size(40)
+                    cosmic::widget::icon::from_svg_bytes(AppletMenu::USER_IDLE_SYMBOLIC)
                         .symbolic(true)
+                        .icon()
+                        .size(40)
                         .into()
                 };
 

@@ -19,12 +19,16 @@ use tokio::sync::mpsc;
     create = "{ UnboundCache::new() }"
 )]
 pub fn load_apps() -> Vec<ApplicationEntry> {
+    let default_paths = freedesktop_desktop_entry::default_paths();
+    let default_paths_vec: Vec<_> = default_paths.collect();
+    dbg!(&default_paths_vec);
     let locale = current_locale::current_locale().ok();
     let mut all_entries: Vec<ApplicationEntry> =
         cosmic::desktop::load_applications(locale.as_slice(), false, None)
             .into_iter()
             .map(Into::into)
             .collect();
+    dbg!(&all_entries);
     all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
     all_entries
@@ -120,74 +124,74 @@ pub struct User {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApplicationCategory {
     pub display_name: &'static str,
-    pub icon_name: &'static str,
+    pub icon_svg_bytes: &'static[u8],
     pub mime_name: &'static str,
 }
 
 impl ApplicationCategory {
     pub const ALL: ApplicationCategory = ApplicationCategory {
         display_name: "all-applications",
-        icon_name: "open-menu-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/open-menu-symbolic.svg"),
         mime_name: "",
     };
     pub const RECENTLY_USED: ApplicationCategory = ApplicationCategory {
         display_name: "recently-used",
-        icon_name: "document-open-recent-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/document-open-recent-symbolic.svg"),
         mime_name: "",
     };
     pub const AUDIO: ApplicationCategory = ApplicationCategory {
         display_name: "audio",
-        icon_name: "applications-audio-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-audio-symbolic.svg"),
         mime_name: "Audio",
     };
     pub const VIDEO: ApplicationCategory = ApplicationCategory {
         display_name: "video",
-        icon_name: "applications-video-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-video-symbolic.svg"),
         mime_name: "Video",
     };
     pub const DEVELOPMENT: ApplicationCategory = ApplicationCategory {
         display_name: "development",
-        icon_name: "applications-engineering-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-engineering-symbolic.svg"),
         mime_name: "Development",
     };
     pub const GAMES: ApplicationCategory = ApplicationCategory {
         display_name: "games",
-        icon_name: "applications-games-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-games-symbolic.svg"),
         mime_name: "Game",
     };
     pub const GRAPHICS: ApplicationCategory = ApplicationCategory {
         display_name: "graphics",
-        icon_name: "applications-graphics-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-graphics-symbolic.svg"),
         mime_name: "Graphics",
     };
     pub const NETWORK: ApplicationCategory = ApplicationCategory {
         display_name: "network",
-        icon_name: "network-workgroup-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/network-workgroup-symbolic.svg"),
         mime_name: "Network",
     };
     pub const OFFICE: ApplicationCategory = ApplicationCategory {
         display_name: "office",
-        icon_name: "applications-office-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-office-symbolic.svg"),
         mime_name: "Office",
     };
     pub const SCIENCE: ApplicationCategory = ApplicationCategory {
         display_name: "science",
-        icon_name: "applications-science-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-science-symbolic.svg"),
         mime_name: "Science",
     };
     pub const SETTINGS: ApplicationCategory = ApplicationCategory {
         display_name: "settings",
-        icon_name: "preferences-system-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/preferences-system-symbolic.svg"),
         mime_name: "Settings",
     };
     pub const SYSTEM: ApplicationCategory = ApplicationCategory {
         display_name: "system",
-        icon_name: "applications-system-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-system-symbolic.svg"),
         mime_name: "System",
     };
     pub const UTILITY: ApplicationCategory = ApplicationCategory {
         display_name: "utility",
-        icon_name: "applications-utilities-symbolic",
+        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-utilities-symbolic.svg"),
         mime_name: "Utility",
     };
 
