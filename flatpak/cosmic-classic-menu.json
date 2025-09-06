@@ -1,7 +1,9 @@
 {
   "id": "com.championpeak87.cosmic-classic-menu",
-  "runtime": "org.freedesktop.Platform",c
+  "runtime": "org.freedesktop.Platform",
   "runtime-version": "24.08",
+  "base": "com.system76.Cosmic.BaseApp",
+  "base-version": "stable",
   "sdk": "org.freedesktop.Sdk",
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
   "command": "cosmic-classic-menu",
@@ -27,10 +29,8 @@
       "name": "cosmic-classic-menu",
       "buildsystem": "simple",
       "build-commands": [
-        "cargo --offline fetch --manifest-path Cargo.toml --verbose",
-        "cargo --offline build --release --verbose",
-        "install -Dm0755 ./target/release/cosmic-classic-menu /app/bin/cosmic-classic-menu",
-        "install -Dm0644 ./res/com.championpeak87.CosmicClassicMenu.desktop -t /app/share/applications/com.championpeak87.CosmicClassicMenu.desktop"
+        "just build-release --verbose",
+        "just prefix=/app install"
       ],
       "sources": [
         {
