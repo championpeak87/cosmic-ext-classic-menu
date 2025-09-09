@@ -24,7 +24,7 @@ impl AppletButton {
     ///
     /// # Returns
     /// An `Element<Message>` representing the icon-only applet button.
-    pub fn view_icon_only(applet: &CosmicClassicMenu) -> Element<Message> {
+    pub fn view_icon_only(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let button_icon = &applet.config.button_icon;
 
         mouse_area(
@@ -49,7 +49,7 @@ impl AppletButton {
     ///
     /// # Returns
     /// An `Element<Message>` representing the label-only applet button.
-    pub fn view_label_only(applet: &CosmicClassicMenu) -> Element<Message> {
+    pub fn view_label_only(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let button_label = &applet.config.button_label;
 
         let content = row!(
@@ -86,7 +86,7 @@ impl AppletButton {
     ///
     /// # Returns
     /// An `Element<Message>` representing the applet button with both an icon and a label.
-    pub fn view_icon_and_label(applet: &CosmicClassicMenu) -> Element<Message> {
+    pub fn view_icon_and_label(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let button_label = &applet.config.button_label;
         let button_icon = &applet.config.button_icon;
 

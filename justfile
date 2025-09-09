@@ -1,5 +1,5 @@
 name := 'cosmic-classic-menu'
-export APPID := 'com.championpeak87.CosmicClassicMenu'
+export APPID := 'com.championpeak87.cosmic-classic-menu'
 import "res/packaging.just"
 
 # Default recipe which runs `just build-release`
