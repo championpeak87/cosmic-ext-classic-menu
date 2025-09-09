@@ -366,10 +366,16 @@ impl CosmicClassicMenu {
     }
 
     fn launch_application(&mut self, app: ApplicationEntry) -> Task<Message> {
-        let app_exec = app.exec.clone().unwrap();
+        let mut app_exec = app.exec.clone().unwrap();
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
         let is_terminal = app.is_terminal;
+
+        let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
+
+        if is_flatpak {
+            app_exec = format!("flatpak-spawn --host {}", app_exec);
+        }
 
         tokio::spawn(async move {
             cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref(), is_terminal)

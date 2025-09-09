@@ -14,7 +14,7 @@
     <p>A launcher applet for COSMIC Desktop</p>
   </description>
   <launchable type="desktop-id">com.championpeak87.cosmic-classic-menu.desktop</launchable>
-  <icon type="remote">https://raw.githubusercontent.com/championpeak87/cosmic-classic-menu/refs/heads/main/res/icons/hicolor/scalable/apps/com.championpeak87.CosmicClassicMenu.svg</icon>
+  <icon type="remote">https://github.com/championpeak87/cosmic-classic-menu/raw/main/res/icons/hicolor/scalable/apps/com.championpeak87.cosmic-classic-menu.svg</icon>
   <screenshots>
   </screenshots>
   <categories>

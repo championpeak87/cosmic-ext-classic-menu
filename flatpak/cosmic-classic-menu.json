@@ -16,6 +16,8 @@
     "--device=dri",
     "--talk-name=org.freedesktop.portal.Desktop",
     "--talk-name=org.freedesktop.portal.Location",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--talk-name=org.freedesktop.portal.*",
     "--env=XDG_DATA_DIRS=$XDG_DATA_DIRS:/run/host/usr/share"
   ],
   "build-options": {

@@ -17,8 +17,8 @@ metainfo-path := 'share' / 'metainfo' / metainfo
 metainfo-dst := base-dir / metainfo-path
 
 icons := APPID + '.svg'
-icons-src := 'res' / 'icons' / icons
-icons-path := 'share' / 'icons' / icons
+icons-src := 'res' / 'icons' / 'hicolor' / 'scalable' / 'apps' / icons
+icons-path := 'share' / 'icons' / 'hicolor' / 'scalable' / 'apps' / icons
 icons-dst := base-dir / icons-path
 
 # Compiles with debug profile

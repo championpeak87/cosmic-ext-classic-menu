@@ -21,14 +21,12 @@ use tokio::sync::mpsc;
 pub fn load_apps() -> Vec<ApplicationEntry> {
     let default_paths = freedesktop_desktop_entry::default_paths();
     let default_paths_vec: Vec<_> = default_paths.collect();
-    dbg!(&default_paths_vec);
     let locale = current_locale::current_locale().ok();
     let mut all_entries: Vec<ApplicationEntry> =
         cosmic::desktop::load_applications(locale.as_slice(), false, None)
             .into_iter()
             .map(Into::into)
             .collect();
-    dbg!(&all_entries);
     all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
     all_entries
