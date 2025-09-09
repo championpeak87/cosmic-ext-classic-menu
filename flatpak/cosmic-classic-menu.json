@@ -8,10 +8,17 @@
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
   "command": "cosmic-classic-menu",
   "finish-args": [
-    "--share=ipc",
+    "--share=network",
+    "--filesystem=xdg-config/cosmic:rw",
+    "--talk-name=com.system76.CosmicSettingsDaemon",
+    "--system-talk-name=org.freedesktop.Accounts",
     "--socket=wayland",
-    "--socket=fallback-x11",
-    "--device=all"
+    "--device=dri",
+    "--talk-name=org.freedesktop.portal.Desktop",
+    "--talk-name=org.freedesktop.portal.Location",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--talk-name=org.freedesktop.portal.*",
+    "--env=XDG_DATA_DIRS=$XDG_DATA_DIRS:/run/host/usr/share"
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
@@ -27,16 +34,12 @@
         "just build-release --verbose",
         "just prefix=/app install"
       ],
-      "build-options": {
-        "build-args": [
-          "--share=network"
-        ]
-      },
       "sources": [
         {
           "type": "dir",
           "path": ".."
-        }
+        },
+        "./cargo-sources.json"
       ]
     }
   ]

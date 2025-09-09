@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use cached::{cached_key, Cached, UnboundCache};
+use cached::Cached;
 use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::iced::Subscription;
@@ -20,7 +20,7 @@ use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
-use crate::logic::apps::{desktop_files, load_apps, ApplicationCategory, Event, User, APPS_CACHE};
+use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User, APPS_CACHE};
 use crate::model::application_entry::ApplicationEntry;
 
 /// This is the struct that represents your application.
@@ -193,7 +193,7 @@ impl Application for CosmicClassicMenu {
     /// it has a `Message` associated with it, which dictates what type of message it can send.
     ///
     /// To get a better sense of which widgets are available, check out the `widget` module.
-    fn view(&self) -> Element<Self::Message> {
+    fn view(&self) -> Element<'_, Message> {
         let applet_button_style = &self.config.applet_button_style;
         let panel_type = &self.core.applet.panel_type;
         let size = &self.core.applet.size;
@@ -234,7 +234,7 @@ impl Application for CosmicClassicMenu {
         }
     }
 
-    fn view_window(&self, _id: Id) -> Element<Self::Message> {
+    fn view_window(&self, _id: Id) -> Element<'_, Message> {
         match self.popup_type {
             PopupType::MainMenu => self.view_main_menu(),
             PopupType::ContextMenu => self.view_context_menu(),
@@ -280,7 +280,6 @@ impl CosmicClassicMenu {
                 APPS_CACHE.lock().unwrap().cache_reset();
                 Task::none()
             }
-            _ => Task::none(),
         }
     }
 
@@ -367,10 +366,16 @@ impl CosmicClassicMenu {
     }
 
     fn launch_application(&mut self, app: ApplicationEntry) -> Task<Message> {
-        let app_exec = app.exec.clone().unwrap();
+        let mut app_exec = app.exec.clone().unwrap();
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
         let is_terminal = app.is_terminal;
+
+        let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
+
+        if is_flatpak {
+            app_exec = format!("flatpak-spawn --host {}", app_exec);
+        }
 
         tokio::spawn(async move {
             cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref(), is_terminal)
@@ -457,12 +462,12 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn view_main_menu(&self) -> Element<Message> {
+    fn view_main_menu(&self) -> Element<'_, Message> {
         // TODO: Implement grid view
         AppletMenu::view_main_menu_list(&self)
     }
 
-    fn view_context_menu(&self) -> Element<Message> {
+    fn view_context_menu(&self) -> Element<'_, Message> {
         let context_menu = column![
             cosmic::applet::menu_button(
                 row![cosmic::widget::text::body(fl!("settings-label")),].align_y(Alignment::Center)

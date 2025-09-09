@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=COSMIC Classic Menu
+Exec=cosmic-classic-menu %F
+Terminal=false
+Type=Application
+StartupNotify=true
+Icon=com.championpeak87.cosmic-classic-menu
+Categories=COSMIC;
+Keywords=COSMIC
+MimeType=
+NoDisplay=true
+X-CosmicApplet=true
+X-CosmicHoverPopup=Auto
