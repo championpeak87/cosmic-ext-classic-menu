@@ -9,20 +9,6 @@
 		"./deps": {},
 		"./flatpak": {},
 	},
-	"mounts": [
-		{
-			"source": "/run/user/1000/wayland-1",
-			"target": "/tmp/wayland.sock",
-			"type": "bind"
-		}
-	],
-	"containerEnv": {
-		"DISPLAY": "${localEnv:DISPLAY}"
-	},
-	"runArgs": [
-		"--privileged",
-		"--volume=/run/dbus/system_bus_socket:/run/dbus/system_bus_socket"
-	],
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
