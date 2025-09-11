@@ -71,22 +71,28 @@ pub enum SystemTool {
 
 impl SystemTool {
     fn perform(&self) {
-        match self {
-            SystemTool::SystemSettings => {
-                if let Err(_) = std::process::Command::new("cosmic-settings").spawn() {
-                    eprintln!("COSMIC Settings cannot be launched!");
-                }
+        let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
+        let main_exec = if is_flatpak {
+            "flatpak-spawn"
+        } else {
+            match self {
+                SystemTool::SystemSettings => "cosmic-settings",
+                SystemTool::SystemMonitor => "gnome-system-monitor",
+                SystemTool::DiskManagement => "gnome-disks",
             }
-            SystemTool::SystemMonitor => {
-                if let Err(_) = std::process::Command::new("gnome-system-monitor").spawn() {
-                    eprintln!("GNOME System Monitor cannot be launched!");
-                }
+        };
+        let args = if is_flatpak {
+            match self {
+                SystemTool::SystemSettings => vec!["--host", "cosmic-settings"],
+                SystemTool::SystemMonitor => vec!["--host", "gnome-system-monitor"],
+                SystemTool::DiskManagement => vec!["--host", "gnome-disks"],
             }
-            SystemTool::DiskManagement => {
-                if let Err(_) = std::process::Command::new("gnome-disks").spawn() {
-                    eprintln!("GNOME Disks cannot be launched!");
-                }
-            }
+        } else {
+            vec![]
+        };
+
+        if let Err(_) = process::Command::new(main_exec).args(args).spawn() {
+            eprintln!("Selected tool cannot be opened");
         }
     }
 }
@@ -339,24 +345,33 @@ impl CosmicClassicMenu {
     }
 
     fn perform_power_action(&mut self, action: PowerAction) -> Task<Message> {
+        let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
+        let main_exec = if is_flatpak {
+            "flatpak-spawn"
+        } else {
+            "cosmic-osd"
+        };
+        let mut args = if is_flatpak {
+            vec!["--host", "cosmic-osd"]
+        } else {
+            vec![]
+        };
         match action {
             PowerAction::Logout => {
-                if let Err(_) = process::Command::new("cosmic-osd").arg("log-out").spawn() {
-                    return action.perform();
-                }
+                args.push("log-out");
             }
             PowerAction::Reboot => {
-                if let Err(_) = process::Command::new("cosmic-osd").arg("restart").spawn() {
-                    return action.perform();
-                }
+                args.push("restart");
             }
             PowerAction::Shutdown => {
-                if let Err(_) = process::Command::new("cosmic-osd").arg("shutdown").spawn() {
-                    return action.perform();
-                }
+                args.push("shutdown");
             }
             _ => return action.perform(),
         };
+
+        if let Err(_) = process::Command::new(main_exec).args(args).spawn() {
+            return action.perform();
+        }
 
         if let Some(p) = self.popup.take() {
             return destroy_popup(p);

@@ -29,7 +29,9 @@ impl Into<ApplicationEntry> for DesktopEntryData {
 
 fn get_comment(app: &DesktopEntryData) -> Option<String> {
     if let Some(path) = &app.path {
-        let locale = current_locale::current_locale().ok();
+        let locale = std::env::var("LANG")
+                .ok()
+                .and_then(|l| l.split(".").next().map(str::to_string));
         let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
 
         if let Ok(entry) = desktop_entry {
@@ -47,7 +49,9 @@ fn get_comment(app: &DesktopEntryData) -> Option<String> {
 
 fn get_is_terminal(app: &DesktopEntryData) -> bool {
     if let Some(path) = &app.path {
-        let locale = current_locale::current_locale().ok();
+        let locale = std::env::var("LANG")
+                .ok()
+                .and_then(|l| l.split(".").next().map(str::to_string));
         let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
 
         if let Ok(entry) = desktop_entry {

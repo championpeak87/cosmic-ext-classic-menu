@@ -9,3 +9,4 @@ vendor.tar
 .vscode
 .flatpak-builder
 build-dir
+flatpak-builder
