@@ -14,7 +14,6 @@ fuzzy-matcher = "0.3.7"
 zbus = "5.7.1"
 tokio = { version = "1.31", features = ["full"] }
 freedesktop-desktop-entry = "0.7.13"
-current_locale = "0.1.1"
 serde = "1.0.210"
 rustix = "1.0.5"
 logind-zbus = "5.3.2"

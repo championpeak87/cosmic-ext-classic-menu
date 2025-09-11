@@ -19,9 +19,9 @@ use tokio::sync::mpsc;
     create = "{ UnboundCache::new() }"
 )]
 pub fn load_apps() -> Vec<ApplicationEntry> {
-    let default_paths = freedesktop_desktop_entry::default_paths();
-    let default_paths_vec: Vec<_> = default_paths.collect();
-    let locale = current_locale::current_locale().ok();
+    let locale = std::env::var("LANG")
+                .ok()
+                .and_then(|l| l.split(".").next().map(str::to_string));
     let mut all_entries: Vec<ApplicationEntry> =
         cosmic::desktop::load_applications(locale.as_slice(), false, None)
             .into_iter()

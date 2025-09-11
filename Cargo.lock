@@ -1010,7 +1010,6 @@ version = "0.0.2"
 dependencies = [
  "accounts-zbus",
  "cached",
- "current_locale",
  "freedesktop-desktop-entry",
  "fuzzy-matcher",
  "i18n-embed",
@@ -1235,18 +1234,6 @@ name = "ctor-lite"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f791803201ab277ace03903de1594460708d2d54df6053f2d9e82f592b19e3b"
-
-[[package]]
-name = "current_locale"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0be8ddcccda8be68d8e31a421ceea7c79857404daa052434ae30ce2f402cd10"
-dependencies = [
- "libc",
- "objc",
- "objc-foundation",
- "winapi",
-]
 
 [[package]]
 name = "cursor-icon"

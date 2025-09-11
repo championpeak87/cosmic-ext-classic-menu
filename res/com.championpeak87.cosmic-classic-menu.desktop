@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=COSMIC Classic Menu
-Exec=cosmic-classic-menu %F
+Exec=cosmic-classic-menu
 Terminal=false
 Type=Application
 StartupNotify=true
