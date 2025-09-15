@@ -129,67 +129,67 @@ pub struct ApplicationCategory {
 impl ApplicationCategory {
     pub const ALL: ApplicationCategory = ApplicationCategory {
         display_name: "all-applications",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/open-menu-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/open-menu-symbolic.svg"),
         mime_name: "",
     };
     pub const RECENTLY_USED: ApplicationCategory = ApplicationCategory {
         display_name: "recently-used",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/document-open-recent-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/document-open-recent-symbolic.svg"),
         mime_name: "",
     };
     pub const AUDIO: ApplicationCategory = ApplicationCategory {
         display_name: "audio",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-audio-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-audio-symbolic.svg"),
         mime_name: "Audio",
     };
     pub const VIDEO: ApplicationCategory = ApplicationCategory {
         display_name: "video",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-video-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-video-symbolic.svg"),
         mime_name: "Video",
     };
     pub const DEVELOPMENT: ApplicationCategory = ApplicationCategory {
         display_name: "development",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-engineering-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-engineering-symbolic.svg"),
         mime_name: "Development",
     };
     pub const GAMES: ApplicationCategory = ApplicationCategory {
         display_name: "games",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-games-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-games-symbolic.svg"),
         mime_name: "Game",
     };
     pub const GRAPHICS: ApplicationCategory = ApplicationCategory {
         display_name: "graphics",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-graphics-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-graphics-symbolic.svg"),
         mime_name: "Graphics",
     };
     pub const NETWORK: ApplicationCategory = ApplicationCategory {
         display_name: "network",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/network-workgroup-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/network-workgroup-symbolic.svg"),
         mime_name: "Network",
     };
     pub const OFFICE: ApplicationCategory = ApplicationCategory {
         display_name: "office",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-office-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-office-symbolic.svg"),
         mime_name: "Office",
     };
     pub const SCIENCE: ApplicationCategory = ApplicationCategory {
         display_name: "science",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-science-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-science-symbolic.svg"),
         mime_name: "Science",
     };
     pub const SETTINGS: ApplicationCategory = ApplicationCategory {
         display_name: "settings",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/preferences-system-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/preferences-system-symbolic.svg"),
         mime_name: "Settings",
     };
     pub const SYSTEM: ApplicationCategory = ApplicationCategory {
         display_name: "system",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-system-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-system-symbolic.svg"),
         mime_name: "System",
     };
     pub const UTILITY: ApplicationCategory = ApplicationCategory {
         display_name: "utility",
-        icon_svg_bytes: include_bytes!("../../res/icons/bundled/applications-utilities-symbolic.svg"),
+        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-utilities-symbolic.svg"),
         mime_name: "Utility",
     };
 

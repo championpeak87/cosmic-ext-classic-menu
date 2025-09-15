@@ -25,22 +25,22 @@ impl AppletMenu {
     const POPUP_MIN_HEIGHT: f32 = 700.0;
 
     const SYSTEM_LOCKSCREEN_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../res/icons/bundled/system-lock-screen-symbolic.svg"
+        "../../res/icons/bundled/system-lock-screen-symbolic.svg"
     );
     const SYSTEM_LOGOUT_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../res/icons/bundled/system-log-out-symbolic.svg"
+        "../../res/icons/bundled/system-log-out-symbolic.svg"
     );
     const SYSTEM_REBOOT_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../res/icons/bundled/system-reboot-symbolic.svg"
+        "../../res/icons/bundled/system-reboot-symbolic.svg"
     );
     const SYSTEM_SHUTDOWN_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../res/icons/bundled/system-shutdown-symbolic.svg"
+        "../../res/icons/bundled/system-shutdown-symbolic.svg"
     );
     const SYSTEM_SUSPEND_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../res/icons/bundled/system-suspend-symbolic.svg"
+        "../../res/icons/bundled/system-suspend-symbolic.svg"
     );
     const USER_IDLE_SYMBOLIC: &[u8] = include_bytes!(
-        "../res/icons/bundled/user-idle-symbolic.svg"
+        "../../res/icons/bundled/user-idle-symbolic.svg"
     );
 
     pub fn view_main_menu_list(applet: &CosmicClassicMenu) -> Element<'_, Message> {
