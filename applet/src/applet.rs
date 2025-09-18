@@ -59,11 +59,13 @@ pub enum Message {
     LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
     UpdateLoggedUser(Result<User, zbus::Error>),
-    FileEvent(Event)
+    FileEvent(Event),
+    UpdateConfig(CosmicClassicMenuConfig),
 }
 
 #[derive(Clone, Debug)]
 pub enum SystemTool {
+    AppletSettings,
     SystemSettings,
     SystemMonitor,
     DiskManagement,
@@ -71,6 +73,24 @@ pub enum SystemTool {
 
 impl SystemTool {
     fn perform(&self) {
+        match self {
+            SystemTool::AppletSettings => {
+                let env_vars: Vec<(String, String)> = std::env::vars().collect();
+                let app_id = Some("com.championpeak87.cosmic-classic-menu.settings");
+                tokio::spawn(async move {
+                    cosmic::desktop::spawn_desktop_exec(
+                        "cosmic-classic-menu-settings",
+                        env_vars,
+                        app_id.as_deref(),
+                        false,
+                    )
+                    .await;
+                });
+                return;
+            }
+            _ => (),
+        }
+
         let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
         let main_exec = if is_flatpak {
             "flatpak-spawn"
@@ -79,6 +99,7 @@ impl SystemTool {
                 SystemTool::SystemSettings => "cosmic-settings",
                 SystemTool::SystemMonitor => "gnome-system-monitor",
                 SystemTool::DiskManagement => "gnome-disks",
+                _ => "",
             }
         };
         let args = if is_flatpak {
@@ -86,6 +107,7 @@ impl SystemTool {
                 SystemTool::SystemSettings => vec!["--host", "cosmic-settings"],
                 SystemTool::SystemMonitor => vec!["--host", "gnome-system-monitor"],
                 SystemTool::DiskManagement => vec!["--host", "gnome-disks"],
+                _ => vec![],
             }
         } else {
             vec![]
@@ -151,7 +173,7 @@ impl Application for CosmicClassicMenu {
     type Executor = cosmic::executor::multi::Executor;
     type Flags = ();
     type Message = Message;
-    const APP_ID: &'static str = "com.championpeak87.CosmicClassicMenu";
+    const APP_ID: &'static str = "com.championpeak87.cosmic-classic-menu";
 
     fn core(&self) -> &Core {
         &self.core
@@ -263,8 +285,14 @@ impl Application for CosmicClassicMenu {
             Message::UpdateLoggedUser(user) => {
                 self.current_user = user.ok();
                 Task::none()
-            },
+            }
             Message::FileEvent(event) => self.handle_event(event),
+            Message::UpdateConfig(config) => {
+                println!("Received updated config: {:?}", config);
+                self.config = config;
+
+                Task::none()
+            }
         }
     }
 
@@ -272,9 +300,26 @@ impl Application for CosmicClassicMenu {
         Some(cosmic::applet::style())
     }
 
+    /// Register subscriptions for this application.
+    ///
+    /// Subscriptions are long-running async tasks running in the background which
+    /// emit messages to the application through a channel. They are started at the
+    /// beginning of the application, and persist through its lifetime.
+    fn subscription(&self) -> Subscription<Self::Message> {
+        Subscription::batch(vec![
+            desktop_files(Id::unique()).map(Message::FileEvent),
+            // Watch for application configuration changes.
+            self.core
+                .watch_config::<CosmicClassicMenuConfig>(Self::APP_ID)
+                .map(|update| {
+                    // for why in update.errors {
+                    //     tracing::error!(?why, "app config error");
+                    // }
 
-    fn subscription(&self) -> Subscription<Message> {
-        desktop_files(Id::unique()).map(Message::FileEvent)
+                    println!("Configuration update detected: {:?}", update.config);
+                    Message::UpdateConfig(update.config)
+                }),
+        ])
     }
 }
 
@@ -484,6 +529,11 @@ impl CosmicClassicMenu {
 
     fn view_context_menu(&self) -> Element<'_, Message> {
         let context_menu = column![
+            cosmic::applet::menu_button(
+                row![cosmic::widget::text::body(fl!("settings")),].align_y(Alignment::Center)
+            )
+            .class(cosmic::theme::Button::AppletMenu)
+            .on_press(Message::LaunchTool(SystemTool::AppletSettings)),
             cosmic::applet::menu_button(
                 row![cosmic::widget::text::body(fl!("settings-label")),].align_y(Alignment::Center)
             )

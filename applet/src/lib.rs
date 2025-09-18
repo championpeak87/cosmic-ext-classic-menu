@@ -1,0 +1,10 @@
+pub mod applet;
+pub mod i18n;
+pub mod config;
+pub mod logic;
+pub mod power_options;
+pub mod cosmic_session;
+pub mod session_manager;
+pub mod applet_button;
+pub mod applet_menu;
+pub mod model;

@@ -1031,6 +1031,7 @@ dependencies = [
 name = "cosmic-classic-menu-settings"
 version = "0.0.4"
 dependencies = [
+ "cosmic-classic-menu",
  "futures-util",
  "i18n-embed 0.15.4",
  "i18n-embed-fl 0.9.4",

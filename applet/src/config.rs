@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use cosmic::{cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, Config, CosmicConfigEntry}, Application};
 use crate::fl;
+use cosmic::{
+    cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, Config, CosmicConfigEntry},
+    Application,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
@@ -14,7 +17,7 @@ pub struct CosmicClassicMenuConfig {
     pub user_widget: UserWidgetStyle,
     pub button_label: String,
     pub button_icon: String,
-    pub recent_applications: Vec<RecentApplication>
+    pub recent_applications: Vec<RecentApplication>,
 }
 
 impl Default for CosmicClassicMenuConfig {
@@ -38,16 +41,12 @@ impl CosmicClassicMenuConfig {
 
     pub fn config() -> CosmicClassicMenuConfig {
         match Self::config_handler() {
-            Some(config_handler) => {
-                CosmicClassicMenuConfig::get_entry(&config_handler).unwrap_or_else(|(_errs, config)| {
-                    config
-                })
-            }
+            Some(config_handler) => CosmicClassicMenuConfig::get_entry(&config_handler)
+                .unwrap_or_else(|(_errs, config)| config),
             None => CosmicClassicMenuConfig::default(),
         }
     }
 }
-
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 
@@ -55,7 +54,7 @@ pub enum AppletButtonStyle {
     IconOnly,
     LabelOnly,
     IconAndLabel,
-    Auto
+    Auto,
 }
 
 impl Default for AppletButtonStyle {
@@ -69,7 +68,7 @@ impl Default for AppletButtonStyle {
 pub enum UserWidgetStyle {
     UsernamePrefered,
     RealNamePrefered,
-    None
+    None,
 }
 
 impl Default for UserWidgetStyle {
@@ -103,9 +102,8 @@ impl Default for VerticalPosition {
     }
 }
 
-
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RecentApplication {
     pub app_id: String,
-    pub launch_count: u32
+    pub launch_count: u32,
 }

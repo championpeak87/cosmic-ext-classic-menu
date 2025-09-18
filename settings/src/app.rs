@@ -1,19 +1,25 @@
 // SPDX-License-Identifier: {{ license }}
 
-use crate::config::Config;
-use crate::fl;
+use crate::{app, fl};
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{Alignment, Length, Subscription};
-use cosmic::prelude::*;
 use cosmic::widget::{self, icon, menu, nav_bar};
+use cosmic::{applet, prelude::*};
 use cosmic::{cosmic_theme, theme};
+use cosmic_classic_menu::applet_button;
+use cosmic_classic_menu::config::{
+    AppletButtonStyle, CosmicClassicMenuConfig, HorizontalPosition, RecentApplication,
+    UserWidgetStyle, VerticalPosition,
+};
 use futures_util::SinkExt;
 use std::collections::HashMap;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
-const APP_ICON: &[u8] = include_bytes!("../../res/icons/hicolor/scalable/apps/com.championpeak87.cosmic-classic-menu.svg");
+const APP_ICON: &[u8] = include_bytes!(
+    "../../res/icons/hicolor/scalable/apps/com.championpeak87.cosmic-classic-menu.svg"
+);
 
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
@@ -22,12 +28,10 @@ pub struct AppModel {
     core: cosmic::Core,
     /// Display a context drawer with the designated page if defined.
     context_page: ContextPage,
-    /// Contains items assigned to the nav bar panel.
-    nav: nav_bar::Model,
     /// Key bindings for the application's menu bar.
     key_binds: HashMap<menu::KeyBind, MenuAction>,
     // Configuration data that persists between application runs.
-    config: Config,
+    config: CosmicClassicMenuConfig,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -35,9 +39,15 @@ pub struct AppModel {
 pub enum Message {
     OpenRepositoryUrl,
     SubscriptionChannel,
-    ToggleContextPage(ContextPage),
-    UpdateConfig(Config),
+    UpdateConfig(CosmicClassicMenuConfig),
     LaunchUrl(String),
+    AppPositionChanged(HorizontalPosition),
+    SearchFieldPositionChanged(VerticalPosition),
+    AppletButtonStyleChanged(usize),
+    UserWidgetChanged(usize),
+    ButtonLabelChanged(String),
+    ButtonIconChanged(String),
+    ToggleContextPage(ContextPage),
 }
 
 /// Create a COSMIC application from the app model
@@ -52,7 +62,7 @@ impl cosmic::Application for AppModel {
     type Message = Message;
 
     /// Unique identifier in RDNN (reverse domain name notation) format.
-    const APP_ID: &'static str = "{{ appid }}";
+    const APP_ID: &'static str = "com.championpeak87.cosmic-classic-menu";
 
     fn core(&self) -> &cosmic::Core {
         &self.core
@@ -64,71 +74,151 @@ impl cosmic::Application for AppModel {
 
     /// Initializes the application with any given flags and startup commands.
     fn init(
-        core: cosmic::Core,
+        mut core: cosmic::Core,
         _flags: Self::Flags,
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
-        // Create a nav bar with three page items.
-        let mut nav = nav_bar::Model::default();
-
-        nav.insert()
-            .text(fl!("page-id", num = 1))
-            .data::<Page>(Page::Page1)
-            .icon(icon::from_name("applications-science-symbolic"))
-            .activate();
-
-        nav.insert()
-            .text(fl!("page-id", num = 2))
-            .data::<Page>(Page::Page2)
-            .icon(icon::from_name("applications-system-symbolic"));
-
-        nav.insert()
-            .text(fl!("page-id", num = 3))
-            .data::<Page>(Page::Page3)
-            .icon(icon::from_name("applications-games-symbolic"));
+        core.window.show_maximize = false;
 
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
             core,
             context_page: ContextPage::default(),
-            nav,
             key_binds: HashMap::new(),
             // Optional configuration file for an application.
-            config: cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
-                .map(|context| match Config::get_entry(&context) {
-                    Ok(config) => config,
-                    Err((_errors, config)) => {
-                        // for why in errors {
-                        //     tracing::error!(%why, "error loading app config");
-                        // }
-
-                        config
-                    }
-                })
-                .unwrap_or_default(),
+            config: CosmicClassicMenuConfig::config(),
         };
 
-        // Create a startup command that sets the window title.
-        let command = app.update_title();
-
-        (app, command)
+        (app, Task::none())
     }
 
     /// Elements to pack at the start of the header bar.
     fn header_start(&self) -> Vec<Element<Self::Message>> {
         let menu_bar = menu::bar(vec![menu::Tree::with_children(
-            menu::root(fl!("view")).apply(Element::from),
+            menu::root(fl!("settings")).apply(Element::from),
             menu::items(
                 &self.key_binds,
-                vec![menu::Item::Button(fl!("about"), None, MenuAction::About)],
+                vec![
+                    menu::Item::Button(
+                        fl!("default-settings"),
+                        None,
+                        MenuAction::SetDefaultSettings,
+                    ),
+                    menu::Item::Button(fl!("about"), None, MenuAction::About),
+                ],
             ),
         )]);
 
         vec![menu_bar.into()]
     }
 
-    /// Enables the COSMIC application to create a nav bar with this model.
-    fn nav_model(&self) -> Option<&nav_bar::Model> {
-        Some(&self.nav)
+    /// Describes the interface based on the current state of the application model.
+    ///
+    /// Application events will be processed through the view. Any messages emitted by
+    /// events received by widgets will be passed to the update method.
+    fn view(&self) -> Element<Self::Message> {
+        let app_menu_position = cosmic::iced::widget::row![
+            cosmic::widget::Radio::new(
+                cosmic::widget::text::heading(fl!("left")),
+                HorizontalPosition::Left,
+                Some(self.config.app_menu_position),
+                Message::AppPositionChanged
+            ),
+            cosmic::widget::Space::new(5, Length::Shrink),
+            cosmic::widget::Radio::new(
+                cosmic::widget::text::heading(fl!("right")),
+                HorizontalPosition::Right,
+                Some(self.config.app_menu_position),
+                Message::AppPositionChanged
+            )
+        ];
+        let search_field_position = cosmic::iced::widget::row![
+            cosmic::widget::Space::new(Length::Fill, 5),
+            cosmic::widget::Radio::new(
+                cosmic::widget::text::heading(fl!("top")),
+                VerticalPosition::Top,
+                Some(self.config.search_field_position),
+                Message::SearchFieldPositionChanged
+            ),
+            cosmic::widget::Space::new(5, Length::Shrink),
+            cosmic::widget::Radio::new(
+                cosmic::widget::text::heading(fl!("bottom")),
+                VerticalPosition::Bottom,
+                Some(self.config.search_field_position),
+                Message::SearchFieldPositionChanged
+            )
+        ];
+        let applet_button_style = cosmic::iced::widget::row![
+            cosmic::widget::Space::new(Length::Fill, 5),
+            cosmic::widget::dropdown(
+                vec![
+                    fl!("icon-only"),
+                    fl!("label-only"),
+                    fl!("icon-and-label"),
+                    fl!("auto")
+                ],
+                Some(self.config.applet_button_style as usize),
+                Message::AppletButtonStyleChanged
+            )
+        ];
+        let user_widget = cosmic::iced::widget::row![
+            cosmic::widget::Space::new(Length::Fill, 5),
+            cosmic::widget::dropdown(
+                vec![
+                    fl!("username-prefered"),
+                    fl!("realname-prefered"),
+                    fl!("none")
+                ],
+                Some(self.config.user_widget as usize),
+                Message::UserWidgetChanged
+            )
+        ];
+        let button_label = cosmic::iced::widget::row![
+            cosmic::widget::Space::new(Length::Fill, 5),
+            cosmic::widget::text_input(
+                fl!("button-label-placeholder"),
+                &self.config.button_label
+            )
+            .on_input(Message::ButtonLabelChanged)
+        ];
+        let button_icon = cosmic::iced::widget::row![
+            cosmic::widget::Space::new(Length::Fill, 5),
+            cosmic::widget::text_input(
+                fl!("button-icon-placeholder"),
+                &self.config.button_icon
+            )
+            .on_input(Message::ButtonIconChanged)
+        ];
+
+        let settings_container =
+            cosmic::widget::settings::view_column(vec![cosmic::widget::settings::section()
+                .title(fl!("general"))
+                .add(cosmic::widget::settings::item(
+                    fl!("app-menu-position"),
+                    app_menu_position,
+                ))
+                .add(cosmic::widget::settings::item(
+                    fl!("search-field-position"),
+                    search_field_position,
+                ))
+                .add(cosmic::widget::settings::item(
+                    fl!("applet-button-style"),
+                    applet_button_style,
+                ))
+                .add(cosmic::widget::settings::item(
+                    fl!("user-widget"),
+                    user_widget,
+                ))
+                .add(cosmic::widget::settings::item(
+                    fl!("button-label"),
+                    button_label,
+                ))
+                .add(cosmic::widget::settings::item(
+                    fl!("button-icon"),
+                    button_icon,
+                ))
+                .into()]);
+
+        settings_container.padding([5, 10]).into()
     }
 
     /// Display a context drawer if the context page is requested.
@@ -144,20 +234,6 @@ impl cosmic::Application for AppModel {
             )
             .title(fl!("about")),
         })
-    }
-
-    /// Describes the interface based on the current state of the application model.
-    ///
-    /// Application events will be processed through the view. Any messages emitted by
-    /// events received by widgets will be passed to the update method.
-    fn view(&self) -> Element<Self::Message> {
-        widget::text::title1(fl!("welcome"))
-            .apply(widget::container)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Horizontal::Center)
-            .align_y(Vertical::Center)
-            .into()
     }
 
     /// Register subscriptions for this application.
@@ -180,7 +256,7 @@ impl cosmic::Application for AppModel {
             ),
             // Watch for application configuration changes.
             self.core()
-                .watch_config::<Config>(Self::APP_ID)
+                .watch_config::<CosmicClassicMenuConfig>(Self::APP_ID)
                 .map(|update| {
                     // for why in update.errors {
                     //     tracing::error!(?why, "app config error");
@@ -198,13 +274,89 @@ impl cosmic::Application for AppModel {
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
             Message::OpenRepositoryUrl => {
-                _ = open::that_detached(REPOSITORY);
-            }
-
+                        _ = open::that_detached(REPOSITORY);
+                    }
             Message::SubscriptionChannel => {
-                // For example purposes only.
-            }
+                        // For example purposes only.
+                    }
+            Message::UpdateConfig(config) => {
+                        self.config = config;
 
+                        self.config
+                            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                            .expect("Failed to write recent applications config");
+                    }
+            Message::LaunchUrl(url) => match open::that_detached(&url) {
+                        Ok(()) => {}
+                        Err(err) => {
+                            eprintln!("failed to open {url:?}: {err}");
+                        }
+                    },
+            Message::AppPositionChanged(horizontal_position) => {
+                        println!("App position changed to: {:?}", horizontal_position);
+                        self.config.app_menu_position = horizontal_position;
+
+                        self.config
+                            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                            .expect("Failed to write recent applications config");
+                    }
+            Message::SearchFieldPositionChanged(vertical_position) => {
+                        println!("Search field position changed to: {:?}", vertical_position);
+                        self.config.search_field_position = vertical_position;
+
+                        self.config
+                            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                            .expect("Failed to write search field position config");
+                    }
+            Message::AppletButtonStyleChanged(applet_button_style) => {
+                        println!("Applet button style changed to: {:?}", applet_button_style);
+                        self.config.applet_button_style = match applet_button_style {
+                            0 => AppletButtonStyle::IconOnly,
+                            1 => AppletButtonStyle::LabelOnly,
+                            2 => AppletButtonStyle::IconAndLabel,
+                            3 => AppletButtonStyle::Auto,
+                            _ => AppletButtonStyle::Auto,
+                        };
+
+                        self.config
+                            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                            .expect("Failed to write applet button style config");
+                    }
+            Message::UserWidgetChanged(user_widget_style) => {
+                        println!("User widget style changed to: {:?}", user_widget_style);
+                        self.config.user_widget = match user_widget_style {
+                            0 => UserWidgetStyle::UsernamePrefered,
+                            1 => UserWidgetStyle::RealNamePrefered,
+                            2 => UserWidgetStyle::None,
+                            _ => UserWidgetStyle::None,
+                        };
+
+                        self.config
+                            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                            .expect("Failed to write user widget style config");
+                    }
+            Message::ButtonLabelChanged(new_label) => {
+                        let mut new_label = new_label;
+                        if new_label.len() == 0 {
+                            // If the field is empty, reset to default.
+                            new_label = CosmicClassicMenuConfig::default().button_label;
+                        }
+
+                        println!("Button label changed to: {:?}", new_label);
+                        self.config.button_label = new_label;
+
+                        self.config
+                            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                            .expect("Failed to write button label config");
+                    }
+            Message::ButtonIconChanged(new_icon) => {
+                        println!("Button icon changed to: {:?}", new_icon);
+                        self.config.button_icon = new_icon;
+
+                        self.config
+                            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                            .expect("Failed to write button icon config");
+                    }
             Message::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
                     // Close the context drawer if the toggled context page is the same.
@@ -214,28 +366,9 @@ impl cosmic::Application for AppModel {
                     self.context_page = context_page;
                     self.core.window.show_context = true;
                 }
-            }
-
-            Message::UpdateConfig(config) => {
-                self.config = config;
-            }
-
-            Message::LaunchUrl(url) => match open::that_detached(&url) {
-                Ok(()) => {}
-                Err(err) => {
-                    eprintln!("failed to open {url:?}: {err}");
-                }
             },
         }
         Task::none()
-    }
-
-    /// Called when a nav item is selected.
-    fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<cosmic::Action<Self::Message>> {
-        // Activate the page in the model.
-        self.nav.activate(id);
-
-        self.update_title()
     }
 }
 
@@ -273,41 +406,12 @@ impl AppModel {
             .spacing(space_xxs)
             .into()
     }
-
-    /// Updates the header and window titles.
-    pub fn update_title(&mut self) -> Task<cosmic::Action<Message>> {
-        let mut window_title = fl!("app-title");
-
-        if let Some(page) = self.nav.text(self.nav.active()) {
-            window_title.push_str(" — ");
-            window_title.push_str(page);
-        }
-
-        if let Some(id) = self.core.main_window_id() {
-            self.set_window_title(window_title, id)
-        } else {
-            Task::none()
-        }
-    }
-}
-
-/// The page to display in the application.
-pub enum Page {
-    Page1,
-    Page2,
-    Page3,
-}
-
-/// The context page to display in the context drawer.
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
-pub enum ContextPage {
-    #[default]
-    About,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MenuAction {
     About,
+    SetDefaultSettings,
 }
 
 impl menu::action::MenuAction for MenuAction {
@@ -316,6 +420,16 @@ impl menu::action::MenuAction for MenuAction {
     fn message(&self) -> Self::Message {
         match self {
             MenuAction::About => Message::ToggleContextPage(ContextPage::About),
+            MenuAction::SetDefaultSettings => {
+                Message::UpdateConfig(CosmicClassicMenuConfig::default())
+            }
         }
     }
+}
+
+/// The context page to display in the context drawer.
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum ContextPage {
+    #[default]
+    About,
 }
