@@ -13,7 +13,6 @@ button-label = Button label
 button-icon = Button icon
 button-label-placeholder = Enter custom button label here...
 button-icon-placeholder = Pick icon
-symbolic-icon = Use colors for an icon
 
 top = Top
 bottom = Bottom

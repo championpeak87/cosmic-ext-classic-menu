@@ -17,6 +17,7 @@ pub struct CosmicClassicMenuConfig {
     pub user_widget: UserWidgetStyle,
     pub button_label: String,
     pub button_icon: String,
+    pub symbolic_icon: bool,
     pub recent_applications: Vec<RecentApplication>,
 }
 
@@ -29,6 +30,7 @@ impl Default for CosmicClassicMenuConfig {
             user_widget: UserWidgetStyle::default(),
             button_label: fl!("menu-label").to_owned(),
             button_icon: "open-menu-symbolic".to_owned(),
+            symbolic_icon: true,
             recent_applications: vec![],
         }
     }

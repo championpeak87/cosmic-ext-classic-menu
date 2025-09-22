@@ -26,16 +26,19 @@ impl AppletButton {
     /// An `Element<Message>` representing the icon-only applet button.
     pub fn view_icon_only(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let button_icon = &applet.config.button_icon;
+        let suggested_size = applet.core.applet.suggested_size(true);
 
         mouse_area(
-            applet
-                .core
-                .applet
-                .icon_button(button_icon.as_str())
-                .on_press(Message::TogglePopup(PopupType::MainMenu)),
+            applet.core.applet.icon_button_from_handle(
+                cosmic::widget::icon::from_name(button_icon.as_str())
+                    .symbolic(applet.config.symbolic_icon)
+                    .size(suggested_size.0)
+                    .into()
+            )
+            .on_press(Message::TogglePopup(PopupType::MainMenu))
         )
-        .on_right_press(Message::TogglePopup(PopupType::ContextMenu))
-        .into()
+            .on_right_press(Message::TogglePopup(PopupType::ContextMenu))
+            .into()
     }
 
     /// Creates a view for the applet button with only a label.
@@ -91,7 +94,8 @@ impl AppletButton {
         let button_icon = &applet.config.button_icon;
 
         let content = row!(
-            cosmic::widget::icon::from_name(button_icon.as_str()),
+            cosmic::widget::icon::from_name(button_icon.as_str())
+                .symbolic(applet.config.symbolic_icon),
             applet.core.applet.text(button_label),
             cosmic::widget::vertical_space().height(Length::Fixed(
                 (applet.core.applet.suggested_size(true).1

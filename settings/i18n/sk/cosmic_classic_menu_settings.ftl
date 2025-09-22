@@ -12,7 +12,8 @@ user-widget = Štýl zobrazenia prihláseného používateľa
 button-label = Popisok tlačidla
 button-icon = Ikona tlačidla
 button-label-placeholder = Zadajte popisok tlačidla sem...
-button-icon-placeholder = Zadajte názov ikony tlačidla sem...
+button-icon-placeholder = Vybrať ikonu
+symbolic-icon = Použit farby pre ikonu
 
 top = Hore
 bottom = Dole
