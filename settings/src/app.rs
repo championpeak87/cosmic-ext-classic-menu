@@ -9,6 +9,7 @@ use cosmic::iced_widget::Row;
 use cosmic::widget::{self, button, icon, menu, nav_bar};
 use cosmic::{applet, prelude::*};
 use cosmic::{cosmic_theme, theme};
+use cosmic::{iced::Background, widget::text, Element};
 use cosmic_classic_menu::applet_button;
 use cosmic_classic_menu::config::{
     AppletButtonStyle, CosmicClassicMenuConfig, HorizontalPosition, RecentApplication,
@@ -448,6 +449,7 @@ impl AppModel {
         let mut icons = Vec::new();
         let search_dirs = [
             "/usr/share/icons/hicolor/scalable/apps",
+            // "res/icons/bundled/applet-button",
             // Add more icon theme paths if needed
         ];
         for dir in &search_dirs {
@@ -473,22 +475,106 @@ impl AppModel {
 
     pub fn icon_picker(&self) -> Element<Message> {
         let icons = Self::system_icon_names();
-        let title = widget::text::title3(fl!("button-icon"));
-        let icons: Vec<_> = icons
-            .iter()
-            .map(|icon_name| {
-                widget::button::icon(widget::icon::from_name(icon_name.clone()))
-                    .on_press(Message::IconSelected(icon_name.clone()))
-                    .padding(8)
-                    .into()
-            })
-            .collect();
+        let icons_per_row = 8;
+        let theme = cosmic::theme::active();
+        let theme = theme.cosmic();
+
+        let mut grid = cosmic::iced_widget::Column::new().spacing(theme.space_xs());
+
+        for chunk in icons.chunks(icons_per_row) {
+            let mut row = cosmic::iced_widget::Row::new().spacing(theme.space_xs());
+            for icon_name in chunk {
+                row = row.push(Self::button(
+                    icon_name,
+                    cosmic::widget::icon::from_name(icon_name.clone()).handle(),
+                    self.config.button_icon == *icon_name,
+                    Message::IconSelected,
+                ));
+            }
+            grid = grid.push(row);
+        }
 
         cosmic::iced_widget::Column::new()
-            .push(title)
-            .extend(icons)
+            .push(grid)
             .width(Length::Fill)
             .align_x(Alignment::Center)
+            .spacing(theme.space_xs())
+            .into()
+    }
+
+    fn button(
+        name: &String,
+        handle: icon::Handle,
+        selected: bool,
+        callback: impl Fn(String) -> Message,
+    ) -> Element<'static, Message> {
+        const ICON_THUMB_SIZE: u16 = 32;
+        const ICON_NAME_TRUNC: usize = 20;
+
+        let theme = cosmic::theme::active();
+        let theme = theme.cosmic();
+        let background = Background::Color(theme.palette.neutral_4.into());
+
+        cosmic::widget::column()
+            .push(
+                cosmic::widget::button::custom_image_button(
+                    handle.icon().size(ICON_THUMB_SIZE),
+                    None
+                )
+                .on_press(callback(name.clone()))
+                .selected(selected)
+                .padding(theme.space_xs())
+                // Image button's style mostly works, but it needs a background to fit the design
+                .class(button::ButtonClass::Custom {
+                    active: Box::new(move |focused, theme| {
+                        let mut appearance = <cosmic::theme::Theme as button::Catalog>::active(
+                            theme,
+                            focused,
+                            selected,
+                            &cosmic::theme::Button::Image,
+                        );
+                        appearance.background = Some(background);
+                        appearance
+                    }),
+                    disabled: Box::new(move |theme| {
+                        let mut appearance = <cosmic::theme::Theme as button::Catalog>::disabled(
+                            theme,
+                            &cosmic::theme::Button::Image,
+                        );
+                        appearance.background = Some(background);
+                        appearance
+                    }),
+                    hovered: Box::new(move |focused, theme| {
+                        let mut appearance = <cosmic::theme::Theme as button::Catalog>::hovered(
+                            theme,
+                            focused,
+                            selected,
+                            &cosmic::theme::Button::Image,
+                        );
+                        appearance.background = Some(background);
+                        appearance
+                    }),
+                    pressed: Box::new(move |focused, theme| {
+                        let mut appearance = <cosmic::theme::Theme as button::Catalog>::pressed(
+                            theme,
+                            focused,
+                            selected,
+                            &cosmic::theme::Button::Image,
+                        );
+                        appearance.background = Some(background);
+                        appearance
+                    }),
+                }),
+            )
+            .push(
+                text::body(if name.len() > ICON_NAME_TRUNC {
+                    format!("{name:.ICON_NAME_TRUNC$}...")
+                } else {
+                    name.into()
+                })
+                .width(Length::Fixed((ICON_THUMB_SIZE * 3) as _)),
+            )
+            .spacing(theme.space_xxs())
             .into()
     }
 }

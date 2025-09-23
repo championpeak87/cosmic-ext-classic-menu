@@ -9,6 +9,7 @@ repository = "https://github.com/championpeak87/cosmic-classic-menu"
 
 [build-dependencies]
 vergen = { version = "8", features = ["git", "gitcl"] }
+walkdir = "2.3.2"
 
 [dependencies]
 futures-util = "0.3.31"

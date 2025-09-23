@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Copy all icons from resource folder to output directory
     let out_dir = std::env::var("OUT_DIR")?;
     let res_dir = "res/icons/bundled/applet-button";
-    let dest_dir = format!("{}/icons", out_dir);
+    let dest_dir = format!("./something", out_dir);
 
     // Create destination directory if it doesn't exist
     std::fs::create_dir_all(&dest_dir)?;

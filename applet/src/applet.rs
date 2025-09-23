@@ -534,6 +534,7 @@ impl CosmicClassicMenu {
             )
             .class(cosmic::theme::Button::AppletMenu)
             .on_press(Message::LaunchTool(SystemTool::AppletSettings)),
+            cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default()),
             cosmic::applet::menu_button(
                 row![cosmic::widget::text::body(fl!("settings-label")),].align_y(Alignment::Center)
             )
@@ -550,7 +551,8 @@ impl CosmicClassicMenu {
             )
             .class(cosmic::theme::Button::AppletMenu)
             .on_press(Message::LaunchTool(SystemTool::DiskManagement)),
-        ];
+        ]
+        .padding([8,0]);
 
         self.core.applet.popup_container(context_menu).into()
     }
