@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = जानकारी
+settings = सेटिंग्स
+default-settings = डिफ़ॉल्ट पर रीसेट करें
+repository = रिपॉजिटरी
+support = सहायता
+
+general = सामान्य
+app-menu-position = ऐप मेनू स्थिति
+search-field-position = खोज क्षेत्र स्थिति
+applet-button-style = एप्लेट बटन शैली
+user-widget = उपयोगकर्ता विजेट रूप
+button-label = बटन लेबल
+button-icon = बटन आइकन
+button-label-placeholder = यहाँ कस्टम बटन लेबल दर्ज करें...
+button-icon-placeholder = आइकन चुनें
+
+top = ऊपर
+bottom = नीचे
+left = बाएँ
+right = दाएँ
+icon-only = केवल आइकन
+label-only = केवल लेबल
+icon-and-label = आइकन और लेबल
+auto = स्वचालित
+username-prefered = उपयोगकर्ता नाम प्राथमिक
+realname-prefered = वास्तविक नाम प्राथमिक
+none = कोई नहीं

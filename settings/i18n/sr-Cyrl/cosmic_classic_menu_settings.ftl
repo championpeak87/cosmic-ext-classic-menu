@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = О апликацији
+settings = Подешавања
+default-settings = Врати на подразумевано
+repository = Репозиторијум
+support = Подршка
+
+general = Опште
+app-menu-position = Позиција менија апликације
+search-field-position = Позиција поља за претрагу
+applet-button-style = Стил дугмета аплета
+user-widget = Изглед корисничког виџета
+button-label = Ознака дугмета
+button-icon = Икона дугмета
+button-label-placeholder = Унесите прилагођену ознаку дугмета овде...
+button-icon-placeholder = Одаберите икону
+
+top = Врх
+bottom = Дно
+left = Лево
+right = Десно
+icon-only = Само икона
+label-only = Само ознака
+icon-and-label = Икона и ознака
+auto = Аутоматски
+username-prefered = Преферирано корисничко име
+realname-prefered = Преферирано право име
+none = Ништа

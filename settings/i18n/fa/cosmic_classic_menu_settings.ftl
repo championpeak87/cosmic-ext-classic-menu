@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = درباره
+settings = تنظیمات
+default-settings = بازنشانی به پیش‌فرض‌ها
+repository = مخزن
+support = پشتیبانی
+
+general = عمومی
+app-menu-position = موقعیت منوی برنامه
+search-field-position = موقعیت فیلد جستجو
+applet-button-style = سبک دکمه اپلت
+user-widget = ظاهر ویجت کاربر
+button-label = برچسب دکمه
+button-icon = آیکون دکمه
+button-label-placeholder = برچسب سفارشی دکمه را اینجا وارد کنید...
+button-icon-placeholder = انتخاب آیکون
+
+top = بالا
+bottom = پایین
+left = چپ
+right = راست
+icon-only = فقط آیکون
+label-only = فقط برچسب
+icon-and-label = آیکون و برچسب
+auto = خودکار
+username-prefered = نام کاربری ترجیحی
+realname-prefered = نام واقعی ترجیحی
+none = هیچ‌کدام

@@ -1,0 +1,78 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g id="application-library">
+        <path id="Rectangle 434"
+            d="M4.5 7.5C4.5 5.84315 5.84315 4.5 7.5 4.5H13.5C15.1569 4.5 16.5 5.84315 16.5 7.5V13.5C16.5 15.1569 15.1569 16.5 13.5 16.5H7.5C5.84315 16.5 4.5 15.1569 4.5 13.5V7.5Z"
+            fill="url(#paint0_linear_6036_36747)" />
+        <path id="Rectangle 432"
+            d="M18 34.5C18 32.8431 19.3431 31.5 21 31.5H27C28.6569 31.5 30 32.8431 30 34.5V40.5C30 42.1569 28.6569 43.5 27 43.5H21C19.3431 43.5 18 42.1569 18 40.5V34.5Z"
+            fill="url(#paint1_linear_6036_36747)" />
+        <path id="Rectangle 435"
+            d="M18 21C18 19.3431 19.3431 18 21 18H27C28.6569 18 30 19.3431 30 21V27C30 28.6569 28.6569 30 27 30H21C19.3431 30 18 28.6569 18 27V21Z"
+            fill="url(#paint2_linear_6036_36747)" />
+        <path id="Rectangle 438"
+            d="M31.5 21C31.5 19.3431 32.8431 18 34.5 18H40.5C42.1569 18 43.5 19.3431 43.5 21V27C43.5 28.6569 42.1569 30 40.5 30H34.5C32.8431 30 31.5 28.6569 31.5 27V21Z"
+            fill="url(#paint3_linear_6036_36747)" />
+        <path id="Rectangle 433"
+            d="M4.5 34.5C4.5 32.8431 5.84315 31.5 7.5 31.5H13.5C15.1569 31.5 16.5 32.8431 16.5 34.5V40.5C16.5 42.1569 15.1569 43.5 13.5 43.5H7.5C5.84315 43.5 4.5 42.1569 4.5 40.5V34.5Z"
+            fill="url(#paint4_linear_6036_36747)" />
+        <path id="Rectangle 436"
+            d="M31.5 7.5C31.5 5.84315 32.8431 4.5 34.5 4.5H40.5C42.1569 4.5 43.5 5.84315 43.5 7.5V13.5C43.5 15.1569 42.1569 16.5 40.5 16.5H34.5C32.8431 16.5 31.5 15.1569 31.5 13.5V7.5Z"
+            fill="url(#paint5_linear_6036_36747)" />
+        <path id="Rectangle 439"
+            d="M18 7.5C18 5.84315 19.3431 4.5 21 4.5H27C28.6569 4.5 30 5.84315 30 7.5V13.5C30 15.1569 28.6569 16.5 27 16.5H21C19.3431 16.5 18 15.1569 18 13.5V7.5Z"
+            fill="url(#paint6_linear_6036_36747)" />
+        <path id="Rectangle 440"
+            d="M4.5 21C4.5 19.3431 5.84315 18 7.5 18H13.5C15.1569 18 16.5 19.3431 16.5 21V27C16.5 28.6569 15.1569 30 13.5 30H7.5C5.84315 30 4.5 28.6569 4.5 27V21Z"
+            fill="url(#paint7_linear_6036_36747)" />
+        <path id="Rectangle 441"
+            d="M31.5 34.5C31.5 32.8431 32.8431 31.5 34.5 31.5H40.5C42.1569 31.5 43.5 32.8431 43.5 34.5V40.5C43.5 42.1569 42.1569 43.5 40.5 43.5H34.5C32.8431 43.5 31.5 42.1569 31.5 40.5V34.5Z"
+            fill="url(#paint8_linear_6036_36747)" />
+    </g>
+    <defs>
+        <linearGradient id="paint0_linear_6036_36747" x1="4.5" y1="16.5" x2="16.7472" y2="4.75781"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#229FAD" />
+            <stop offset="1" stop-color="#49BAC8" />
+        </linearGradient>
+        <linearGradient id="paint1_linear_6036_36747" x1="18" y1="43.5" x2="30.2472" y2="31.7578"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#229FAD" />
+            <stop offset="1" stop-color="#49BAC8" />
+        </linearGradient>
+        <linearGradient id="paint2_linear_6036_36747" x1="18" y1="30" x2="30.2472" y2="18.2578"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#A252D2" />
+            <stop offset="1" stop-color="#BE6DEE" />
+        </linearGradient>
+        <linearGradient id="paint3_linear_6036_36747" x1="31.5" y1="30" x2="43.7472" y2="18.2578"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#DDC74C" />
+            <stop offset="1" stop-color="#F7E062" />
+        </linearGradient>
+        <linearGradient id="paint4_linear_6036_36747" x1="4.5" y1="43.5" x2="16.7472" y2="31.7578"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#A252D2" />
+            <stop offset="1" stop-color="#BE6DEE" />
+        </linearGradient>
+        <linearGradient id="paint5_linear_6036_36747" x1="31.5" y1="16.5" x2="43.7472" y2="4.75781"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#229FAD" />
+            <stop offset="1" stop-color="#49BAC8" />
+        </linearGradient>
+        <linearGradient id="paint6_linear_6036_36747" x1="18" y1="16.5" x2="30.2472" y2="4.75781"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#C48400" />
+            <stop offset="1" stop-color="#FFAD00" />
+        </linearGradient>
+        <linearGradient id="paint7_linear_6036_36747" x1="4.5" y1="30" x2="16.7472" y2="18.2578"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#C48400" />
+            <stop offset="1" stop-color="#FFAD00" />
+        </linearGradient>
+        <linearGradient id="paint8_linear_6036_36747" x1="31.5" y1="43.5" x2="43.7472" y2="31.7578"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#C48400" />
+            <stop offset="1" stop-color="#FFAD00" />
+        </linearGradient>
+    </defs>
+</svg>

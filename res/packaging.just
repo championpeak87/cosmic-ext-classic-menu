@@ -3,8 +3,10 @@ prefix := '/usr'
 base-dir := absolute_path(clean(rootdir / prefix))
 
 bin-src := 'target' / 'release' / name
+settings-bin-src := 'target' / 'release' / name + '-settings'
 bin-path := 'bin' / name
 bin-dst := base-dir / bin-path
+settings-bin-dst := base-dir / bin-path + '-settings'
 
 desktop := APPID + '.desktop'
 desktop-src := 'res' / desktop
@@ -21,6 +23,8 @@ icons-src := 'res' / 'icons' / 'hicolor' / 'scalable' / 'apps' / icons
 icons-path := 'share' / 'icons' / 'hicolor' / 'scalable' / 'apps' / icons
 icons-dst := base-dir / icons-path
 
+button-icons-src := 'res' / 'icons' / 'bundled' / 'applet-button'
+
 # Compiles with debug profile
 build-debug *args:
     cargo build {{args}}
@@ -32,17 +36,23 @@ build-release *args: (build-debug '--release' args)
 [no-cd]
 install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
+    install -Dm0755 {{settings-bin-src}} {{settings-bin-dst}}
     install -Dm0644 {{desktop-src}} {{desktop-dst}}
     install -Dm0644 {{metainfo-src}} {{metainfo-dst}}
     install -Dm0644 {{icons-src}} {{icons-dst}}
+    for icon in {{button-icons-src}}/*.svg; do \
+        install -Dm0644 "$icon" "{{base-dir}}/share/cosmic/{{APPID}}/applet-buttons/$(basename "$icon")"; \
+    done
 
 
 # Uninstalls globally installed files
 uninstall:
     rm {{bin-dst}}
+    rm {{settings-bin-dst}}
     rm {{desktop-dst}}
     rm {{metainfo-dst}}
     rm {{icons-dst}}
+    rm -rf "{{base-dir}}/share/cosmic/{{APPID}}"
 
 
 # Installs files locally
@@ -52,6 +62,9 @@ install-local:
     install -Dm0644  ${XDG_DATA_HOME:-~/.local/share}/{{desktop-path}}
     install -Dm0644  ${XDG_DATA_HOME:-~/.local/share}/{{metainfo-path}}
     install -Dm0644  ${XDG_DATA_HOME:-~/.local/share}/{{icons-dst}}
+    for icon in {{button-icons-src}}/*.svg; do \
+        install -Dm0644 "$icon" "{{base-dir}}/share/cosmic/{{APPID}}/applet-buttons/$(basename "$icon")"; \
+    done
 
 # Uninstalls locally installed files
 uninstall-local:

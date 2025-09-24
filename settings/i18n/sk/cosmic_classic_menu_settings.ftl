@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = O aplikácii
+settings = Nastavenia
+default-settings = Obnoviť predvolené
+repository = Repozitár
+support = Podpora
+
+general = Všeobecné
+app-menu-position = Pozícia menu aplikácie
+search-field-position = Pozícia vyhľadávacieho poľa
+applet-button-style = Štýl tlačidla appletu
+user-widget = Vzhľad používateľského widgetu
+button-label = Popis tlačidla
+button-icon = Ikona tlačidla
+button-label-placeholder = Zadajte vlastný popis tlačidla...
+button-icon-placeholder = Vyberte ikonu
+
+top = Hore
+bottom = Dole
+left = Vľavo
+right = Vpravo
+icon-only = Iba ikona
+label-only = Iba popis
+icon-and-label = Ikona a popis
+auto = Automaticky
+username-prefered = Preferované používateľské meno
+realname-prefered = Preferované skutočné meno
+none = Žiadne

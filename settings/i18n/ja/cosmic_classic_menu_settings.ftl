@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = このアプリについて
+settings = 設定
+default-settings = デフォルトにリセット
+repository = リポジトリ
+support = サポート
+
+general = 全般
+app-menu-position = アプリメニューの位置
+search-field-position = 検索フィールドの位置
+applet-button-style = アプレットボタンのスタイル
+user-widget = ユーザーウィジェットの外観
+button-label = ボタンラベル
+button-icon = ボタンアイコン
+button-label-placeholder = カスタムボタンラベルを入力してください...
+button-icon-placeholder = アイコンを選択
+
+top = 上
+bottom = 下
+left = 左
+right = 右
+icon-only = アイコンのみ
+label-only = ラベルのみ
+icon-and-label = アイコンとラベル
+auto = 自動
+username-prefered = ユーザー名優先
+realname-prefered = 本名優先
+none = なし

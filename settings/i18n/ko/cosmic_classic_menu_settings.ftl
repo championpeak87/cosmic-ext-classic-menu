@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = 정보
+settings = 설정
+default-settings = 기본값으로 재설정
+repository = 저장소
+support = 지원
+
+general = 일반
+app-menu-position = 앱 메뉴 위치
+search-field-position = 검색 필드 위치
+applet-button-style = 애플릿 버튼 스타일
+user-widget = 사용자 위젯 모양
+button-label = 버튼 라벨
+button-icon = 버튼 아이콘
+button-label-placeholder = 사용자 지정 버튼 라벨을 입력하세요...
+button-icon-placeholder = 아이콘 선택
+
+top = 위
+bottom = 아래
+left = 왼쪽
+right = 오른쪽
+icon-only = 아이콘만
+label-only = 라벨만
+icon-and-label = 아이콘과 라벨
+auto = 자동
+username-prefered = 사용자 이름 우선
+realname-prefered = 실명 우선
+none = 없음

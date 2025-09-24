@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = Névjegy
+settings = Beállítások
+default-settings = Alapértelmezés visszaállítása
+repository = Tároló
+support = Támogatás
+
+general = Általános
+app-menu-position = Alkalmazásmenü pozíciója
+search-field-position = Keresőmező pozíciója
+applet-button-style = Applet gomb stílusa
+user-widget = Felhasználói widget megjelenése
+button-label = Gomb felirat
+button-icon = Gomb ikon
+button-label-placeholder = Írja be az egyedi gombfeliratot ide...
+button-icon-placeholder = Ikon kiválasztása
+
+top = Fent
+bottom = Lent
+left = Bal
+right = Jobb
+icon-only = Csak ikon
+label-only = Csak felirat
+icon-and-label = Ikon és felirat
+auto = Automatikus
+username-prefered = Felhasználónév preferált
+realname-prefered = Valódi név preferált
+none = Nincs

@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = ಬಗ್ಗೆ
+settings = ಸೆಟ್ಟಿಂಗ್‌ಗಳು
+default-settings = ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರುಹೊಂದಿಸಿ
+repository = ರೆಪೊಸಿಟರಿ
+support = ಬೆಂಬಲ
+
+general = ಸಾಮಾನ್ಯ
+app-menu-position = ಅಪ್ಲಿಕೇಶನ್ ಮೆನು ಸ್ಥಾನ
+search-field-position = ಹುಡುಕಾಟ ಕ್ಷೇತ್ರದ ಸ್ಥಾನ
+applet-button-style = ಅಪ್ಲೆಟ್ ಬಟನ್ ಶೈಲಿ
+user-widget = ಬಳಕೆದಾರ ವಿಜೆಟ್ ರೂಪ
+button-label = ಬಟನ್ ಲೇಬಲ್
+button-icon = ಬಟನ್ ಐಕಾನ್
+button-label-placeholder = ಇಲ್ಲಿ ಕಸ್ಟಮ್ ಬಟನ್ ಲೇಬಲ್ ನಮೂದಿಸಿ...
+button-icon-placeholder = ಐಕಾನ್ ಆಯ್ಕೆಮಾಡಿ
+
+top = ಮೇಲ್ಭಾಗ
+bottom = ಕೆಳಭಾಗ
+left = ಎಡ
+right = ಬಲ
+icon-only = ಐಕಾನ್ ಮಾತ್ರ
+label-only = ಲೇಬಲ್ ಮಾತ್ರ
+icon-and-label = ಐಕಾನ್ ಮತ್ತು ಲೇಬಲ್
+auto = ಸ್ವಯಂಚಾಲಿತ
+username-prefered = ಬಳಕೆದಾರ ಹೆಸರು ಆದ್ಯತೆ
+realname-prefered = ನಿಜವಾದ ಹೆಸರು ಆದ್ಯತೆ
+none = ಯಾವುದೂ ಇಲ್ಲ

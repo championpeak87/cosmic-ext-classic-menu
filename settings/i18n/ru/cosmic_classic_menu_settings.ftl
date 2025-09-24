@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = О программе
+settings = Настройки
+default-settings = Сбросить по умолчанию
+repository = Репозиторий
+support = Поддержка
+
+general = Общие
+app-menu-position = Положение меню приложения
+search-field-position = Положение поля поиска
+applet-button-style = Стиль кнопки апплета
+user-widget = Внешний вид пользовательского виджета
+button-label = Метка кнопки
+button-icon = Иконка кнопки
+button-label-placeholder = Введите пользовательскую метку кнопки...
+button-icon-placeholder = Выбрать иконку
+
+top = Вверх
+bottom = Вниз
+left = Влево
+right = Вправо
+icon-only = Только иконка
+label-only = Только метка
+icon-and-label = Иконка и метка
+auto = Автоматически
+username-prefered = Предпочтительное имя пользователя
+realname-prefered = Настоящее имя предпочтительно
+none = Нет

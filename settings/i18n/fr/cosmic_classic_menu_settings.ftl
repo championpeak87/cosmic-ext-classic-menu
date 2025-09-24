@@ -1,0 +1,28 @@
+app-title = COSMIC Classic Menu
+about = À propos
+settings = Paramètres
+default-settings = Réinitialiser par défaut
+repository = Référentiel
+support = Support
+
+general = Général
+app-menu-position = Position du menu de l'application
+search-field-position = Position du champ de recherche
+applet-button-style = Style du bouton d'applet
+user-widget = Apparence du widget utilisateur
+button-label = Libellé du bouton
+button-icon = Icône du bouton
+button-label-placeholder = Saisissez un libellé personnalisé pour le bouton...
+button-icon-placeholder = Choisir une icône
+
+top = Haut
+bottom = Bas
+left = Gauche
+right = Droite
+icon-only = Icône seulement
+label-only = Libellé seulement
+icon-and-label = Icône et libellé
+auto = Automatique
+username-prefered = Nom d'utilisateur préféré
+realname-prefered = Nom réel préféré
+none = Aucun
