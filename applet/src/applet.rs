@@ -23,6 +23,8 @@ use crate::fl;
 use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User, APPS_CACHE};
 use crate::model::application_entry::ApplicationEntry;
 
+pub const APP_ID: &str = "com.championpeak87.cosmic-classic-menu";
+
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
 #[derive(Default)]
@@ -173,7 +175,7 @@ impl Application for CosmicClassicMenu {
     type Executor = cosmic::executor::multi::Executor;
     type Flags = ();
     type Message = Message;
-    const APP_ID: &'static str = "com.championpeak87.cosmic-classic-menu";
+    const APP_ID: &'static str = APP_ID;
 
     fn core(&self) -> &Core {
         &self.core

@@ -26,6 +26,8 @@ features = ["fluent-system", "desktop-requester"]
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
 features = [
+    # About dialog support
+    "about",
     # Accessibility support
     "a11y",
     # Uses cosmic-settings-daemon to watch for config file changes

@@ -17,7 +17,6 @@ pub struct CosmicClassicMenuConfig {
     pub user_widget: UserWidgetStyle,
     pub button_label: String,
     pub button_icon: String,
-    pub symbolic_icon: bool,
     pub recent_applications: Vec<RecentApplication>,
 }
 
@@ -29,8 +28,7 @@ impl Default for CosmicClassicMenuConfig {
             applet_button_style: AppletButtonStyle::default(),
             user_widget: UserWidgetStyle::default(),
             button_label: fl!("menu-label").to_owned(),
-            button_icon: "open-menu-symbolic".to_owned(),
-            symbolic_icon: true,
+            button_icon: format!("/usr/share/cosmic/{}/applet-buttons/default.svg", crate::applet::CosmicClassicMenu::APP_ID).to_owned(),
             recent_applications: vec![],
         }
     }

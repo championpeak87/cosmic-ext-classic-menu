@@ -1948,9 +1948,9 @@ dependencies = [
 
 [[package]]
 name = "freedesktop-desktop-entry"
-version = "0.7.16"
+version = "0.7.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ae8fa6ad437c1e5becd0a2dd69fdd63a3ec29095496ba55fa4b911c242deea2"
+checksum = "6cad6ec36904c816446700d81a2a2b7968aa9f678c24821974fa9bd53b315228"
 dependencies = [
  "gettext-rs",
  "log",
@@ -3219,6 +3219,7 @@ dependencies = [
  "iced_winit",
  "image",
  "libc",
+ "license",
  "mime 0.3.17",
  "palette",
  "raw-window-handle",
@@ -3263,6 +3264,17 @@ dependencies = [
  "bitflags 2.9.4",
  "libc",
  "redox_syscall 0.5.17",
+]
+
+[[package]]
+name = "license"
+version = "3.7.0+3.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2db9430f1c0c6079d5650a97674467ff3934cb852400817eeb6c216b0a4eddb"
+dependencies = [
+ "reword",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -4666,6 +4678,15 @@ dependencies = [
  "svgtypes",
  "tiny-skia",
  "usvg",
+]
+
+[[package]]
+name = "reword"
+version = "7.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2de73ec80cfacafa51b73b0db31d6c3a4718fc6b0d479ef445609704020c1b0"
+dependencies = [
+ "unicode-segmentation",
 ]
 
 [[package]]

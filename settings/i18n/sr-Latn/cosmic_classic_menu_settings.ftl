@@ -1,28 +1,28 @@
-cosmic-applet-button = Kosmičko dugme
+app-title = COSMIC Classic Menu
+about = O aplikaciji
+settings = Podešavanja
+default-settings = Vrati na podrazumevano
+repository = Repozitorijum
+support = Podrška
 
-# kategorije
-all-applications=Sve aplikacije
-recently-used=Nedavno korišćene
-audio=Audio
-video=Video
-development=Razvoj
-games=Igre
-graphics=Grafika
-network=Mreža
-office=Kancelarija
-science=Nauka
-settings=Podešavanja
-system=Sistem
-utility=Alatke
+general = Opšte
+app-menu-position = Pozicija menija
+search-field-position = Pozicija polja za pretragu
+applet-button-style = Stil dugmeta apleta
+user-widget = Izgled korisničkog vidžeta
+button-label = Oznaka dugmeta
+button-icon = Ikonica dugmeta
+button-label-placeholder = Unesite prilagođenu oznaku dugmeta ovde...
+button-icon-placeholder = Izaberite ikonicu
 
-# kontekst meni
-system-monitor-label=Sistemski monitor
-settings-label=Sistemska konfiguracija
-disks-label=Diskovi
-
-# glavni meni
-search-placeholder=Kucajte za pretragu aplikacija
-no-apps=Nisu pronađene aplikacije
-
-# dugme apleta
-menu-label=Meni
+top = Gore
+bottom = Dole
+left = Levo
+right = Desno
+icon-only = Samo ikonica
+label-only = Samo oznaka
+icon-and-label = Ikonica i oznaka
+auto = Automatski
+username-prefered = Preferiraj korisničko ime
+realname-prefered = Preferiraj pravo ime
+none = Ništa

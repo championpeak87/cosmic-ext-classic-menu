@@ -7,17 +7,143 @@
   <developer_name>Kamil Lihan</developer_name>
   <update_contact>k.lihan@outlook.com</update_contact>
   <url type="homepage">https://github.com/championpeak87/cosmic-classic-menu</url>
-  <url type="bugtracker"></url>
+  <url type="bugtracker">https://github.com/championpeak87/cosmic-classic-menu/issues</url>
+  <url type="help">https://github.com/championpeak87/cosmic-classic-menu#readme</url>
+  <url type="contact">mailto:k.lihan@outlook.com</url>
   <name>COSMIC Classic Menu</name>
   <summary>A launcher applet for COSMIC Desktop</summary>
-  <description>
-    <p>A launcher applet for COSMIC Desktop</p>
+  <description xml:lang="en">
+    <p>
+      COSMIC Classic Menu is a launcher applet for the COSMIC Desktop environment, providing quick access to applications, system functions, and settings. Features include:
+    </p>
+    <ul>
+      <li>Browse and launch installed applications via a clear menu</li>
+      <li>Search for apps by name or category</li>
+      <li>Customize button appearance (icon, label, combination, auto style)</li>
+      <li>Quick access to recently used applications</li>
+      <li>Change menu and search field position</li>
+      <li>Multi-language support (localization)</li>
+      <li>Modern design and theme compatibility</li>
+    </ul>
+    <p>
+      Ideal for users who want fast app launching, menu customization, or an overview of frequently used programs. Perfect for COSMIC Desktop, but usable as a standalone launcher.
+    </p>
+  </description>
+  <description xml:lang="cs">
+    <p>
+      COSMIC Classic Menu je spouštěcí applet pro prostředí COSMIC Desktop, který nabízí rychlý přístup k aplikacím, systémovým funkcím a nastavením. Umožňuje:
+    </p>
+    <ul>
+      <li>Procházet a spouštět nainstalované aplikace pomocí přehledného menu</li>
+      <li>Vyhledávat aplikace podle názvu nebo kategorie</li>
+      <li>Přizpůsobit vzhled tlačítka (ikona, popisek, kombinace, automatický styl)</li>
+      <li>Rychlý přístup k naposledy použitým aplikacím</li>
+      <li>Možnost změny pozice menu a vyhledávacího pole</li>
+      <li>Podpora více jazyků (lokalizace)</li>
+      <li>Moderní design a kompatibilita s různými motivy</li>
+    </ul>
+    <p>
+      Applet je vhodný pro uživatele, kteří chtějí rychle spouštět aplikace, upravovat vzhled menu, nebo mít přehled o svých nejčastěji používaných programech. Je ideální pro desktopové prostředí COSMIC, ale lze jej použít i jako samostatný launcher.
+    </p>
+  </description>
+  <description xml:lang="de">
+    <p>
+      COSMIC Classic Menu ist ein Starter-Applet für die COSMIC Desktop-Umgebung und bietet schnellen Zugriff auf Anwendungen, Systemfunktionen und Einstellungen. Funktionen:
+    </p>
+    <ul>
+      <li>Installierte Anwendungen über ein übersichtliches Menü durchsuchen und starten</li>
+      <li>Apps nach Name oder Kategorie suchen</li>
+      <li>Button-Design anpassen (Icon, Text, Kombination, automatisch)</li>
+      <li>Schneller Zugriff auf zuletzt verwendete Anwendungen</li>
+      <li>Position des Menüs und Suchfelds ändern</li>
+      <li>Mehrsprachige Unterstützung (Lokalisierung)</li>
+      <li>Modernes Design und Theme-Kompatibilität</li>
+    </ul>
+    <p>
+      Ideal für Nutzer, die Anwendungen schnell starten, das Menü anpassen oder einen Überblick über häufig genutzte Programme haben möchten. Perfekt für COSMIC Desktop, aber auch als eigenständiger Launcher nutzbar.
+    </p>
+  </description>
+  <description xml:lang="fr">
+    <p>
+      COSMIC Classic Menu est un applet de lancement pour l'environnement COSMIC Desktop, offrant un accès rapide aux applications, fonctions système et paramètres. Fonctionnalités :
+    </p>
+    <ul>
+      <li>Parcourir et lancer les applications installées via un menu clair</li>
+      <li>Rechercher des applications par nom ou catégorie</li>
+      <li>Personnaliser l'apparence du bouton (icône, texte, combinaison, style automatique)</li>
+      <li>Accès rapide aux applications récemment utilisées</li>
+      <li>Changer la position du menu et du champ de recherche</li>
+      <li>Support multilingue (localisation)</li>
+      <li>Design moderne et compatibilité avec les thèmes</li>
+    </ul>
+    <p>
+      Idéal pour les utilisateurs souhaitant lancer rapidement des applications, personnaliser le menu ou avoir un aperçu des programmes fréquemment utilisés. Parfait pour COSMIC Desktop, mais utilisable comme lanceur autonome.
+    </p>
+  </description>
+  <description xml:lang="es">
+    <p>
+      COSMIC Classic Menu es un applet lanzador para el entorno COSMIC Desktop, que proporciona acceso rápido a aplicaciones, funciones del sistema y configuraciones. Características:
+    </p>
+    <ul>
+      <li>Explora y lanza aplicaciones instaladas mediante un menú claro</li>
+      <li>Busca aplicaciones por nombre o categoría</li>
+      <li>Personaliza la apariencia del botón (icono, etiqueta, combinación, estilo automático)</li>
+      <li>Acceso rápido a aplicaciones usadas recientemente</li>
+      <li>Cambia la posición del menú y del campo de búsqueda</li>
+      <li>Soporte multilingüe (localización)</li>
+      <li>Diseño moderno y compatibilidad con temas</li>
+    </ul>
+    <p>
+      Ideal para usuarios que desean lanzar aplicaciones rápidamente, personalizar el menú o tener una visión general de los programas más utilizados. Perfecto para COSMIC Desktop, pero también utilizable como lanzador independiente.
+    </p>
+  </description>
+  <description xml:lang="ru">
+    <p>
+      COSMIC Classic Menu — это апплет-лаунчер для среды COSMIC Desktop, обеспечивающий быстрый доступ к приложениям, системным функциям и настройкам. Возможности:
+    </p>
+    <ul>
+      <li>Просмотр и запуск установленных приложений через удобное меню</li>
+      <li>Поиск приложений по названию или категории</li>
+      <li>Настройка внешнего вида кнопки (иконка, подпись, комбинация, авто)</li>
+      <li>Быстрый доступ к недавно использованным приложениям</li>
+      <li>Изменение положения меню и поля поиска</li>
+      <li>Многоязычная поддержка (локализация)</li>
+      <li>Современный дизайн и совместимость с темами</li>
+    </ul>
+    <p>
+      Идеально подходит для пользователей, которым нужен быстрый запуск приложений, настройка меню или обзор часто используемых программ. Отлично подходит для COSMIC Desktop, но может использоваться как отдельный лаунчер.
+    </p>
+  </description>
+  <description xml:lang="ja">
+    <p>
+      COSMIC Classic MenuはCOSMIC Desktop環境向けのランチャーアプレットで、アプリケーション、システム機能、設定への迅速なアクセスを提供します。主な機能：
+    </p>
+    <ul>
+      <li>分かりやすいメニューでインストール済みアプリを閲覧・起動</li>
+      <li>名前やカテゴリでアプリを検索</li>
+      <li>ボタンの外観をカスタマイズ（アイコン、ラベル、組み合わせ、自動スタイル）</li>
+      <li>最近使用したアプリへの素早いアクセス</li>
+      <li>メニューや検索フィールドの位置を変更</li>
+      <li>多言語対応（ローカライズ）</li>
+      <li>モダンなデザインとテーマ互換性</li>
+    </ul>
+    <p>
+      アプリの素早い起動やメニューのカスタマイズ、よく使うプログラムの一覧が欲しいユーザーに最適です。COSMIC Desktopに最適ですが、単体ランチャーとしても利用可能です。
+    </p>
   </description>
   <launchable type="desktop-id">com.championpeak87.cosmic-classic-menu.desktop</launchable>
   <icon type="remote">https://github.com/championpeak87/cosmic-classic-menu/raw/main/res/icons/hicolor/scalable/apps/com.championpeak87.cosmic-classic-menu.svg</icon>
   <screenshots>
+    <screenshot type="default">
+      <image>https://github.com/championpeak87/cosmic-classic-menu/raw/main/screenshots/main.png</image>
+      <caption>Main menu screenshot</caption>
+    </screenshot>
   </screenshots>
   <categories>
+    <category>Utility</category>
+    <category>System</category>
+    <category>Launcher</category>
+    <category>Desktop</category>
   </categories>
   <provides>
     <id>com.championpeak87.cosmic-classic-menu</id>
@@ -28,4 +154,11 @@
       <binary>cosmic-classic-menu</binary>
     </binaries>
   </provides>
+  <releases>
+    <release version="0.0.4" date="2025-09-24">
+      <description>
+        <p>Initial public release with COSMIC Desktop integration, customizable button styles, and settings panel.</p>
+      </description>
+    </release>
+  </releases>
 </component>

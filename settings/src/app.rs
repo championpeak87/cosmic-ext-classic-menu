@@ -1,35 +1,28 @@
 // SPDX-License-Identifier: {{ license }}
 
-use crate::{app, fl};
+use crate::fl;
 use cosmic::app::context_drawer;
-use cosmic::cosmic_config::{self, CosmicConfigEntry};
-use cosmic::iced::alignment::{Horizontal, Vertical};
+use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::iced::{Alignment, Length, Subscription};
-use cosmic::iced_widget::Row;
-use cosmic::widget::{self, button, icon, menu, nav_bar};
-use cosmic::{applet, prelude::*};
-use cosmic::{cosmic_theme, theme};
+use cosmic::prelude::*;
+use cosmic::widget::{button, icon, menu};
 use cosmic::{iced::Background, widget::text, Element};
-use cosmic_classic_menu::applet_button;
 use cosmic_classic_menu::config::{
-    AppletButtonStyle, CosmicClassicMenuConfig, HorizontalPosition, RecentApplication,
-    UserWidgetStyle, VerticalPosition,
+    AppletButtonStyle, CosmicClassicMenuConfig, HorizontalPosition, UserWidgetStyle,
+    VerticalPosition,
 };
 use futures_util::SinkExt;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
-
-const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
-const APP_ICON: &[u8] = include_bytes!(
-    "../../res/icons/hicolor/scalable/apps/com.championpeak87.cosmic-classic-menu.svg"
-);
+use std::path::PathBuf;
 
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
 pub struct AppModel {
     /// Application state which is managed by the COSMIC runtime.
     core: cosmic::Core,
+    /// The about page for this app.
+    about: cosmic::widget::about::About,
     /// Display a context drawer with the designated page if defined.
     context_page: ContextPage,
     /// Key bindings for the application's menu bar.
@@ -41,7 +34,6 @@ pub struct AppModel {
 /// Messages emitted by the application and its widgets.
 #[derive(Debug, Clone)]
 pub enum Message {
-    OpenRepositoryUrl,
     SubscriptionChannel,
     UpdateConfig(CosmicClassicMenuConfig),
     LaunchUrl(String),
@@ -50,11 +42,9 @@ pub enum Message {
     AppletButtonStyleChanged(usize),
     UserWidgetChanged(usize),
     ButtonLabelChanged(String),
-    ButtonIconChanged(String),
     ToggleContextPage(ContextPage),
-    OpenIconPicker,            // 2. Add new message
-    IconSelected(String),      // 2. Add message for icon selection
-    SymbolicIconChanged(bool), // 6. Add message for symbolic icon toggle
+    OpenIconPicker,
+    ButtonIconChanged(PathBuf),
 }
 
 /// Create a COSMIC application from the app model
@@ -69,7 +59,7 @@ impl cosmic::Application for AppModel {
     type Message = Message;
 
     /// Unique identifier in RDNN (reverse domain name notation) format.
-    const APP_ID: &'static str = "com.championpeak87.cosmic-classic-menu";
+    const APP_ID: &'static str = cosmic_classic_menu::applet::APP_ID;
 
     fn core(&self) -> &cosmic::Core {
         &self.core
@@ -86,9 +76,27 @@ impl cosmic::Application for AppModel {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         core.window.show_maximize = false;
 
+        let about = cosmic::widget::about::About::default()
+            .name(fl!("app-title"))
+            .icon(icon::from_name(Self::APP_ID))
+            .version(env!("CARGO_PKG_VERSION"))
+            .license("GPL-3.0-only")
+            .developers([("Kamil Lihan", "k.lihan@outlook.com")])
+            .links([
+                (
+                    fl!("repository"),
+                    "https://github.com/championpeak87/cosmic-classic-menu",
+                ),
+                (
+                    fl!("support"),
+                    "https://github.com/championpeak87/cosmic-classic-menu/issues",
+                ),
+            ]);
+
         // Construct the app model with the runtime's core.
-        let mut app = AppModel {
+        let app = AppModel {
             core,
+            about,
             context_page: ContextPage::default(),
             key_binds: HashMap::new(),
             // Optional configuration file for an application.
@@ -99,7 +107,7 @@ impl cosmic::Application for AppModel {
     }
 
     /// Elements to pack at the start of the header bar.
-    fn header_start(&self) -> Vec<Element<Self::Message>> {
+    fn header_start(&'_ self) -> Vec<Element<'_, Self::Message>> {
         let menu_bar = menu::bar(vec![menu::Tree::with_children(
             menu::root(fl!("settings")).apply(Element::from),
             menu::items(
@@ -113,7 +121,8 @@ impl cosmic::Application for AppModel {
                     menu::Item::Button(fl!("about"), None, MenuAction::About),
                 ],
             ),
-        )]);
+        )])
+        .width(Length::Fill);
 
         vec![menu_bar.into()]
     }
@@ -122,7 +131,7 @@ impl cosmic::Application for AppModel {
     ///
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
-    fn view(&self) -> Element<Self::Message> {
+    fn view(&'_ self) -> Element<'_, Self::Message> {
         let app_menu_position = cosmic::iced::widget::row![
             cosmic::widget::Radio::new(
                 cosmic::widget::text::heading(fl!("left")),
@@ -189,11 +198,6 @@ impl cosmic::Application for AppModel {
             cosmic::widget::button::text(fl!("button-icon-placeholder"))
                 .on_press(Message::OpenIconPicker) // 4. Open picker on click
         ];
-        let symbolic_icon: Row<'_, Message, Theme> = cosmic::iced::widget::row![
-            cosmic::widget::Space::new(Length::Fill, 5),
-            cosmic::widget::toggler(!self.config.symbolic_icon)
-                .on_toggle(Message::SymbolicIconChanged) // 5. Handle toggle change
-        ];
 
         let settings_container =
             cosmic::widget::settings::view_column(vec![cosmic::widget::settings::section()
@@ -222,24 +226,21 @@ impl cosmic::Application for AppModel {
                     fl!("button-icon"),
                     button_icon,
                 ))
-                .add(cosmic::widget::settings::item(
-                    fl!("symbolic-icon"),
-                    symbolic_icon,
-                ))
                 .into()]);
 
         settings_container.padding([5, 10]).into()
     }
 
     /// Display a context drawer if the context page is requested.
-    fn context_drawer(&self) -> Option<context_drawer::ContextDrawer<Self::Message>> {
+    fn context_drawer(&'_ self) -> Option<context_drawer::ContextDrawer<'_, Self::Message>> {
         if !self.core.window.show_context {
             return None;
         }
 
         Some(match self.context_page {
-            ContextPage::About => context_drawer::context_drawer(
-                self.about(),
+            ContextPage::About => context_drawer::about(
+                &self.about,
+                Message::LaunchUrl,
                 Message::ToggleContextPage(ContextPage::About),
             )
             .title(fl!("about")),
@@ -288,9 +289,6 @@ impl cosmic::Application for AppModel {
     /// on the application's async runtime.
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
-            Message::OpenRepositoryUrl => {
-                _ = open::that_detached(REPOSITORY);
-            }
             Message::SubscriptionChannel => {
                 // For example purposes only.
             }
@@ -365,8 +363,11 @@ impl cosmic::Application for AppModel {
                     .expect("Failed to write button label config");
             }
             Message::ButtonIconChanged(new_icon) => {
-                println!("Button icon changed to: {:?}", new_icon);
-                self.config.button_icon = new_icon;
+                println!(
+                    "Button icon changed to: {:?}",
+                    new_icon.clone().to_string_lossy()
+                );
+                self.config.button_icon = new_icon.to_string_lossy().into_owned();
 
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
@@ -386,69 +387,17 @@ impl cosmic::Application for AppModel {
                 self.context_page = ContextPage::IconPicker;
                 self.core.window.show_context = true;
             }
-            Message::IconSelected(icon_name) => {
-                println!("Icon selected: {:?}", icon_name);
-                self.config.button_icon = icon_name;
-
-                self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write button icon config");
-            }
-            Message::SymbolicIconChanged(new_value) => {
-                println!("Symbolic icon changed to: {:?}", !new_value);
-                self.config.symbolic_icon = !new_value;
-
-                self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write symbolic icon config");
-            }
         }
         Task::none()
     }
 }
 
 impl AppModel {
-    /// The about page for this app.
-    pub fn about(&self) -> Element<Message> {
-        let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
-
-        let icon = widget::svg(widget::svg::Handle::from_memory(APP_ICON))
-            .width(128)
-            .height(128);
-
-        let title = widget::text::title3(fl!("app-title"));
-
-        let hash = env!("VERGEN_GIT_SHA");
-        let short_hash: String = hash.chars().take(7).collect();
-        let date = env!("VERGEN_GIT_COMMIT_DATE");
-
-        let link = widget::button::link(REPOSITORY)
-            .on_press(Message::OpenRepositoryUrl)
-            .padding(0);
-
-        widget::column()
-            .push(icon)
-            .push(title)
-            .push(link)
-            .push(
-                widget::button::link(fl!(
-                    "git-description",
-                    hash = short_hash.as_str(),
-                    date = date
-                ))
-                .on_press(Message::LaunchUrl(format!("{REPOSITORY}/commits/{hash}")))
-                .padding(0),
-            )
-            .align_x(Alignment::Center)
-            .spacing(space_xxs)
-            .into()
-    }
-
     /// Helper to find available system icons in standard locations.
     fn system_icon_names() -> Vec<String> {
-        let mut icons = Vec::new();
+        let mut icons: Vec<String> = Vec::new();
         let search_dirs = [
-            "/usr/share/icons/hicolor/scalable/apps",
+            format!("/usr/share/cosmic/{}/applet-buttons", cosmic_classic_menu::applet::APP_ID),
             // "res/icons/bundled/applet-button",
             // Add more icon theme paths if needed
         ];
@@ -458,10 +407,8 @@ impl AppModel {
                     let path = entry.path();
                     if let Some(ext) = path.extension() {
                         if ext == "svg" || ext == "png" {
-                            if let Some(file_stem) = path.file_stem() {
-                                if let Some(name) = file_stem.to_str() {
-                                    icons.push(name.to_string());
-                                }
+                            if let Ok(abs_path) = path.canonicalize() {
+                                icons.push(abs_path.to_string_lossy().into_owned());
                             }
                         }
                     }
@@ -473,9 +420,9 @@ impl AppModel {
         icons
     }
 
-    pub fn icon_picker(&self) -> Element<Message> {
+    pub fn icon_picker(&'_ self) -> Element<'_, Message> {
         let icons = Self::system_icon_names();
-        let icons_per_row = 8;
+        let icons_per_row = 3;
         let theme = cosmic::theme::active();
         let theme = theme.cosmic();
 
@@ -483,12 +430,18 @@ impl AppModel {
 
         for chunk in icons.chunks(icons_per_row) {
             let mut row = cosmic::iced_widget::Row::new().spacing(theme.space_xs());
-            for icon_name in chunk {
+            for icon_path in chunk {
+                let icon_pathbuf: PathBuf = icon_path.into();
+                let icon_name = icon_pathbuf
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
                 row = row.push(Self::button(
-                    icon_name,
-                    cosmic::widget::icon::from_name(icon_name.clone()).handle(),
-                    self.config.button_icon == *icon_name,
-                    Message::IconSelected,
+                    &icon_name,
+                    icon_pathbuf,
+                    self.config.button_icon == *icon_path,
+                    Message::ButtonIconChanged,
                 ));
             }
             grid = grid.push(row);
@@ -504,9 +457,9 @@ impl AppModel {
 
     fn button(
         name: &String,
-        handle: icon::Handle,
+        icon_pathbuf: PathBuf,
         selected: bool,
-        callback: impl Fn(String) -> Message,
+        callback: impl Fn(PathBuf) -> Message,
     ) -> Element<'static, Message> {
         const ICON_THUMB_SIZE: u16 = 32;
         const ICON_NAME_TRUNC: usize = 20;
@@ -518,10 +471,12 @@ impl AppModel {
         cosmic::widget::column()
             .push(
                 cosmic::widget::button::custom_image_button(
-                    handle.icon().size(ICON_THUMB_SIZE),
-                    None
+                    cosmic::widget::icon::from_path(icon_pathbuf.clone())
+                        .icon()
+                        .size(ICON_THUMB_SIZE),
+                    None,
                 )
-                .on_press(callback(name.clone()))
+                .on_press(callback(icon_pathbuf.clone()))
                 .selected(selected)
                 .padding(theme.space_xs())
                 // Image button's style mostly works, but it needs a background to fit the design

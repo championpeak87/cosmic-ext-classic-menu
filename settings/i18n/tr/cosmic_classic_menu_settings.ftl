@@ -1,28 +1,28 @@
-cosmic-applet-button = Kozmik Düğme
+app-title = COSMIC Classic Menu
+about = Hakkında
+settings = Ayarlar
+default-settings = Varsayılanlara sıfırla
+repository = Depo
+support = Destek
 
-# kategoriler
-all-applications=Tüm uygulamalar
-recently-used=Son kullanılanlar
-audio=Ses
-video=Video
-development=Geliştirme
-games=Oyunlar
-graphics=Grafikler
-network=Ağ
-office=Ofis
-science=Bilim
-settings=Ayarlar
-system=Sistem
-utility=Yardımcı Programlar
+general = Genel
+app-menu-position = Uygulama menüsü konumu
+search-field-position = Arama alanı konumu
+applet-button-style = Uygulama düğmesi stili
+user-widget = Kullanıcı widget'ı görünümü
+button-label = Düğme etiketi
+button-icon = Düğme simgesi
+button-label-placeholder = Özel düğme etiketini buraya girin...
+button-icon-placeholder = Simge seç
 
-# bağlam menüsü
-system-monitor-label=Sistem monitörü
-settings-label=Sistem yapılandırması
-disks-label=Diskler
-
-# ana menü
-search-placeholder=Uygulama aramak için yazın
-no-apps=Hiçbir uygulama bulunamadı
-
-# applet düğmesi
-menu-label=Menü
+top = Üst
+bottom = Alt
+left = Sol
+right = Sağ
+icon-only = Sadece simge
+label-only = Sadece etiket
+icon-and-label = Simge ve etiket
+auto = Otomatik
+username-prefered = Kullanıcı adını tercih et
+realname-prefered = Gerçek adı tercih et
+none = Hiçbiri

@@ -2,7 +2,8 @@ app-title = COSMIC Classic Menu
 about = About
 settings = Settings
 default-settings = Reset to defaults
-git-description = Git commit {$hash} on {$date}
+repository = Repository
+support = Support
 
 general = General
 app-menu-position = App menu position
@@ -13,7 +14,6 @@ button-label = Button label
 button-icon = Button icon
 button-label-placeholder = Enter custom button label here...
 button-icon-placeholder = Pick icon
-symbolic-icon = Use colors for an icon
 
 top = Top
 bottom = Bottom
