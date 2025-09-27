@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use cached::Cached;
 use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::iced::Subscription;
@@ -11,16 +10,13 @@ use cosmic::iced::{
     Alignment,
 };
 use cosmic::{Application, Element};
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
-use std::collections::HashMap;
 use std::process;
 
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
-use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User, APPS_CACHE};
+use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User};
 use crate::model::application_entry::ApplicationEntry;
 
 pub const APP_ID: &str = "com.championpeak87.cosmic-classic-menu";
@@ -39,6 +35,8 @@ pub struct CosmicClassicMenu {
     pub search_field: String,
     /// The list of available applications that are displayed in the menu.
     pub available_applications: Vec<ApplicationEntry>,
+    /// The list of available categories that are displayed in the menu.
+    pub available_categories: Vec<ApplicationCategory>,
     /// The popup type that is used to determine which popup to display.
     pub popup_type: PopupType,
     /// The selected category that is used to filter the applications.
@@ -63,6 +61,8 @@ pub enum Message {
     UpdateLoggedUser(Result<User, zbus::Error>),
     FileEvent(Event),
     UpdateConfig(CosmicClassicMenuConfig),
+    UpdateAvailableApplications(Vec<ApplicationEntry>),
+    UpdateAvailableCategories(Vec<ApplicationCategory>),
 }
 
 #[derive(Clone, Debug)]
@@ -197,7 +197,8 @@ impl Application for CosmicClassicMenu {
             core,
             popup: None,
             search_field: "".to_owned(),
-            available_applications: crate::logic::apps::load_apps(),
+            available_applications: vec![],
+            available_categories: vec![],
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::ALL),
             config: CosmicClassicMenuConfig::config(),
@@ -210,7 +211,23 @@ impl Application for CosmicClassicMenu {
                 cosmic::Action::App(Message::UpdateLoggedUser(result))
             });
 
-        (window, Task::batch(vec![fetch_current_user_task]))
+        let fetch_all_apps_task = Task::perform(crate::logic::apps::Apps::load_apps(), |res| {
+            cosmic::Action::App(Message::UpdateAvailableApplications(res))
+        });
+
+        let fetch_available_categories_task =
+            Task::perform(crate::logic::apps::Apps::load_app_categories(), |res| {
+                cosmic::Action::App(Message::UpdateAvailableCategories(res))
+            });
+
+        (
+            window,
+            Task::batch(vec![
+                fetch_current_user_task,
+                fetch_all_apps_task,
+                fetch_available_categories_task,
+            ]),
+        )
     }
 
     fn on_close_requested(&self, id: Id) -> Option<Message> {
@@ -275,6 +292,7 @@ impl Application for CosmicClassicMenu {
     /// what message was received. Tasks may be returned for asynchronous execution on a
     /// background thread managed by the application's executor.
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
+        println!("Received message: {:?}", message);
         match message {
             Message::TogglePopup(popup_type) => self.toggle_popup(popup_type),
             Message::PopupClosed(id) => self.close_popup(id),
@@ -292,6 +310,16 @@ impl Application for CosmicClassicMenu {
             Message::UpdateConfig(config) => {
                 println!("Received updated config: {:?}", config);
                 self.config = config;
+
+                Task::none()
+            }
+            Message::UpdateAvailableApplications(items) => {
+                self.available_applications = items;
+
+                Task::none()
+            }
+            Message::UpdateAvailableCategories(items) => {
+                self.available_categories = items;
 
                 Task::none()
             }
@@ -313,14 +341,7 @@ impl Application for CosmicClassicMenu {
             // Watch for application configuration changes.
             self.core
                 .watch_config::<CosmicClassicMenuConfig>(Self::APP_ID)
-                .map(|update| {
-                    // for why in update.errors {
-                    //     tracing::error!(?why, "app config error");
-                    // }
-
-                    println!("Configuration update detected: {:?}", update.config);
-                    Message::UpdateConfig(update.config)
-                }),
+                .map(|update| Message::UpdateConfig(update.config)),
         ])
     }
 }
@@ -329,21 +350,27 @@ impl CosmicClassicMenu {
     pub fn handle_event(&mut self, event: Event) -> Task<Message> {
         match event {
             Event::Changed => {
-                // Invalidate the cache
-                APPS_CACHE.lock().unwrap().cache_reset();
-                Task::none()
+                // Update set of available applications
+                Task::perform(crate::logic::apps::Apps::load_apps(), |res| {
+                    cosmic::Action::App(Message::UpdateAvailableApplications(res))
+                })
             }
         }
     }
 
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
+        let mut tasks = vec![];
         self.popup_type = popup_type;
         if self.popup_type == PopupType::MainMenu {
-            self.available_applications = crate::logic::apps::load_apps();
+            tasks.push(Task::perform(
+                crate::logic::apps::Apps::load_apps(),
+                |res| cosmic::action::app(Message::UpdateAvailableApplications(res)),
+            ));
         }
 
         if let Some(p) = self.popup.take() {
-            destroy_popup(p)
+            tasks.push(destroy_popup(p));
+            Task::batch(tasks)
         } else {
             let new_id = Id::unique();
             self.popup.replace(new_id);
@@ -356,7 +383,8 @@ impl CosmicClassicMenu {
                 None,
             );
 
-            get_popup(popup_settings)
+            tasks.push(get_popup(popup_settings));
+            Task::batch(tasks)
         }
     }
 
@@ -374,21 +402,20 @@ impl CosmicClassicMenu {
 
     fn update_search_field(&mut self, input: &str) -> Task<Message> {
         self.selected_category = None;
-        let matcher = SkimMatcherV2::default();
 
         if input.is_empty() {
-            self.available_applications = crate::logic::apps::load_apps();
             self.selected_category = Some(ApplicationCategory::ALL);
+            self.search_field = input.to_string();
+            Task::perform(crate::logic::apps::Apps::load_apps(), |res| {
+                cosmic::action::app(Message::UpdateAvailableApplications(res))
+            })
         } else {
-            self.available_applications = crate::logic::apps::load_apps()
-                .iter()
-                .filter(|app| matcher.fuzzy_match(&app.name, input).is_some())
-                .cloned()
-                .collect();
+            self.search_field = input.to_string();
+            Task::perform(
+                crate::logic::apps::Apps::load_filtered_apps(self.search_field.clone()),
+                |res| cosmic::action::app(Message::UpdateAvailableApplications(res)),
+            )
         }
-        self.search_field = input.to_string();
-
-        Task::none()
     }
 
     fn perform_power_action(&mut self, action: PowerAction) -> Task<Message> {
@@ -478,34 +505,10 @@ impl CosmicClassicMenu {
         self.search_field.clear();
         self.selected_category = Some(category.clone());
 
-        if category == ApplicationCategory::ALL {
-            self.available_applications = crate::logic::apps::load_apps();
-        } else if category == ApplicationCategory::RECENTLY_USED {
-            self.available_applications = self.get_recent_applications();
-        } else {
-            self.available_applications = crate::logic::apps::load_apps()
-                .iter()
-                .filter(|app| app.category.contains(&category.mime_name.to_string()))
-                .cloned()
-                .collect();
-        }
-
-        Task::none()
-    }
-
-    fn get_recent_applications(&self) -> Vec<ApplicationEntry> {
-        let recent_applications: &Vec<RecentApplication> = &self.config.recent_applications;
-        let all_applications_entries: HashMap<String, ApplicationEntry> =
-            crate::logic::apps::load_apps()
-                .into_iter()
-                .map(|app| (app.id.clone(), app))
-                .collect();
-
-        // recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
-        recent_applications
-            .iter()
-            .filter_map(|app| all_applications_entries.get(&app.app_id).cloned())
-            .collect()
+        Task::perform(
+            crate::logic::apps::Apps::get_apps_of_category(category),
+            |res| cosmic::Action::App(Message::UpdateAvailableApplications(res)),
+        )
     }
 
     fn launch_tool(&mut self, tool: SystemTool) -> Task<Message> {
@@ -554,7 +557,7 @@ impl CosmicClassicMenu {
             .class(cosmic::theme::Button::AppletMenu)
             .on_press(Message::LaunchTool(SystemTool::DiskManagement)),
         ]
-        .padding([8,0]);
+        .padding([8, 0]);
 
         self.core.applet.popup_container(context_menu).into()
     }
