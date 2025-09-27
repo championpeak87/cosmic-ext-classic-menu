@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use cosmic::app::{Core, Task};
+use cosmic::applet::cosmic_panel_config::PanelAnchor;
+use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner::{
+    Anchor, Gravity,
+};
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::iced::Subscription;
 use cosmic::iced::{
@@ -9,6 +13,7 @@ use cosmic::iced::{
     window::Id,
     Alignment,
 };
+use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
 use cosmic::{Application, Element};
 use std::process;
 
@@ -375,13 +380,42 @@ impl CosmicClassicMenu {
             let new_id = Id::unique();
             self.popup.replace(new_id);
 
-            let popup_settings = self.core.applet.get_popup_settings(
+            let mut popup_settings = self.core.applet.get_popup_settings(
                 self.core.main_window_id().unwrap(),
                 new_id,
                 None,
                 None,
                 None,
             );
+
+            // Position the popup based on the panel anchor
+            let width = self.core.applet.suggested_window_size().0;
+            let height = self.core.applet.suggested_window_size().1;
+            popup_settings.positioner = SctkPositioner {
+                gravity: match self.core.applet.anchor {
+                    PanelAnchor::Left => Gravity::TopLeft,
+                    PanelAnchor::Right => Gravity::TopRight,
+                    PanelAnchor::Top => Gravity::TopLeft,
+                    PanelAnchor::Bottom => Gravity::BottomLeft,
+                },
+                anchor: match self.core.applet.anchor {
+                    PanelAnchor::Left => Anchor::TopRight,
+                    PanelAnchor::Right => Anchor::TopLeft,
+                    PanelAnchor::Top => Anchor::BottomLeft,
+                    PanelAnchor::Bottom => Anchor::TopLeft,
+                },
+                offset: (
+                    match self.core.applet.anchor {
+                        PanelAnchor::Left => width.get() as i32, // offset right
+                        _ => 0,
+                    },
+                    match self.core.applet.anchor {
+                        PanelAnchor::Top => height.get() as i32, // offset down
+                        _ => 0,
+                    },
+                ),
+                ..Default::default()
+            };
 
             tasks.push(get_popup(popup_settings));
             Task::batch(tasks)
