@@ -14,6 +14,9 @@ button-label = Düğme etiketi
 button-icon = Düğme simgesi
 button-label-placeholder = Özel düğme etiketini buraya girin...
 button-icon-placeholder = Simge seç
+select-custom-icon = Özel bir simge seç
+select = Seç
+icon-file = Simge dosyası (*.svg, *.png)
 
 top = Üst
 bottom = Alt

@@ -14,6 +14,9 @@ button-label = ボタンラベル
 button-icon = ボタンアイコン
 button-label-placeholder = カスタムボタンラベルを入力してください...
 button-icon-placeholder = アイコンを選択
+select-custom-icon = カスタムアイコンを選択
+select = 選択
+icon-file = アイコンファイル (*.svg, *.png)
 
 top = 上
 bottom = 下

@@ -14,6 +14,9 @@ button-label = 버튼 라벨
 button-icon = 버튼 아이콘
 button-label-placeholder = 사용자 지정 버튼 라벨을 입력하세요...
 button-icon-placeholder = 아이콘 선택
+select-custom-icon = 사용자 지정 아이콘 선택
+select = 선택
+icon-file = 아이콘 파일 (*.svg, *.png)
 
 top = 위
 bottom = 아래

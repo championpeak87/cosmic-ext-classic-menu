@@ -14,6 +14,9 @@ button-label = Popisek tlačítka
 button-icon = Ikona tlačítka
 button-label-placeholder = Zadejte vlastní popisek tlačítka...
 button-icon-placeholder = Vyberte ikonu
+select-custom-icon = Vybrat vlastní ikonu
+select = Vybrat
+icon-file = Soubor ikony (*.svg, *.png)
 
 top = Nahoře
 bottom = Dole

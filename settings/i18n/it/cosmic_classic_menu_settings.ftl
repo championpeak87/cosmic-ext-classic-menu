@@ -14,6 +14,9 @@ button-label = Etichetta del pulsante
 button-icon = Icona del pulsante
 button-label-placeholder = Inserisci qui un'etichetta personalizzata per il pulsante...
 button-icon-placeholder = Scegli icona
+select-custom-icon = Seleziona un'icona personalizzata
+select = Seleziona
+icon-file = File icona (*.svg, *.png)
 
 top = In alto
 bottom = In basso

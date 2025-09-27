@@ -14,6 +14,9 @@ button-label = Rótulo do botão
 button-icon = Ícone do botão
 button-label-placeholder = Insira um rótulo personalizado para o botão...
 button-icon-placeholder = Escolher ícone
+select-custom-icon = Selecionar um ícone personalizado
+select = Selecionar
+icon-file = Arquivo de ícone (*.svg, *.png)
 
 top = Superior
 bottom = Inferior

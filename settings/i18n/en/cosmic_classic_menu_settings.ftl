@@ -13,7 +13,10 @@ user-widget = User widget appearance
 button-label = Button label
 button-icon = Button icon
 button-label-placeholder = Enter custom button label here...
-button-icon-placeholder = Pick icon
+button-icon-placeholder = Pick an icon
+select-custom-icon = Select a custom icon
+select = Select
+icon-file = Icon file (*.svg, *.png)
 
 top = Top
 bottom = Bottom

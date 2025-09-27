@@ -14,6 +14,9 @@ button-label = Libellé du bouton
 button-icon = Icône du bouton
 button-label-placeholder = Saisissez un libellé personnalisé pour le bouton...
 button-icon-placeholder = Choisir une icône
+select-custom-icon = Sélectionner une icône personnalisée
+select = Sélectionner
+icon-file = Fichier d'icône (*.svg, *.png)
 
 top = Haut
 bottom = Bas

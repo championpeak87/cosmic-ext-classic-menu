@@ -14,6 +14,9 @@ button-label = Метка кнопки
 button-icon = Иконка кнопки
 button-label-placeholder = Введите пользовательскую метку кнопки...
 button-icon-placeholder = Выбрать иконку
+select-custom-icon = Выбрать пользовательскую иконку
+select = Выбрать
+icon-file = Файл иконки (*.svg, *.png)
 
 top = Вверх
 bottom = Вниз

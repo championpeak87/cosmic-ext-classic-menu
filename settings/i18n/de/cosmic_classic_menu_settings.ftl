@@ -14,6 +14,9 @@ button-label = Button-Beschriftung
 button-icon = Button-Symbol
 button-label-placeholder = Eigene Button-Beschriftung hier eingeben...
 button-icon-placeholder = Symbol auswählen
+select-custom-icon = Benutzerdefiniertes Symbol auswählen
+select = Auswählen
+icon-file = Symboldatei (*.svg, *.png)
 
 top = Oben
 bottom = Unten

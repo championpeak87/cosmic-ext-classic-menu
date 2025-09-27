@@ -14,6 +14,9 @@ button-label = Etykieta przycisku
 button-icon = Ikona przycisku
 button-label-placeholder = Wpisz własną etykietę przycisku...
 button-icon-placeholder = Wybierz ikonę
+select-custom-icon = Wybierz własną ikonę
+select = Wybierz
+icon-file = Plik ikony (*.svg, *.png)
 
 top = Góra
 bottom = Dół
