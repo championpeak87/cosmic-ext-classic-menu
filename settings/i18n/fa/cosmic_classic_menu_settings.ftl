@@ -14,6 +14,9 @@ button-label = برچسب دکمه
 button-icon = آیکون دکمه
 button-label-placeholder = برچسب سفارشی دکمه را اینجا وارد کنید...
 button-icon-placeholder = انتخاب آیکون
+select-custom-icon = انتخاب آیکون سفارشی
+select = انتخاب
+icon-file = فایل آیکون (*.svg, *.png)
 
 top = بالا
 bottom = پایین

@@ -14,6 +14,9 @@ button-label = ಬಟನ್ ಲೇಬಲ್
 button-icon = ಬಟನ್ ಐಕಾನ್
 button-label-placeholder = ಇಲ್ಲಿ ಕಸ್ಟಮ್ ಬಟನ್ ಲೇಬಲ್ ನಮೂದಿಸಿ...
 button-icon-placeholder = ಐಕಾನ್ ಆಯ್ಕೆಮಾಡಿ
+select-custom-icon = ಕಸ್ಟಮ್ ಐಕಾನ್ ಆಯ್ಕೆಮಾಡಿ
+select = ಆಯ್ಕೆಮಾಡಿ
+icon-file = ಐಕಾನ್ ಫೈಲ್ (*.svg, *.png)
 
 top = ಮೇಲ್ಭಾಗ
 bottom = ಕೆಳಭಾಗ

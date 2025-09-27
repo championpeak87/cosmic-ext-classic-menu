@@ -15,6 +15,9 @@ button-label = Knappetikett
 button-icon = Knappikon
 button-label-placeholder = Ange anpassad knappetikett här...
 button-icon-placeholder = Välj ikon
+select-custom-icon = Välj en anpassad ikon
+select = Välj
+icon-file = Ikonfil (*.svg, *.png)
 
 top = Överst
 bottom = Nederst

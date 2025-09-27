@@ -14,6 +14,9 @@ button-label = बटन लेबल
 button-icon = बटन आइकन
 button-label-placeholder = यहाँ कस्टम बटन लेबल दर्ज करें...
 button-icon-placeholder = आइकन चुनें
+select-custom-icon = कस्टम आइकन चुनें
+select = चुनें
+icon-file = आइकन फ़ाइल (*.svg, *.png)
 
 top = ऊपर
 bottom = नीचे

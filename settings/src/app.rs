@@ -3,6 +3,7 @@
 use crate::fl;
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::CosmicConfigEntry;
+use cosmic::dialog::file_chooser::FileFilter;
 use cosmic::iced::{Alignment, Length, Subscription};
 use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu};
@@ -45,6 +46,7 @@ pub enum Message {
     ToggleContextPage(ContextPage),
     OpenIconPicker,
     ButtonIconChanged(PathBuf),
+    CustomIconSelected,
 }
 
 /// Create a COSMIC application from the app model
@@ -291,6 +293,7 @@ impl cosmic::Application for AppModel {
         match message {
             Message::SubscriptionChannel => {
                 // For example purposes only.
+                Task::none()
             }
             Message::UpdateConfig(config) => {
                 self.config = config;
@@ -298,13 +301,18 @@ impl cosmic::Application for AppModel {
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write recent applications config");
+
+                Task::none()
             }
-            Message::LaunchUrl(url) => match open::that_detached(&url) {
-                Ok(()) => {}
-                Err(err) => {
-                    eprintln!("failed to open {url:?}: {err}");
+            Message::LaunchUrl(url) => {
+                match open::that_detached(&url) {
+                    Ok(()) => {}
+                    Err(err) => {
+                        eprintln!("failed to open {url:?}: {err}");
+                    }
                 }
-            },
+                Task::none()
+            }
             Message::AppPositionChanged(horizontal_position) => {
                 println!("App position changed to: {:?}", horizontal_position);
                 self.config.app_menu_position = horizontal_position;
@@ -312,6 +320,8 @@ impl cosmic::Application for AppModel {
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write recent applications config");
+
+                Task::none()
             }
             Message::SearchFieldPositionChanged(vertical_position) => {
                 println!("Search field position changed to: {:?}", vertical_position);
@@ -320,6 +330,8 @@ impl cosmic::Application for AppModel {
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write search field position config");
+
+                Task::none()
             }
             Message::AppletButtonStyleChanged(applet_button_style) => {
                 println!("Applet button style changed to: {:?}", applet_button_style);
@@ -334,6 +346,8 @@ impl cosmic::Application for AppModel {
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write applet button style config");
+
+                Task::none()
             }
             Message::UserWidgetChanged(user_widget_style) => {
                 println!("User widget style changed to: {:?}", user_widget_style);
@@ -347,6 +361,8 @@ impl cosmic::Application for AppModel {
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write user widget style config");
+
+                Task::none()
             }
             Message::ButtonLabelChanged(new_label) => {
                 let mut new_label = new_label;
@@ -361,6 +377,8 @@ impl cosmic::Application for AppModel {
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write button label config");
+
+                Task::none()
             }
             Message::ButtonIconChanged(new_icon) => {
                 println!(
@@ -372,6 +390,8 @@ impl cosmic::Application for AppModel {
                 self.config
                     .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write button icon config");
+
+                Task::none()
             }
             Message::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
@@ -382,13 +402,25 @@ impl cosmic::Application for AppModel {
                     self.context_page = context_page;
                     self.core.window.show_context = true;
                 }
+
+                Task::none()
             }
             Message::OpenIconPicker => {
                 self.context_page = ContextPage::IconPicker;
                 self.core.window.show_context = true;
+
+                Task::none()
             }
+            Message::CustomIconSelected => Task::perform(AppModel::pick_custom_icon(), |res| {
+                if let Some(icon_pathbuf) = res {
+                    // Icon exists and was selected
+                    cosmic::action::app(Message::ButtonIconChanged(icon_pathbuf))
+                } else {
+                    // Icon selection was cancelled or failed, revert to default
+                    cosmic::action::none()
+                }
+            }),
         }
-        Task::none()
     }
 }
 
@@ -397,8 +429,10 @@ impl AppModel {
     fn system_icon_names() -> Vec<String> {
         let mut icons: Vec<String> = Vec::new();
         let search_dirs = [
-            format!("/usr/share/cosmic/{}/applet-buttons", cosmic_classic_menu::applet::APP_ID),
-            // "res/icons/bundled/applet-button",
+            format!(
+                "/usr/share/cosmic/{}/applet-buttons",
+                cosmic_classic_menu::applet::APP_ID
+            ),
             // Add more icon theme paths if needed
         ];
         for dir in &search_dirs {
@@ -420,14 +454,42 @@ impl AppModel {
         icons
     }
 
+    async fn pick_custom_icon() -> Option<PathBuf> {
+        if let Ok(result) = cosmic::dialog::file_chooser::open::Dialog::new()
+            .title(fl!("select-custom-icon"))
+            .accept_label(fl!("select"))
+            .current_filter(FileFilter::new("icon-file").glob("*.svg").glob("*.png"))
+            .open_file()
+            .await
+        {
+            let icon_pathbuf: PathBuf = PathBuf::from(result.0.uris()[0].path());
+            if icon_pathbuf.exists() {
+                return Some(icon_pathbuf);
+            } else {
+                return None;
+            }
+        }
+
+        None
+    }
+
     pub fn icon_picker(&'_ self) -> Element<'_, Message> {
-        let icons = Self::system_icon_names();
+        let mut icons = Self::system_icon_names();
         let icons_per_row = 3;
         let theme = cosmic::theme::active();
         let theme = theme.cosmic();
 
         let mut grid = cosmic::iced_widget::Column::new().spacing(theme.space_xs());
 
+        // handle custom icon selection
+        let currently_selected_icon: PathBuf = PathBuf::from(&self.config.button_icon);
+        if currently_selected_icon.exists()
+            && !icons.contains(&currently_selected_icon.to_string_lossy().into_owned())
+        {
+            icons.insert(0, currently_selected_icon.to_string_lossy().into_owned());
+        }
+
+        // Add default set of icons
         for chunk in icons.chunks(icons_per_row) {
             let mut row = cosmic::iced_widget::Row::new().spacing(theme.space_xs());
             for icon_path in chunk {
@@ -447,8 +509,10 @@ impl AppModel {
             grid = grid.push(row);
         }
 
-        cosmic::iced_widget::Column::new()
-            .push(grid)
+        let custom_icon_button = cosmic::widget::button::standard(fl!("select-custom-icon"))
+            .on_press(Message::CustomIconSelected);
+
+        cosmic::iced_widget::column![custom_icon_button, grid]
             .width(Length::Fill)
             .align_x(Alignment::Center)
             .spacing(theme.space_xs())

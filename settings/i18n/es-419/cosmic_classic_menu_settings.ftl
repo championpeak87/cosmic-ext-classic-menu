@@ -14,6 +14,9 @@ button-label = Etiqueta del botón
 button-icon = Icono del botón
 button-label-placeholder = Ingresa una etiqueta personalizada para el botón...
 button-icon-placeholder = Elegir ícono
+select-custom-icon = Seleccionar un ícono personalizado
+select = Seleccionar
+icon-file = Archivo de ícono (*.svg, *.png)
 
 top = Arriba
 bottom = Abajo

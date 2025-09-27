@@ -14,6 +14,9 @@ button-label = Oznaka dugmeta
 button-icon = Ikonica dugmeta
 button-label-placeholder = Unesite prilagođenu oznaku dugmeta ovde...
 button-icon-placeholder = Izaberite ikonicu
+select-custom-icon = Izaberite prilagođenu ikonicu
+select = Izaberite
+icon-file = Fajl ikonice (*.svg, *.png)
 
 top = Gore
 bottom = Dole

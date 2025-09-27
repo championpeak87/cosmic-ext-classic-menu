@@ -14,6 +14,9 @@ button-label = Gomb felirat
 button-icon = Gomb ikon
 button-label-placeholder = Írja be az egyedi gombfeliratot ide...
 button-icon-placeholder = Ikon kiválasztása
+select-custom-icon = Egyéni ikon kiválasztása
+select = Kiválasztás
+icon-file = Ikonfájl (*.svg, *.png)
 
 top = Fent
 bottom = Lent

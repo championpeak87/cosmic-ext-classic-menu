@@ -14,6 +14,9 @@ button-label = 按钮标签
 button-icon = 按钮图标
 button-label-placeholder = 在此输入自定义按钮标签...
 button-icon-placeholder = 选择图标
+select-custom-icon = 选择自定义图标
+select = 选择
+icon-file = 图标文件 (*.svg, *.png)
 
 top = 顶部
 bottom = 底部

@@ -14,6 +14,9 @@ button-label = تسمية الزر
 button-icon = أيقونة الزر
 button-label-placeholder = أدخل تسمية مخصصة للزر هنا...
 button-icon-placeholder = اختر أيقونة
+select-custom-icon = اختر أيقونة مخصصة
+select = اختر
+icon-file = ملف أيقونة (*.svg, *.png)
 
 top = أعلى
 bottom = أسفل

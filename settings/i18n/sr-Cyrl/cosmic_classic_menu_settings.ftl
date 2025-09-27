@@ -14,6 +14,9 @@ button-label = Ознака дугмета
 button-icon = Икона дугмета
 button-label-placeholder = Унесите прилагођену ознаку дугмета овде...
 button-icon-placeholder = Одаберите икону
+select-custom-icon = Одаберите прилагођену икону
+select = Одаберите
+icon-file = Фајл иконе (*.svg, *.png)
 
 top = Врх
 bottom = Дно

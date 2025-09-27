@@ -14,6 +14,9 @@ button-label = Popis tlačidla
 button-icon = Ikona tlačidla
 button-label-placeholder = Zadajte vlastný popis tlačidla...
 button-icon-placeholder = Vyberte ikonu
+select-custom-icon = Vybrať vlastnú ikonu
+select = Vybrať
+icon-file = Súbor ikony (*.svg, *.png)
 
 top = Hore
 bottom = Dole
