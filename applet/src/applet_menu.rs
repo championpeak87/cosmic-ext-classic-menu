@@ -14,7 +14,6 @@ use cosmic::{theme, Element};
 use crate::applet::{CosmicClassicMenu, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
-use crate::logic::apps::{load_apps, ApplicationCategory};
 
 pub struct AppletMenu;
 
@@ -177,38 +176,7 @@ impl AppletMenu {
     fn create_categories_pane(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
-        let apps_categories: [ApplicationCategory; 11] = [
-            ApplicationCategory::AUDIO,
-            ApplicationCategory::VIDEO,
-            ApplicationCategory::DEVELOPMENT,
-            ApplicationCategory::GAMES,
-            ApplicationCategory::GRAPHICS,
-            ApplicationCategory::NETWORK,
-            ApplicationCategory::OFFICE,
-            ApplicationCategory::SCIENCE,
-            ApplicationCategory::SETTINGS,
-            ApplicationCategory::SYSTEM,
-            ApplicationCategory::UTILITY,
-        ];
-
-        let all_apps = load_apps();
-        let mut categories: Vec<ApplicationCategory> = Vec::new();
-        categories.push(ApplicationCategory::ALL);
-        categories.push(ApplicationCategory::RECENTLY_USED);
-        
-        apps_categories
-            .iter()
-            .filter(|&category| {
-                // Filter out categories that have no applications
-                let category_string = category.mime_name.to_string();
-                all_apps
-                    .iter()
-                    .any(|app| app.category.contains(&category_string))
-            })
-            .cloned()
-            .for_each(|x| categories.push(x));
-
-        let mut categories_pane: Vec<Element<Message>> = categories
+        let mut categories_pane: Vec<Element<Message>> = applet.available_categories
             .iter()
             .map(|category| {
                 cosmic::widget::button::custom(

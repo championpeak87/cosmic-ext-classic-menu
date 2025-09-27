@@ -1,8 +1,12 @@
-use crate::{fl, model::application_entry::ApplicationEntry};
-use std::{fmt::Display, string::String};
+use crate::{
+    config::{CosmicClassicMenuConfig, RecentApplication},
+    fl,
+    model::application_entry::ApplicationEntry,
+};
+use std::{collections::HashMap, fmt::Display, string::String};
 
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::{Deserialize, Serialize};
-use cached::{proc_macro::cached, UnboundCache};
 
 use cosmic::{
     iced::{stream, Subscription},
@@ -13,23 +17,108 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use tokio::sync::mpsc;
 
-#[cached(
-    name = "APPS_CACHE",
-    ty = "UnboundCache<(), Vec<ApplicationEntry>>",
-    create = "{ UnboundCache::new() }"
-)]
-pub fn load_apps() -> Vec<ApplicationEntry> {
-    let locale = std::env::var("LANG")
-                .ok()
-                .and_then(|l| l.split(".").next().map(str::to_string));
-    let mut all_entries: Vec<ApplicationEntry> =
-        cosmic::desktop::load_applications(locale.as_slice(), false, None)
-            .into_iter()
-            .map(Into::into)
-            .collect();
-    all_entries.sort_by(|a, b| a.name.cmp(&b.name));
+pub struct Apps;
 
-    all_entries
+impl Apps {
+    pub async fn load_apps() -> Vec<ApplicationEntry> {
+        println!("Loading applications...");
+        let locale = std::env::var("LANG")
+            .ok()
+            .and_then(|l| l.split(".").next().map(str::to_string));
+        let mut all_entries: Vec<ApplicationEntry> =
+            cosmic::desktop::load_applications(locale.as_slice(), false, None)
+                .into_iter()
+                .map(Into::into)
+                .collect();
+        all_entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+        all_entries
+    }
+
+    pub async fn load_filtered_apps(filter: String) -> Vec<ApplicationEntry> {
+        let matcher: SkimMatcherV2 = SkimMatcherV2::default();
+        let mut search_result: Vec<(Option<i64>, ApplicationEntry)> = Self::load_apps()
+            .await
+            .into_iter()
+            .map(|app| (matcher.fuzzy_match(&app.name, &filter), app))
+            .filter(|app| app.0.is_some())
+            .collect();
+
+        search_result.sort_by(|a, b| b.0.cmp(&a.0));
+
+        search_result.into_iter().map(|(_, app)| app).collect()
+    }
+
+    pub async fn load_app_categories() -> Vec<ApplicationCategory> {
+        use std::collections::HashSet;
+
+        println!("Loading app categories...");
+        let all_apps = Self::load_apps().await;
+        let mut used_categories = HashSet::new();
+        for app in &all_apps {
+            for cat in &app.category {
+                used_categories.insert(cat);
+            }
+        }
+
+        // Všechny možné kategorie
+        const APPS_CATEGORIES: &[ApplicationCategory] = &[
+            ApplicationCategory::AUDIO,
+            ApplicationCategory::VIDEO,
+            ApplicationCategory::DEVELOPMENT,
+            ApplicationCategory::GAMES,
+            ApplicationCategory::GRAPHICS,
+            ApplicationCategory::NETWORK,
+            ApplicationCategory::OFFICE,
+            ApplicationCategory::SCIENCE,
+            ApplicationCategory::SETTINGS,
+            ApplicationCategory::SYSTEM,
+            ApplicationCategory::UTILITY,
+        ];
+
+        // Vyberte pouze ty, které jsou použité
+        let mut categories = Vec::with_capacity(2 + APPS_CATEGORIES.len());
+        categories.push(ApplicationCategory::ALL);
+        categories.push(ApplicationCategory::RECENTLY_USED);
+        for cat in APPS_CATEGORIES {
+            if !cat.mime_name.is_empty() && used_categories.contains(&cat.mime_name.to_string()) {
+                categories.push(cat.clone());
+            }
+        }
+        categories
+    }
+
+    pub async fn get_recent_applications() -> Vec<ApplicationEntry> {
+        println!("Loading recent applications...");
+        let recent_applications: &Vec<RecentApplication> =
+            &CosmicClassicMenuConfig::config().recent_applications;
+        let all_applications_entries: HashMap<String, ApplicationEntry> = Self::load_apps()
+            .await
+            .into_iter()
+            .map(|app| (app.id.clone(), app))
+            .collect();
+
+        // recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
+        recent_applications
+            .iter()
+            .filter_map(|app| all_applications_entries.get(&app.app_id).cloned())
+            .collect()
+    }
+
+    pub async fn get_apps_of_category(category: ApplicationCategory) -> Vec<ApplicationEntry> {
+        println!("Getting apps of category: {}", category.mime_name);
+        if category == ApplicationCategory::ALL {
+            Self::load_apps().await
+        } else if category == ApplicationCategory::RECENTLY_USED {
+            Self::get_recent_applications().await
+        } else {
+            Self::load_apps()
+                .await
+                .into_iter()
+                .filter(|app| app.category.contains(&category.mime_name.to_string()))
+                .collect()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -122,7 +211,7 @@ pub struct User {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApplicationCategory {
     pub display_name: &'static str,
-    pub icon_svg_bytes: &'static[u8],
+    pub icon_svg_bytes: &'static [u8],
     pub mime_name: &'static str,
 }
 
@@ -134,32 +223,44 @@ impl ApplicationCategory {
     };
     pub const RECENTLY_USED: ApplicationCategory = ApplicationCategory {
         display_name: "recently-used",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/document-open-recent-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/document-open-recent-symbolic.svg"
+        ),
         mime_name: "",
     };
     pub const AUDIO: ApplicationCategory = ApplicationCategory {
         display_name: "audio",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-audio-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-audio-symbolic.svg"
+        ),
         mime_name: "Audio",
     };
     pub const VIDEO: ApplicationCategory = ApplicationCategory {
         display_name: "video",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-video-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-video-symbolic.svg"
+        ),
         mime_name: "Video",
     };
     pub const DEVELOPMENT: ApplicationCategory = ApplicationCategory {
         display_name: "development",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-engineering-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-engineering-symbolic.svg"
+        ),
         mime_name: "Development",
     };
     pub const GAMES: ApplicationCategory = ApplicationCategory {
         display_name: "games",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-games-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-games-symbolic.svg"
+        ),
         mime_name: "Game",
     };
     pub const GRAPHICS: ApplicationCategory = ApplicationCategory {
         display_name: "graphics",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-graphics-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-graphics-symbolic.svg"
+        ),
         mime_name: "Graphics",
     };
     pub const NETWORK: ApplicationCategory = ApplicationCategory {
@@ -169,27 +270,37 @@ impl ApplicationCategory {
     };
     pub const OFFICE: ApplicationCategory = ApplicationCategory {
         display_name: "office",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-office-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-office-symbolic.svg"
+        ),
         mime_name: "Office",
     };
     pub const SCIENCE: ApplicationCategory = ApplicationCategory {
         display_name: "science",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-science-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-science-symbolic.svg"
+        ),
         mime_name: "Science",
     };
     pub const SETTINGS: ApplicationCategory = ApplicationCategory {
         display_name: "settings",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/preferences-system-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/preferences-system-symbolic.svg"
+        ),
         mime_name: "Settings",
     };
     pub const SYSTEM: ApplicationCategory = ApplicationCategory {
         display_name: "system",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-system-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-system-symbolic.svg"
+        ),
         mime_name: "System",
     };
     pub const UTILITY: ApplicationCategory = ApplicationCategory {
         display_name: "utility",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/applications-utilities-symbolic.svg"),
+        icon_svg_bytes: include_bytes!(
+            "../../../res/icons/bundled/applications-utilities-symbolic.svg"
+        ),
         mime_name: "Utility",
     };
 
