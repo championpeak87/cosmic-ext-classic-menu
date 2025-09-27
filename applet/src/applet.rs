@@ -393,10 +393,10 @@ impl CosmicClassicMenu {
             let height = self.core.applet.suggested_window_size().1;
             popup_settings.positioner = SctkPositioner {
                 gravity: match self.core.applet.anchor {
-                    PanelAnchor::Left => Gravity::TopLeft,
-                    PanelAnchor::Right => Gravity::TopRight,
-                    PanelAnchor::Top => Gravity::TopLeft,
-                    PanelAnchor::Bottom => Gravity::BottomLeft,
+                    PanelAnchor::Left => Gravity::BottomLeft,
+                    PanelAnchor::Right => Gravity::BottomRight,
+                    PanelAnchor::Top => Gravity::TopRight,
+                    PanelAnchor::Bottom => Gravity::BottomRight,
                 },
                 anchor: match self.core.applet.anchor {
                     PanelAnchor::Left => Anchor::TopRight,
