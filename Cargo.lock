@@ -1000,7 +1000,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-classic-menu"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "accounts-zbus",
  "freedesktop-desktop-entry",
@@ -1022,7 +1022,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-classic-menu-settings"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "cosmic-classic-menu",
  "futures-util",
