@@ -27,7 +27,8 @@ button-icons-src := 'res' / 'icons' / 'bundled' / 'applet-button'
 
 # Compiles with debug profile
 build-debug *args:
-    cargo build {{args}}
+    cargo build -p cosmic-classic-menu {{args}}
+    cargo build -p cosmic-classic-menu-settings {{args}}
 
 # Compiles with release profile
 build-release *args: (build-debug '--release' args)
