@@ -4,7 +4,13 @@ use cosmic::{
 };
 use freedesktop_desktop_entry::DesktopEntry;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DesktopAction {
+    pub name: String,
+    pub exec: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// Represents an application entry in the Cosmic Classic Menu.
 pub struct ApplicationEntry {
     pub name: String,
@@ -15,10 +21,11 @@ pub struct ApplicationEntry {
     pub exec: Option<String>,
     pub category: Vec<String>,
     pub is_terminal: bool,
-    pub item_id: Id
+    pub item_id: Id,
+    pub desktop_actions: Vec<DesktopAction>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IconHandle {
     SvgHandle(cosmic::widget::svg::Handle),
     RasterHandle(cosmic::widget::image::Handle),
@@ -49,7 +56,8 @@ impl Into<ApplicationEntry> for DesktopEntryData {
             },
             exec: self.exec,
             category: self.categories,
-            item_id: Id::unique()
+            item_id: Id::unique(),
+            desktop_actions: self.desktop_actions.into_iter().map(From::from).collect(),
         }
     }
 }
@@ -68,6 +76,15 @@ impl Into<IconHandle> for Named {
             IconHandle::SvgHandle(handle)
         } else {
             IconHandle::RasterHandle(Handle::from_path(self.path().unwrap()))
+        }
+    }
+}
+
+impl From<cosmic::desktop::DesktopAction> for DesktopAction {
+    fn from(value: cosmic::desktop::DesktopAction) -> Self {
+        Self {
+            exec: value.exec,
+            name: value.name,
         }
     }
 }

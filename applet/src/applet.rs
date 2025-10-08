@@ -17,6 +17,7 @@ use cosmic::iced::{
 };
 use cosmic::iced::{Subscription, keyboard};
 use cosmic::iced_widget::scrollable::RelativeOffset;
+use cosmic::surface::Action;
 use cosmic::{Application, Element};
 use std::process;
 use std::sync::Arc;
@@ -27,7 +28,7 @@ use crate::config::{AppletButtonStyle, AppletConfig, RecentApplication};
 use crate::fl;
 use crate::logic::apps::{Event, desktop_files};
 use crate::model::application_category::ApplicationCategory;
-use crate::model::application_entry::ApplicationEntry;
+use crate::model::application_entry::{ApplicationEntry, DesktopAction};
 use crate::model::popup_type::PopupType;
 use crate::model::power_action::PowerAction;
 use crate::model::system_tool::SystemTool;
@@ -41,7 +42,7 @@ pub struct Applet {
     /// Application state which is managed by the COSMIC runtime.
     pub core: Core,
     /// The popup id.
-    popup: Option<Id>,
+    pub popup: Option<Id>,
     /// The configuration that is used to store the application settings.
     pub config: AppletConfig,
     /// The search field that is used to filter the applications.
@@ -85,6 +86,8 @@ pub enum Message {
     SelectNextApp,
     LaunchSelectedApplication,
     SuperKeyPressed,
+    Surface(Action),
+    LaunchApplicationWithAction(Arc<ApplicationEntry>, DesktopAction),
 }
 
 /// Implement the `Application` trait for your application.
@@ -226,7 +229,7 @@ impl Application for Applet {
             Message::SearchFieldInput(input) => self.update_search_field(input),
             Message::SearchCleared => self.clear_search(),
             Message::PowerOptionSelected(action) => self.perform_power_action(action),
-            Message::ApplicationSelected(app) => self.launch_application(app),
+            Message::ApplicationSelected(app) => self.launch_application(app, None),
             Message::CategorySelected(category) => self.select_category(category),
             Message::LaunchTool(tool) => self.launch_tool(tool),
             Message::Zbus(result) => self.handle_zbus_result(result),
@@ -258,12 +261,20 @@ impl Application for Applet {
                     let selected_application =
                         self.available_applications.get(index).unwrap().clone();
 
-                    return self.launch_application(selected_application);
+                    return self.launch_application(selected_application, None);
                 }
 
                 Task::none()
             }
             Message::SuperKeyPressed => self.toggle_popup(PopupType::MainMenu),
+            Message::Surface(action) => {
+                return cosmic::task::message(cosmic::Action::Cosmic(
+                    cosmic::app::Action::Surface(action),
+                ));
+            }
+            Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
+                self.launch_application(application_entry, Some(desktop_action))
+            }
         }
     }
 
@@ -367,6 +378,10 @@ impl Applet {
 
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
+        } else {
+            self.search_field.clear();
+            self.selected_category = Some(ApplicationCategory::ALL);
+            self.available_applications = Vec::new();
         }
 
         Task::none()
@@ -444,15 +459,20 @@ impl Applet {
         Task::none()
     }
 
-    fn launch_application(&mut self, app: Arc<ApplicationEntry>) -> Task<Message> {
-        let mut app_exec = app
-            .exec
-            .clone()
-            .unwrap()
+    fn launch_application(&mut self, app: Arc<ApplicationEntry>, action: Option<DesktopAction>) -> Task<Message> {
+        let mut app_exec = if action.is_some() {
+            action.unwrap().exec.clone()
             .split_whitespace()
             .filter(|arg| !arg.starts_with('%'))
             .collect::<Vec<_>>()
-            .join(" ");
+            .join(" ")
+        } else {
+            app.exec.clone().unwrap()
+            .split_whitespace()
+            .filter(|arg| !arg.starts_with('%'))
+            .collect::<Vec<_>>()
+            .join(" ")
+        };
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
         let mut is_terminal = app.is_terminal;
