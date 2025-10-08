@@ -24,3 +24,6 @@ no-apps=No applications found
 
 # applet button
 menu-label=Menu
+
+# application context menu
+launch=Launch

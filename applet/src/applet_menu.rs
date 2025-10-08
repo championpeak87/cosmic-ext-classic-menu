@@ -1,18 +1,42 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use cosmic::cosmic_theme::Spacing;
+use cosmic::iced::window::Id;
 use cosmic::iced::{
     widget::{column, row},
     Alignment, Length,
 };
 use cosmic::iced::{ContentFit, Font, Limits};
-use cosmic::widget::{container, ListColumn};
+use cosmic::widget::{container, menu, ListColumn};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 
 use crate::applet::{Applet, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
+use crate::model::application_entry::{ApplicationEntry, DesktopAction};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ContextMenuAction<'a> {
+    LaunchApplication(&'a Arc<ApplicationEntry>),
+    LaunchApplicationWithAction(&'a Arc<ApplicationEntry>, &'a DesktopAction),
+}
+
+impl menu::Action for ContextMenuAction<'_> {
+    type Message = Message;
+    fn message(&self) -> Self::Message {
+        match self {
+            ContextMenuAction::LaunchApplication(app) => {
+                Message::ApplicationSelected((*app).clone())
+            }
+            ContextMenuAction::LaunchApplicationWithAction(app, desktop_action) => {
+                Message::LaunchApplicationWithAction((*app).clone(), (*desktop_action).clone())
+            }
+        }
+    }
+}
 
 pub struct AppletMenu;
 
@@ -167,7 +191,44 @@ impl AppletMenu {
                 .width(Length::Fill)
                 .height(space_xl);
 
-                list.add(button)
+                let mut context_menu_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> =
+                    vec![menu::Item::Button(
+                        fl!("launch"),
+                        None,
+                        ContextMenuAction::LaunchApplication(app),
+                    )];
+
+                let additional_options_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> = app
+                    .desktop_actions
+                    .iter()
+                    .map(|action| {
+                        menu::Item::Button(
+                            action.name.to_string(),
+                            None,
+                            ContextMenuAction::LaunchApplicationWithAction(app, action),
+                        )
+                    })
+                    .collect();
+
+                if !additional_options_buttons.is_empty() {
+                    context_menu_buttons.push(menu::Item::Divider);
+                    context_menu_buttons.extend(additional_options_buttons);
+
+                }
+                let context_menu = Some(menu::items(&HashMap::new(), context_menu_buttons));
+
+                let window_id = if applet.popup.is_some() {
+                    applet.popup.unwrap()
+                } else {
+                    Id::unique()
+                };
+
+                let widget = cosmic::widget::context_menu(button, context_menu)
+                    .close_on_escape(false)
+                    .on_surface_action(Message::Surface)
+                    .window_id(window_id);
+
+                list.add(widget)
             },
         );
 
