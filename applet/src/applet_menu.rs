@@ -1,19 +1,42 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use cosmic::cosmic_theme::Spacing;
-use cosmic::desktop::IconSourceExt;
+use cosmic::desktop::{IconSourceExt};
+use cosmic::iced::window::Id;
 use cosmic::iced::{
     widget::{column, row},
     Alignment, Length,
 };
 use cosmic::iced::{ContentFit, Font, Limits};
-use cosmic::widget::{container, ListColumn};
+use cosmic::widget::{container, menu, ListColumn};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 
 use crate::applet::{CosmicClassicMenu, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
+use crate::model::application_entry::{ApplicationEntry, DesktopAction};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ContextMenuAction<'a> {
+    LaunchApplication(&'a ApplicationEntry),
+    LaunchApplicationWithAction(&'a ApplicationEntry, &'a DesktopAction),
+}
+
+impl menu::Action for ContextMenuAction<'_> {
+    type Message = Message;
+    fn message(&self) -> Self::Message {
+        match self {
+            ContextMenuAction::LaunchApplication(app) => {
+                Message::ApplicationSelected((*app).clone())
+            }
+            ContextMenuAction::LaunchApplicationWithAction(app, desktop_action) => {
+                Message::LaunchApplicationWithAction((*app).clone(), (*desktop_action).clone())
+            }
+        }
+    }
+}
 
 pub struct AppletMenu;
 
@@ -23,24 +46,18 @@ impl AppletMenu {
     const POPUP_MAX_HEIGHT: f32 = 700.0;
     const POPUP_MIN_HEIGHT: f32 = 700.0;
 
-    const SYSTEM_LOCKSCREEN_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-lock-screen-symbolic.svg"
-    );
-    const SYSTEM_LOGOUT_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-log-out-symbolic.svg"
-    );
-    const SYSTEM_REBOOT_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-reboot-symbolic.svg"
-    );
-    const SYSTEM_SHUTDOWN_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-shutdown-symbolic.svg"
-    );
-    const SYSTEM_SUSPEND_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-suspend-symbolic.svg"
-    );
-    const USER_IDLE_SYMBOLIC: &[u8] = include_bytes!(
-        "../../res/icons/bundled/user-idle-symbolic.svg"
-    );
+    const SYSTEM_LOCKSCREEN_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-lock-screen-symbolic.svg");
+    const SYSTEM_LOGOUT_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-log-out-symbolic.svg");
+    const SYSTEM_REBOOT_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-reboot-symbolic.svg");
+    const SYSTEM_SHUTDOWN_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-shutdown-symbolic.svg");
+    const SYSTEM_SUSPEND_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-suspend-symbolic.svg");
+    const USER_IDLE_SYMBOLIC: &[u8] =
+        include_bytes!("../../res/icons/bundled/user-idle-symbolic.svg");
 
     pub fn view_main_menu_list(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing {
@@ -163,7 +180,44 @@ impl AppletMenu {
                 .width(Length::Fill)
                 .height(space_xl);
 
-                list.add(button)
+                let mut context_menu_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> =
+                    vec![menu::Item::Button(
+                        fl!("launch"),
+                        None,
+                        ContextMenuAction::LaunchApplication(app),
+                    )];
+
+                let additional_options_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> = app
+                    .desktop_actions
+                    .iter()
+                    .map(|action| {
+                        menu::Item::Button(
+                            action.name.to_string(),
+                            None,
+                            ContextMenuAction::LaunchApplicationWithAction(app, action),
+                        )
+                    })
+                    .collect();
+
+                if !additional_options_buttons.is_empty() {
+                    context_menu_buttons.push(menu::Item::Divider);
+                    context_menu_buttons.extend(additional_options_buttons);
+
+                }
+                let context_menu = Some(menu::items(&HashMap::new(), context_menu_buttons));
+
+                let window_id = if applet.popup.is_some() {
+                    applet.popup.unwrap()
+                } else {
+                    Id::unique()
+                };
+
+                let widget = cosmic::widget::context_menu(button, context_menu)
+                    .close_on_escape(false)
+                    .on_surface_action(Message::Surface)
+                    .window_id(window_id);
+
+                list.add(widget)
             },
         );
 
@@ -176,15 +230,18 @@ impl AppletMenu {
     fn create_categories_pane(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
-        let mut categories_pane: Vec<Element<Message>> = applet.available_categories
+        let mut categories_pane: Vec<Element<Message>> = applet
+            .available_categories
             .iter()
             .map(|category| {
                 cosmic::widget::button::custom(
                     row![
-                        container(cosmic::widget::icon::from_svg_bytes(category.icon_svg_bytes)
-                            .symbolic(true)
-                            .icon())
-                            .padding([0, space_m]),
+                        container(
+                            cosmic::widget::icon::from_svg_bytes(category.icon_svg_bytes)
+                                .symbolic(true)
+                                .icon()
+                        )
+                        .padding([0, space_m]),
                         text(category.get_display_name()),
                     ]
                     .align_y(Alignment::Center),

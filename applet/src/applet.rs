@@ -14,6 +14,7 @@ use cosmic::iced::{
     Alignment,
 };
 use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
+use cosmic::surface::Action;
 use cosmic::{Application, Element};
 use std::process;
 
@@ -22,7 +23,7 @@ use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
 use crate::fl;
 use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User};
-use crate::model::application_entry::ApplicationEntry;
+use crate::model::application_entry::{ApplicationEntry, DesktopAction};
 
 pub const APP_ID: &str = "com.championpeak87.cosmic-classic-menu";
 
@@ -33,7 +34,7 @@ pub struct CosmicClassicMenu {
     /// Application state which is managed by the COSMIC runtime.
     pub core: Core,
     /// The popup id.
-    popup: Option<Id>,
+    pub popup: Option<Id>,
     /// The configuration that is used to store the application settings.
     pub config: CosmicClassicMenuConfig,
     /// The search field that is used to filter the applications.
@@ -68,6 +69,8 @@ pub enum Message {
     UpdateConfig(CosmicClassicMenuConfig),
     UpdateAvailableApplications(Vec<ApplicationEntry>),
     UpdateAvailableCategories(Vec<ApplicationCategory>),
+    Surface(Action),
+    LaunchApplicationWithAction(ApplicationEntry, DesktopAction),
 }
 
 #[derive(Clone, Debug)]
@@ -303,7 +306,7 @@ impl Application for CosmicClassicMenu {
             Message::PopupClosed(id) => self.close_popup(id),
             Message::SearchFieldInput(input) => self.update_search_field(&input),
             Message::PowerOptionSelected(action) => self.perform_power_action(action),
-            Message::ApplicationSelected(app) => self.launch_application(app),
+            Message::ApplicationSelected(app) => self.launch_application(app, None),
             Message::CategorySelected(category) => self.select_category(category),
             Message::LaunchTool(tool) => self.launch_tool(tool),
             Message::Zbus(result) => self.handle_zbus_result(result),
@@ -327,6 +330,14 @@ impl Application for CosmicClassicMenu {
                 self.available_categories = items;
 
                 Task::none()
+            }
+            Message::Surface(action) => {
+                return cosmic::task::message(cosmic::Action::Cosmic(
+                    cosmic::app::Action::Surface(action),
+                ));
+            }
+            Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
+                self.launch_application(application_entry, Some(desktop_action))
             }
         }
     }
@@ -423,12 +434,12 @@ impl CosmicClassicMenu {
     }
 
     fn close_popup(&mut self, id: Id) -> Task<Message> {
-        self.search_field.clear();
-        self.selected_category = Some(ApplicationCategory::ALL);
-        self.available_applications = Vec::new();
-
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
+        } else {
+            self.search_field.clear();
+            self.selected_category = Some(ApplicationCategory::ALL);
+            self.available_applications = Vec::new();
         }
 
         Task::none()
@@ -488,8 +499,16 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn launch_application(&mut self, app: ApplicationEntry) -> Task<Message> {
-        let mut app_exec = app.exec.clone().unwrap();
+    fn launch_application(
+        &mut self,
+        app: ApplicationEntry,
+        action: Option<DesktopAction>,
+    ) -> Task<Message> {
+        let mut app_exec = if action.is_some() {
+            action.unwrap().exec.clone()
+        } else {
+            app.exec.clone().unwrap()
+        };
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
         let is_terminal = app.is_terminal;
