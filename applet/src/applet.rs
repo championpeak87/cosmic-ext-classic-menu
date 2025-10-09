@@ -14,7 +14,6 @@ use cosmic::iced::{
     Alignment,
 };
 use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
-use cosmic::surface::Action;
 use cosmic::{Application, Element};
 use std::process;
 
@@ -69,7 +68,6 @@ pub enum Message {
     UpdateConfig(CosmicClassicMenuConfig),
     UpdateAvailableApplications(Vec<ApplicationEntry>),
     UpdateAvailableCategories(Vec<ApplicationCategory>),
-    Surface(Action),
     LaunchApplicationWithAction(ApplicationEntry, DesktopAction),
 }
 
@@ -300,7 +298,6 @@ impl Application for CosmicClassicMenu {
     /// what message was received. Tasks may be returned for asynchronous execution on a
     /// background thread managed by the application's executor.
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
-        println!("Received message: {:?}", message);
         match message {
             Message::TogglePopup(popup_type) => self.toggle_popup(popup_type),
             Message::PopupClosed(id) => self.close_popup(id),
@@ -316,7 +313,6 @@ impl Application for CosmicClassicMenu {
             }
             Message::FileEvent(event) => self.handle_event(event),
             Message::UpdateConfig(config) => {
-                println!("Received updated config: {:?}", config);
                 self.config = config;
 
                 Task::none()
@@ -330,11 +326,6 @@ impl Application for CosmicClassicMenu {
                 self.available_categories = items;
 
                 Task::none()
-            }
-            Message::Surface(action) => {
-                return cosmic::task::message(cosmic::Action::Cosmic(
-                    cosmic::app::Action::Surface(action),
-                ));
             }
             Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
                 self.launch_application(application_entry, Some(desktop_action))
@@ -434,13 +425,13 @@ impl CosmicClassicMenu {
     }
 
     fn close_popup(&mut self, id: Id) -> Task<Message> {
-        if self.popup.as_ref() == Some(&id) {
-            self.popup = None;
-        } else {
-            self.search_field.clear();
+        self.search_field.clear();
             self.selected_category = Some(ApplicationCategory::ALL);
             self.available_applications = Vec::new();
-        }
+        
+        if self.popup.as_ref() == Some(&id) {
+            self.popup = None;
+        } 
 
         Task::none()
     }
