@@ -6,6 +6,7 @@ use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::dialog::file_chooser::FileFilter;
 use cosmic::iced::{Alignment, Length, Subscription};
 use cosmic::prelude::*;
+use cosmic::widget::menu::{ItemHeight, ItemWidth};
 use cosmic::widget::{button, icon, menu};
 use cosmic::{iced::Background, widget::text, Element};
 use cosmic_ext_classic_menu_applet::config::{
@@ -124,7 +125,8 @@ impl cosmic::Application for AppModel {
                 ],
             ),
         )])
-        .width(Length::Fill);
+        .item_height(ItemHeight::Dynamic(40))
+        .item_width(ItemWidth::Uniform(240));
 
         vec![menu_bar.into()]
     }
@@ -242,7 +244,7 @@ impl cosmic::Application for AppModel {
         Some(match self.context_page {
             ContextPage::About => context_drawer::about(
                 &self.about,
-                |x| Message::LaunchUrl(x.to_string()),
+                |url| Message::LaunchUrl(url.to_string()),
                 Message::ToggleContextPage(ContextPage::About),
             )
             .title(fl!("about")),
