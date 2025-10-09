@@ -14,7 +14,6 @@ use cosmic::iced::{
     Alignment,
 };
 use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
-use cosmic::surface::Action;
 use cosmic::{Application, Element};
 use std::process;
 use std::sync::Arc;
@@ -70,7 +69,6 @@ pub enum Message {
     UpdateConfig(AppletConfig),
     UpdateAvailableApplications(Vec<Arc<ApplicationEntry>>),
     UpdateAvailableCategories(Vec<ApplicationCategory>),
-    Surface(Action),
     LaunchApplicationWithAction(Arc<ApplicationEntry>, DesktopAction),
 }
 
@@ -355,11 +353,6 @@ impl Application for Applet {
 
                 Task::none()
             }
-            Message::Surface(action) => {
-                return cosmic::task::message(cosmic::Action::Cosmic(
-                    cosmic::app::Action::Surface(action),
-                ));
-            }
             Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
                 self.launch_application(application_entry, Some(desktop_action))
             }
@@ -436,13 +429,13 @@ impl Applet {
     }
 
     fn close_popup(&mut self, id: Id) -> Task<Message> {
-        if self.popup.as_ref() == Some(&id) {
-            self.popup = None;
-        } else {
-            self.search_field.clear();
+        self.search_field.clear();
             self.selected_category = Some(ApplicationCategory::ALL);
             self.available_applications = Vec::new();
-        }
+        
+        if self.popup.as_ref() == Some(&id) {
+            self.popup = None;
+        } 
 
         Task::none()
     }
