@@ -1,5 +1,5 @@
 
-app-title = COSMIC™ Classic-meny
+app-title = Classic menu
 about = Om
 settings = Inställningar
 default-settings = Återställ till standard
