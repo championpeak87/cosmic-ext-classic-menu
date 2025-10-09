@@ -1,4 +1,4 @@
-app-title = COSMIC™ Classic Menu
+app-title = COSMIC™️ Classic Menu
 about = このアプリについて
 settings = 設定
 default-settings = デフォルトにリセット

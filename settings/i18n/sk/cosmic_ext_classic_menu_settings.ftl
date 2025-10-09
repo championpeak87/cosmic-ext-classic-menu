@@ -1,4 +1,4 @@
-app-title = COSMIC™ Classic Menu
+app-title = COSMIC™️ Classic Menu
 about = O aplikácii
 settings = Nastavenia
 default-settings = Obnoviť predvolené

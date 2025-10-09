@@ -1,4 +1,4 @@
-app-title = COSMIC™ Classic Menu
+app-title = COSMIC™️ Classic Menu
 about = 關於
 settings = 設定
 default-settings = 重設為預設值

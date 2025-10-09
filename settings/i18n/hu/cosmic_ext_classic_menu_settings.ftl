@@ -1,4 +1,4 @@
-app-title = COSMIC™ Classic Menu
+app-title = COSMIC™️ Classic Menu
 about = Névjegy
 settings = Beállítások
 default-settings = Alapértelmezés visszaállítása
