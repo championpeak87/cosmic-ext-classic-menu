@@ -383,6 +383,10 @@ impl Applet {
             self.selected_category = Some(ApplicationCategory::ALL);
             self.available_applications = Vec::new();
         }
+        
+        if self.popup.as_ref() == Some(&id) {
+            self.popup = None;
+        } 
 
         Task::none()
     }

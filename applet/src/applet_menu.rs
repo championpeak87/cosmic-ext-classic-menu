@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::window::Id;
+use cosmic::desktop::{IconSourceExt};
 use cosmic::iced::{
     Alignment, Length,
     widget::{column, row},
@@ -227,16 +228,8 @@ impl AppletMenu {
                 }
                 let context_menu = Some(menu::items(&HashMap::new(), context_menu_buttons));
 
-                let window_id = if applet.popup.is_some() {
-                    applet.popup.unwrap()
-                } else {
-                    Id::unique()
-                };
-
                 let widget = cosmic::widget::context_menu(button, context_menu)
-                    .close_on_escape(false)
-                    .on_surface_action(Message::Surface)
-                    .window_id(window_id);
+                    .close_on_escape(false);
 
                 list.add(widget)
             },
