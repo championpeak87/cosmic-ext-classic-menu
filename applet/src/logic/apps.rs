@@ -5,6 +5,7 @@ use crate::{
 use std::{collections::HashMap, string::String, sync::Arc};
 
 use cached::{proc_macro::cached, UnboundCache};
+use cosmic_app_list_config::AppListConfig;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use cosmic::{
@@ -188,7 +189,7 @@ pub fn desktop_files<I: 'static + Hash + Copy + Send + Sync + Debug>(
             );
 
             if let Ok(mut watcher) = watcher {
-                for path in freedesktop_desktop_entry::default_paths() {
+                for path in cosmic::desktop::fde::default_paths() {
                     let _ = watcher.watch(path.as_ref(), RecursiveMode::Recursive);
                 }
 
@@ -200,4 +201,8 @@ pub fn desktop_files<I: 'static + Hash + Copy + Send + Sync + Debug>(
             futures::future::pending().await
         }),
     )
+}
+
+pub fn is_app_in_favorites(app: &ApplicationEntry, config: &AppListConfig) -> bool {
+    config.favorites.iter().any(|app_id| app.id.eq(app_id))
 }

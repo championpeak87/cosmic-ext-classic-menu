@@ -3,8 +3,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use cosmic::cosmic_theme::Spacing;
-use cosmic::iced::window::Id;
-use cosmic::desktop::{IconSourceExt};
 use cosmic::iced::{
     Alignment, Length,
     widget::{column, row},
@@ -24,6 +22,7 @@ use crate::model::power_action::PowerAction;
 pub enum ContextMenuAction<'a> {
     LaunchApplication(&'a Arc<ApplicationEntry>),
     LaunchApplicationWithAction(&'a Arc<ApplicationEntry>, &'a DesktopAction),
+    PinToPanel(&'a Arc<ApplicationEntry>, bool),
 }
 
 impl menu::Action for ContextMenuAction<'_> {
@@ -35,6 +34,12 @@ impl menu::Action for ContextMenuAction<'_> {
             }
             ContextMenuAction::LaunchApplicationWithAction(app, desktop_action) => {
                 Message::LaunchApplicationWithAction((*app).clone(), (*desktop_action).clone())
+            }
+            ContextMenuAction::PinToPanel(app, favorites) => {
+                match favorites {
+                    true => Message::UnPinFromAppTray((*app).clone()),
+                    false => Message::PinToAppTray((*app).clone()),
+                }
             }
         }
     }
@@ -202,12 +207,20 @@ impl AppletMenu {
                 .width(Length::Fill)
                 .height(space_xl);
 
-                let mut context_menu_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> =
-                    vec![menu::Item::Button(
+                let is_app_in_favorites = crate::logic::apps::is_app_in_favorites(app, &applet.app_list_config);
+                let mut context_menu_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> = vec![
+                    menu::Item::Button(
                         fl!("launch"),
                         None,
                         ContextMenuAction::LaunchApplication(app),
-                    )];
+                    ),
+                    menu::Item::CheckBox(
+                        fl!("pin-to-panel"),
+                        None,
+                        is_app_in_favorites,
+                        ContextMenuAction::PinToPanel(app, is_app_in_favorites),
+                    ),
+                ];
 
                 let additional_options_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> = app
                     .desktop_actions
@@ -224,12 +237,11 @@ impl AppletMenu {
                 if !additional_options_buttons.is_empty() {
                     context_menu_buttons.push(menu::Item::Divider);
                     context_menu_buttons.extend(additional_options_buttons);
-
                 }
                 let context_menu = Some(menu::items(&HashMap::new(), context_menu_buttons));
 
-                let widget = cosmic::widget::context_menu(button, context_menu)
-                    .close_on_escape(false);
+                let widget =
+                    cosmic::widget::context_menu(button, context_menu).close_on_escape(false);
 
                 list.add(widget)
             },

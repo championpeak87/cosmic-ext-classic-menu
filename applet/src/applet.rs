@@ -6,9 +6,9 @@ use cosmic::applet::cosmic_panel_config::PanelAnchor;
 use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner::{
     Anchor, Gravity,
 };
-use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::iced::event::listen_raw;
 use cosmic::iced::keyboard::key::Named;
+use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::{
     Alignment,
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
@@ -19,6 +19,7 @@ use cosmic::iced::{Subscription, keyboard};
 use cosmic::iced_widget::scrollable::RelativeOffset;
 use cosmic::surface::Action;
 use cosmic::{Application, Element};
+use cosmic_app_list_config::AppListConfig;
 use std::process;
 use std::sync::Arc;
 
@@ -61,6 +62,8 @@ pub struct Applet {
     pub selected_item_index: Option<usize>,
     /// Scrollable ID for keyboard navigation
     pub scrollable_id: cosmic::widget::Id,
+    /// List of pinned apps
+    pub app_list_config: AppListConfig,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -88,6 +91,9 @@ pub enum Message {
     SuperKeyPressed,
     Surface(Action),
     LaunchApplicationWithAction(Arc<ApplicationEntry>, DesktopAction),
+    PinToAppTray(Arc<ApplicationEntry>),
+    UnPinFromAppTray(Arc<ApplicationEntry>),
+    AppListConfigUpdated(AppListConfig),
 }
 
 /// Implement the `Application` trait for your application.
@@ -132,6 +138,7 @@ impl Application for Applet {
             current_user: None,
             selected_item_index: None,
             scrollable_id: cosmic::widget::Id::unique(),
+            app_list_config: Default::default(),
         };
 
         // fetch current user asynchronously
@@ -275,6 +282,32 @@ impl Application for Applet {
             Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
                 self.launch_application(application_entry, Some(desktop_action))
             }
+            Message::PinToAppTray(app) => {
+                let pinned_id = app.id.clone();
+                if let Some(app_list_helper) =
+                    Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
+                {
+                    self.app_list_config.add_pinned(pinned_id, &app_list_helper);
+                }
+
+                Task::none()
+            }
+            Message::UnPinFromAppTray(app) => {
+                let pinned_id = app.id.clone();
+                if let Some(app_list_helper) =
+                    Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
+                {
+                    self.app_list_config
+                        .remove_pinned(&pinned_id, &app_list_helper);
+                }
+
+                Task::none()
+            }
+            Message::AppListConfigUpdated(app_list_config) => {
+                self.app_list_config = app_list_config;
+
+                Task::none()
+            }
         }
     }
 
@@ -312,6 +345,11 @@ impl Application for Applet {
                 .map(|update| Message::UpdateConfig(update.config)),
             // DBUS subscription
             crate::dbus::dbus_service_subscription().map(|msg| msg),
+            self.core
+                .watch_config::<cosmic_app_list_config::AppListConfig>(
+                    cosmic_app_list_config::APP_ID,
+                )
+                .map(|config| Message::AppListConfigUpdated(config.config)),
         ])
     }
 }
@@ -386,7 +424,7 @@ impl Applet {
         
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
-        } 
+        }
 
         Task::none()
     }

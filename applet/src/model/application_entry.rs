@@ -1,8 +1,7 @@
 use cosmic::{
-    desktop::DesktopEntryData,
+    desktop::{DesktopEntryData, fde::DesktopEntry},
     widget::{Id, icon::Named, image::Handle},
 };
-use freedesktop_desktop_entry::DesktopEntry;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DesktopAction {
@@ -31,51 +30,56 @@ pub enum IconHandle {
     RasterHandle(cosmic::widget::image::Handle),
 }
 
-impl Into<ApplicationEntry> for DesktopEntryData {
-    fn into(self) -> ApplicationEntry {
+impl From<DesktopEntryData> for ApplicationEntry {
+    fn from(app: DesktopEntryData) -> ApplicationEntry {
         ApplicationEntry {
-            comment: get_comment(&self),
-            is_terminal: get_is_terminal(&self),
-            generic_name: get_generic_name(&self),
-            id: self.id,
-            name: self.name,
-            icon: match self.icon {
-                freedesktop_desktop_entry::IconSource::Name(name) => Some(
-                    cosmic::widget::icon::from_name(name.as_str())
-                        .size(64)
-                        .fallback(Some(cosmic::widget::icon::IconFallback::Names(vec![
-                            "application-default".into(),
-                            "application-x-executable".into(),
-                        ])))
-                        .prefer_svg(true)
-                        .into(),
+            comment: get_comment(&app),
+            is_terminal: get_is_terminal(&app),
+            generic_name: get_generic_name(&app),
+            id: app.id,
+            name: app.name,
+            icon: match app.icon {
+                cosmic::desktop::fde::IconSource::Name(name) => Some(
+                    IconHandle::SvgHandle(
+                        cosmic::widget::icon::from_name(name.as_str())
+                            .size(64)
+                            .fallback(Some(cosmic::widget::icon::IconFallback::Names(vec![
+                                "application-default".into(),
+                                "application-x-executable".into(),
+                            ])))
+                            .prefer_svg(true)
+                            .handle()
+                            .icon()
+                            .into_svg_handle()
+                            .unwrap(),
+                    ),
                 ),
-                freedesktop_desktop_entry::IconSource::Path(path) => {
-                    Some(cosmic::widget::icon(cosmic::widget::icon::from_path(path.clone())).into())
+                cosmic::desktop::fde::IconSource::Path(path) => {
+                    Some(IconHandle::RasterHandle(Handle::from_path(path.clone())))
                 }
             },
-            exec: self.exec,
-            category: self.categories,
+            exec: app.exec,
+            category: app.categories,
             item_id: Id::unique(),
-            desktop_actions: self.desktop_actions.into_iter().map(From::from).collect(),
+            desktop_actions: app.desktop_actions.into_iter().map(From::from).collect(),
         }
     }
 }
 
-impl Into<IconHandle> for cosmic::widget::Icon {
-    fn into(self) -> IconHandle {
+impl From<cosmic::widget::Icon> for IconHandle {
+    fn from(icon: cosmic::widget::Icon) -> IconHandle {
         IconHandle::SvgHandle(cosmic::widget::svg::Handle::from(
-            self.into_svg_handle().unwrap(),
+            icon.into_svg_handle().unwrap(),
         ))
     }
 }
 
-impl Into<IconHandle> for Named {
-    fn into(self) -> IconHandle {
-        if let Some(handle) = self.clone().icon().into_svg_handle() {
+impl From<Named> for IconHandle {
+    fn from(named: Named) -> IconHandle {
+        if let Some(handle) = named.clone().icon().into_svg_handle() {
             IconHandle::SvgHandle(handle)
         } else {
-            IconHandle::RasterHandle(Handle::from_path(self.path().unwrap()))
+            IconHandle::RasterHandle(Handle::from_path(named.path().unwrap()))
         }
     }
 }
