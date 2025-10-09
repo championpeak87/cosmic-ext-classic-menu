@@ -5,6 +5,7 @@ use crate::{
 };
 use std::{collections::HashMap, fmt::Display, string::String, sync::Arc};
 
+use cosmic_app_list_config::AppListConfig;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::{Deserialize, Serialize};
 
@@ -197,6 +198,10 @@ pub async fn get_current_user() -> Result<User, zbus::Error> {
         user_home: user_home?,
         user_shell: user_shell?,
     })
+}
+
+pub fn is_app_in_favorites(app: &ApplicationEntry, config: &AppListConfig) -> bool {
+    config.favorites.iter().any(|app_id| app.id.eq(app_id))
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -5,7 +5,7 @@ use cosmic::applet::cosmic_panel_config::PanelAnchor;
 use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner::{
     Anchor, Gravity,
 };
-use cosmic::cosmic_config::CosmicConfigEntry;
+use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::Subscription;
 use cosmic::iced::{
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
@@ -15,6 +15,7 @@ use cosmic::iced::{
 };
 use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
 use cosmic::{Application, Element};
+use cosmic_app_list_config::AppListConfig;
 use std::process;
 use std::sync::Arc;
 
@@ -49,6 +50,8 @@ pub struct Applet {
     pub selected_category: Option<ApplicationCategory>,
     /// Currently logged user
     pub current_user: Option<User>,
+    /// List of pinned apps
+    pub app_list_config: AppListConfig,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -70,6 +73,9 @@ pub enum Message {
     UpdateAvailableApplications(Vec<Arc<ApplicationEntry>>),
     UpdateAvailableCategories(Vec<ApplicationCategory>),
     LaunchApplicationWithAction(Arc<ApplicationEntry>, DesktopAction),
+    PinToAppTray(Arc<ApplicationEntry>),
+    UnPinFromAppTray(Arc<ApplicationEntry>),
+    AppListConfigUpdated(AppListConfig),
 }
 
 #[derive(Clone, Debug)]
@@ -142,14 +148,6 @@ impl SystemTool {
         if let Err(e) = process::Command::new(main_exec).args(args).spawn() {
             log::error!("Error launching tool '{}': {}", main_exec, e);
         }
-    }
-
-    pub fn is_executable_available(tool: &SystemTool) -> bool {
-        if let Some(exec_name) = tool.get_exec_name() {
-            return which::which(exec_name).is_ok();
-        }
-
-        false
     }
 }
 
@@ -235,6 +233,7 @@ impl Application for Applet {
             selected_category: Some(ApplicationCategory::ALL),
             config: AppletConfig::config(),
             current_user: None,
+            app_list_config: Default::default(),
         };
 
         // fetch current user asynchronously
@@ -356,6 +355,32 @@ impl Application for Applet {
             Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
                 self.launch_application(application_entry, Some(desktop_action))
             }
+            Message::PinToAppTray(app) => {
+                let pinned_id = app.id.clone();
+                if let Some(app_list_helper) =
+                    Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
+                {
+                    self.app_list_config.add_pinned(pinned_id, &app_list_helper);
+                }
+
+                Task::none()
+            }
+            Message::UnPinFromAppTray(app) => {
+                let pinned_id = app.id.clone();
+                if let Some(app_list_helper) =
+                    Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
+                {
+                    self.app_list_config
+                        .remove_pinned(&pinned_id, &app_list_helper);
+                }
+
+                Task::none()
+            }
+            Message::AppListConfigUpdated(app_list_config) => {
+                self.app_list_config = app_list_config;
+
+                Task::none()
+            }
         }
     }
 
@@ -375,6 +400,11 @@ impl Application for Applet {
             self.core
                 .watch_config::<AppletConfig>(Self::APP_ID)
                 .map(|update| Message::UpdateConfig(update.config)),
+            self.core
+                .watch_config::<cosmic_app_list_config::AppListConfig>(
+                    cosmic_app_list_config::APP_ID,
+                )
+                .map(|config| Message::AppListConfigUpdated(config.config)),
         ])
     }
 }
@@ -430,12 +460,12 @@ impl Applet {
 
     fn close_popup(&mut self, id: Id) -> Task<Message> {
         self.search_field.clear();
-            self.selected_category = Some(ApplicationCategory::ALL);
-            self.available_applications = Vec::new();
-        
+        self.selected_category = Some(ApplicationCategory::ALL);
+        self.available_applications = Vec::new();
+
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
-        } 
+        }
 
         Task::none()
     }
