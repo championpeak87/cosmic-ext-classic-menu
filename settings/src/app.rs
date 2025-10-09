@@ -310,13 +310,13 @@ impl cosmic::Application for AppModel {
                 match open::that_detached(&url) {
                     Ok(()) => {}
                     Err(err) => {
-                        eprintln!("failed to open {url:?}: {err}");
+                        log::error!("failed to open {url:?}: {err}");
                     }
                 }
                 Task::none()
             }
             Message::AppPositionChanged(horizontal_position) => {
-                println!("App position changed to: {:?}", horizontal_position);
+                log::info!("App position changed to: {:?}", horizontal_position);
                 self.config.app_menu_position = horizontal_position;
 
                 self.config
@@ -326,7 +326,7 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::SearchFieldPositionChanged(vertical_position) => {
-                println!("Search field position changed to: {:?}", vertical_position);
+                log::info!("Search field position changed to: {:?}", vertical_position);
                 self.config.search_field_position = vertical_position;
 
                 self.config
@@ -336,7 +336,7 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::AppletButtonStyleChanged(applet_button_style) => {
-                println!("Applet button style changed to: {:?}", applet_button_style);
+                log::info!("Applet button style changed to: {:?}", applet_button_style);
                 self.config.applet_button_style = match applet_button_style {
                     0 => AppletButtonStyle::IconOnly,
                     1 => AppletButtonStyle::LabelOnly,
@@ -352,7 +352,7 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::UserWidgetChanged(user_widget_style) => {
-                println!("User widget style changed to: {:?}", user_widget_style);
+                log::info!("User widget style changed to: {:?}", user_widget_style);
                 self.config.user_widget = match user_widget_style {
                     0 => UserWidgetStyle::UsernamePrefered,
                     1 => UserWidgetStyle::RealNamePrefered,
@@ -373,7 +373,7 @@ impl cosmic::Application for AppModel {
                     new_label = CosmicClassicMenuConfig::default().button_label;
                 }
 
-                println!("Button label changed to: {:?}", new_label);
+                log::info!("Button label changed to: {:?}", new_label);
                 self.config.button_label = new_label;
 
                 self.config
@@ -383,7 +383,7 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::ButtonIconChanged(new_icon) => {
-                println!(
+                log::info!(
                     "Button icon changed to: {:?}",
                     new_icon.clone().to_string_lossy()
                 );

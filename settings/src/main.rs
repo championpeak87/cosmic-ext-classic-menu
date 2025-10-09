@@ -4,6 +4,10 @@ mod app;
 mod i18n;
 
 fn main() -> cosmic::iced::Result {
+    // Init log system
+    simple_logger::init_with_env().unwrap();
+    log::info!("{} settings applet is starting...", fl!("app-title"));
+
     // Get the system's preferred languages.
     let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
 
