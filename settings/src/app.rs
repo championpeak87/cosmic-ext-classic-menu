@@ -241,7 +241,7 @@ impl cosmic::Application for AppModel {
         Some(match self.context_page {
             ContextPage::About => context_drawer::about(
                 &self.about,
-                |x| Message::LaunchUrl(x.to_string()),
+                |url| Message::LaunchUrl(url.to_string()),
                 Message::ToggleContextPage(ContextPage::About),
             )
             .title(fl!("about")),
