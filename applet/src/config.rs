@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
 #[version = 1]
-#[id = "cosmic-classic-menu"]
+#[id = "cosmic-ext-classic-menu"]
 pub struct CosmicClassicMenuConfig {
     pub app_menu_position: HorizontalPosition,
     pub search_field_position: VerticalPosition,

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.championpeak87.cosmic-classic-menu</id>
+  <id>com.championpeak87.cosmic-ext-classic-menu</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <project_group>COSMIC</project_group>
   <developer_name>Kamil Lihan</developer_name>
   <update_contact>k.lihan@outlook.com</update_contact>
-  <url type="homepage">https://github.com/championpeak87/cosmic-classic-menu</url>
-  <url type="bugtracker">https://github.com/championpeak87/cosmic-classic-menu/issues</url>
-  <url type="help">https://github.com/championpeak87/cosmic-classic-menu#readme</url>
+  <url type="homepage">https://github.com/championpeak87/cosmic-ext-classic-menu</url>
+  <url type="bugtracker">https://github.com/championpeak87/cosmic-ext-classic-menu/issues</url>
+  <url type="help">https://github.com/championpeak87/cosmic-ext-classic-menu#readme</url>
   <url type="contact">mailto:k.lihan@outlook.com</url>
   <name>COSMIC Classic Menu</name>
   <summary>A launcher applet for COSMIC Desktop</summary>
@@ -131,11 +131,11 @@
       アプリの素早い起動やメニューのカスタマイズ、よく使うプログラムの一覧が欲しいユーザーに最適です。COSMIC Desktopに最適ですが、単体ランチャーとしても利用可能です。
     </p>
   </description>
-  <launchable type="desktop-id">com.championpeak87.cosmic-classic-menu.desktop</launchable>
-  <icon type="remote">https://github.com/championpeak87/cosmic-classic-menu/raw/main/res/icons/hicolor/scalable/apps/com.championpeak87.cosmic-classic-menu.svg</icon>
+  <launchable type="desktop-id">com.championpeak87.cosmic-ext-classic-menu.desktop</launchable>
+  <icon type="remote">https://github.com/championpeak87/cosmic-ext-classic-menu/raw/main/res/icons/hicolor/scalable/apps/com.championpeak87.cosmic-ext-classic-menu.svg</icon>
   <screenshots>
     <screenshot type="default">
-      <image>https://github.com/championpeak87/cosmic-classic-menu/raw/main/screenshots/main.png</image>
+      <image>https://github.com/championpeak87/cosmic-ext-classic-menu/raw/main/screenshots/main.png</image>
       <caption>Main menu screenshot</caption>
     </screenshot>
   </screenshots>
@@ -146,12 +146,12 @@
     <category>Desktop</category>
   </categories>
   <provides>
-    <id>com.championpeak87.cosmic-classic-menu</id>
+    <id>com.championpeak87.cosmic-ext-classic-menu</id>
     <mimetypes>
       <mimetype>text/plain</mimetype>
     </mimetypes>
     <binaries>
-      <binary>cosmic-classic-menu</binary>
+      <binary>cosmic-ext-classic-menu</binary>
     </binaries>
   </provides>
   <releases>

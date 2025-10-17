@@ -1,11 +1,11 @@
 [package]
-name = "cosmic-classic-menu-settings"
-version = "0.0.6"
+name = "cosmic-ext-classic-menu-settings"
+version = "0.0.7"
 edition = "2021"
 authors = ["Kamil Lihan <k.lihan@outlook.com>"]
 license = "GPL-3.0-only"
 description = "A launcher applet for COSMIC Desktop"
-repository = "https://github.com/championpeak87/cosmic-classic-menu"
+repository = "https://github.com/championpeak87/cosmic-ext-classic-menu"
 
 [build-dependencies]
 vergen = { version = "8", features = ["git", "gitcl"] }
@@ -17,7 +17,7 @@ i18n-embed-fl = "0.9.2"
 open = "5.3.0"
 rust-embed = "8.5.0"
 tokio = { version = "1.41.0", features = ["full"] }
-cosmic-classic-menu = { path = "../applet" }
+cosmic-ext-classic-menu = { path = "../applet" }
 
 [dependencies.i18n-embed]
 version = "0.15"

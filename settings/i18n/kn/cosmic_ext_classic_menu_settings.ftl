@@ -1,4 +1,4 @@
-app-title = COSMIC Classic Menu
+app-title = COSMIC™ Classic Menu
 about = ಬಗ್ಗೆ
 settings = ಸೆಟ್ಟಿಂಗ್‌ಗಳು
 default-settings = ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರುಹೊಂದಿಸಿ

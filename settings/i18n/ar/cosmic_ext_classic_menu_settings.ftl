@@ -1,4 +1,4 @@
-app-title = COSMIC Classic Menu
+app-title = COSMIC™ Classic Menu
 about = حول
 settings = الإعدادات
 default-settings = إعادة تعيين إلى الافتراضي

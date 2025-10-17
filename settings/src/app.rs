@@ -8,7 +8,7 @@ use cosmic::iced::{Alignment, Length, Subscription};
 use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu};
 use cosmic::{iced::Background, widget::text, Element};
-use cosmic_classic_menu::config::{
+use cosmic_ext_classic_menu::config::{
     AppletButtonStyle, CosmicClassicMenuConfig, HorizontalPosition, UserWidgetStyle,
     VerticalPosition,
 };
@@ -61,7 +61,7 @@ impl cosmic::Application for AppModel {
     type Message = Message;
 
     /// Unique identifier in RDNN (reverse domain name notation) format.
-    const APP_ID: &'static str = cosmic_classic_menu::applet::APP_ID;
+    const APP_ID: &'static str = cosmic_ext_classic_menu::applet::APP_ID;
 
     fn core(&self) -> &cosmic::Core {
         &self.core
@@ -87,11 +87,11 @@ impl cosmic::Application for AppModel {
             .links([
                 (
                     fl!("repository"),
-                    "https://github.com/championpeak87/cosmic-classic-menu",
+                    "https://github.com/championpeak87/cosmic-ext-classic-menu",
                 ),
                 (
                     fl!("support"),
-                    "https://github.com/championpeak87/cosmic-classic-menu/issues",
+                    "https://github.com/championpeak87/cosmic-ext-classic-menu/issues",
                 ),
             ]);
 
@@ -242,7 +242,7 @@ impl cosmic::Application for AppModel {
         Some(match self.context_page {
             ContextPage::About => context_drawer::about(
                 &self.about,
-                Message::LaunchUrl,
+                |x| Message::LaunchUrl(x.to_string()),
                 Message::ToggleContextPage(ContextPage::About),
             )
             .title(fl!("about")),
@@ -431,7 +431,7 @@ impl AppModel {
         let search_dirs = [
             format!(
                 "/usr/share/cosmic/{}/applet-buttons",
-                cosmic_classic_menu::applet::APP_ID
+                cosmic_ext_classic_menu::applet::APP_ID
             ),
             // Add more icon theme paths if needed
         ];
