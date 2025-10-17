@@ -1,4 +1,4 @@
-app-title = COSMIC Classic Menu
+app-title = COSMIC™ Classic Menu
 about = Hakkında
 settings = Ayarlar
 default-settings = Varsayılanlara sıfırla

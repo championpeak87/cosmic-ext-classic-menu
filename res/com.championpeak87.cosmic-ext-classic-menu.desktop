@@ -1,10 +1,10 @@
 [Desktop Entry]
 Name=COSMIC Classic Menu
-Exec=cosmic-classic-menu
+Exec=cosmic-ext-classic-menu
 Terminal=false
 Type=Application
 StartupNotify=true
-Icon=com.championpeak87.cosmic-classic-menu
+Icon=com.championpeak87.cosmic-ext-classic-menu
 Categories=COSMIC;
 Keywords=COSMIC
 MimeType=

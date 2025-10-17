@@ -24,7 +24,7 @@ use crate::fl;
 use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User};
 use crate::model::application_entry::ApplicationEntry;
 
-pub const APP_ID: &str = "com.championpeak87.cosmic-classic-menu";
+pub const APP_ID: &str = "com.championpeak87.cosmic-ext-classic-menu";
 
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
@@ -83,10 +83,10 @@ impl SystemTool {
         match self {
             SystemTool::AppletSettings => {
                 let env_vars: Vec<(String, String)> = std::env::vars().collect();
-                let app_id = Some("com.championpeak87.cosmic-classic-menu.settings");
+                let app_id = Some("com.championpeak87.cosmic-ext-classic-menu.settings");
                 tokio::spawn(async move {
                     cosmic::desktop::spawn_desktop_exec(
-                        "cosmic-classic-menu-settings",
+                        "cosmic-ext-classic-menu-settings",
                         env_vars,
                         app_id.as_deref(),
                         false,
@@ -555,7 +555,7 @@ impl CosmicClassicMenu {
 
     fn handle_zbus_result(&self, result: Result<(), zbus::Error>) -> Task<Message> {
         if let Err(e) = result {
-            eprintln!("cosmic-classic-menu ERROR: '{}'", e);
+            eprintln!("cosmic-ext-classic-menu ERROR: '{}'", e);
         }
 
         Task::none()
