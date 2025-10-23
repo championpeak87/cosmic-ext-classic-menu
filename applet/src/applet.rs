@@ -13,9 +13,9 @@ use cosmic::iced::{
     window::Id,
     Alignment,
 };
-use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
 use cosmic::{Application, Element};
 use std::process;
+use std::sync::Arc;
 
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
@@ -39,7 +39,7 @@ pub struct CosmicClassicMenu {
     /// The search field that is used to filter the applications.
     pub search_field: String,
     /// The list of available applications that are displayed in the menu.
-    pub available_applications: Vec<ApplicationEntry>,
+    pub available_applications: Vec<Arc<ApplicationEntry>>,
     /// The list of available categories that are displayed in the menu.
     pub available_categories: Vec<ApplicationCategory>,
     /// The popup type that is used to determine which popup to display.
@@ -59,14 +59,14 @@ pub enum Message {
     PopupClosed(Id),
     SearchFieldInput(String),
     PowerOptionSelected(PowerAction),
-    ApplicationSelected(ApplicationEntry),
+    ApplicationSelected(Arc<ApplicationEntry>),
     CategorySelected(ApplicationCategory),
     LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
     UpdateLoggedUser(Result<User, zbus::Error>),
     FileEvent(Event),
     UpdateConfig(CosmicClassicMenuConfig),
-    UpdateAvailableApplications(Vec<ApplicationEntry>),
+    UpdateAvailableApplications(Vec<Arc<ApplicationEntry>>),
     UpdateAvailableCategories(Vec<ApplicationCategory>),
 }
 
@@ -342,7 +342,7 @@ impl Application for CosmicClassicMenu {
     /// beginning of the application, and persist through its lifetime.
     fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch(vec![
-            desktop_files(Id::unique()).map(Message::FileEvent),
+            desktop_files(self.core.main_window_id()).map(Message::FileEvent),
             // Watch for application configuration changes.
             self.core
                 .watch_config::<CosmicClassicMenuConfig>(Self::APP_ID)
@@ -379,7 +379,6 @@ impl CosmicClassicMenu {
         } else {
             let new_id = Id::unique();
             self.popup.replace(new_id);
-
             let mut popup_settings = self.core.applet.get_popup_settings(
                 self.core.main_window_id().unwrap(),
                 new_id,
@@ -387,35 +386,14 @@ impl CosmicClassicMenu {
                 None,
                 None,
             );
-
-            // Position the popup based on the panel anchor
-            let width = self.core.applet.suggested_window_size().0;
-            let height = self.core.applet.suggested_window_size().1;
-            popup_settings.positioner = SctkPositioner {
-                gravity: match self.core.applet.anchor {
-                    PanelAnchor::Left => Gravity::BottomLeft,
-                    PanelAnchor::Right => Gravity::BottomRight,
-                    PanelAnchor::Top => Gravity::TopRight,
-                    PanelAnchor::Bottom => Gravity::BottomRight,
-                },
-                anchor: match self.core.applet.anchor {
-                    PanelAnchor::Left => Anchor::TopRight,
-                    PanelAnchor::Right => Anchor::TopLeft,
-                    PanelAnchor::Top => Anchor::BottomLeft,
-                    PanelAnchor::Bottom => Anchor::TopLeft,
-                },
-                offset: (
-                    match self.core.applet.anchor {
-                        PanelAnchor::Left => width.get() as i32, // offset right
-                        _ => 0,
-                    },
-                    match self.core.applet.anchor {
-                        PanelAnchor::Top => height.get() as i32, // offset down
-                        _ => 0,
-                    },
-                ),
-                ..Default::default()
+            let (anchor, gravity) = match self.core.applet.anchor {
+                PanelAnchor::Left => (Anchor::TopRight, Gravity::BottomRight),
+                PanelAnchor::Right => (Anchor::TopLeft, Gravity::BottomLeft),
+                PanelAnchor::Top => (Anchor::BottomLeft, Gravity::BottomRight),
+                PanelAnchor::Bottom => (Anchor::TopLeft, Gravity::TopRight),
             };
+            popup_settings.positioner.anchor = anchor;
+            popup_settings.positioner.gravity = gravity;
 
             tasks.push(get_popup(popup_settings));
             Task::batch(tasks)
@@ -488,7 +466,7 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn launch_application(&mut self, app: ApplicationEntry) -> Task<Message> {
+    fn launch_application(&mut self, app: Arc<ApplicationEntry>) -> Task<Message> {
         let mut app_exec = app.exec.clone().unwrap();
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
@@ -513,7 +491,7 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn update_recent_applications(&mut self, app: ApplicationEntry) {
+    fn update_recent_applications(&mut self, app: Arc<ApplicationEntry>) {
         let current_recent_application = self
             .config
             .recent_applications

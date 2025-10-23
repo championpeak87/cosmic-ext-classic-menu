@@ -18,29 +18,23 @@ use crate::fl;
 pub struct AppletMenu;
 
 impl AppletMenu {
-    const POPUP_MAX_WIDTH: f32 = 625.0;
-    const POPUP_MIN_WIDTH: f32 = 625.0;
-    const POPUP_MAX_HEIGHT: f32 = 700.0;
-    const POPUP_MIN_HEIGHT: f32 = 700.0;
+    pub const POPUP_MAX_WIDTH: f32 = 700.0;
+    pub const POPUP_MIN_WIDTH: f32 = 500.0;
+    pub const POPUP_MAX_HEIGHT: f32 = 700.0;
+    pub const POPUP_MIN_HEIGHT: f32 = 300.0;
 
-    const SYSTEM_LOCKSCREEN_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-lock-screen-symbolic.svg"
-    );
-    const SYSTEM_LOGOUT_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-log-out-symbolic.svg"
-    );
-    const SYSTEM_REBOOT_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-reboot-symbolic.svg"
-    );
-    const SYSTEM_SHUTDOWN_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-shutdown-symbolic.svg"
-    );
-    const SYSTEM_SUSPEND_SYMBOLIC_ICON: &[u8] = include_bytes!(
-        "../../res/icons/bundled/system-suspend-symbolic.svg"
-    );
-    const USER_IDLE_SYMBOLIC: &[u8] = include_bytes!(
-        "../../res/icons/bundled/user-idle-symbolic.svg"
-    );
+    const SYSTEM_LOCKSCREEN_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-lock-screen-symbolic.svg");
+    const SYSTEM_LOGOUT_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-log-out-symbolic.svg");
+    const SYSTEM_REBOOT_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-reboot-symbolic.svg");
+    const SYSTEM_SHUTDOWN_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-shutdown-symbolic.svg");
+    const SYSTEM_SUSPEND_SYMBOLIC_ICON: &[u8] =
+        include_bytes!("../../res/icons/bundled/system-suspend-symbolic.svg");
+    const USER_IDLE_SYMBOLIC: &[u8] =
+        include_bytes!("../../res/icons/bundled/user-idle-symbolic.svg");
 
     pub fn view_main_menu_list(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing {
@@ -78,7 +72,7 @@ impl AppletMenu {
         applet
             .core
             .applet
-            .popup_container(menu_layout)
+            .popup_container(menu_layout.width(Length::Fixed(600.)).height(Length::Fill))
             .limits(
                 Limits::NONE
                     .max_height(AppletMenu::POPUP_MAX_HEIGHT)
@@ -176,15 +170,18 @@ impl AppletMenu {
     fn create_categories_pane(applet: &CosmicClassicMenu) -> Element<'_, Message> {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
-        let mut categories_pane: Vec<Element<Message>> = applet.available_categories
+        let mut categories_pane: Vec<Element<Message>> = applet
+            .available_categories
             .iter()
             .map(|category| {
                 cosmic::widget::button::custom(
                     row![
-                        container(cosmic::widget::icon::from_svg_bytes(category.icon_svg_bytes)
-                            .symbolic(true)
-                            .icon())
-                            .padding([0, space_m]),
+                        container(
+                            cosmic::widget::icon::from_svg_bytes(category.icon_svg_bytes)
+                                .symbolic(true)
+                                .icon()
+                        )
+                        .padding([0, space_m]),
                         text(category.get_display_name()),
                     ]
                     .align_y(Alignment::Center),

@@ -3,7 +3,7 @@ use crate::{
     fl,
     model::application_entry::ApplicationEntry,
 };
-use std::{collections::HashMap, fmt::Display, string::String};
+use std::{collections::HashMap, fmt::Display, string::String, sync::Arc};
 
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::{Deserialize, Serialize};
@@ -20,24 +20,25 @@ use tokio::sync::mpsc;
 pub struct Apps;
 
 impl Apps {
-    pub async fn load_apps() -> Vec<ApplicationEntry> {
+    pub async fn load_apps() -> Vec<Arc<ApplicationEntry>> {
         println!("Loading applications...");
         let locale = std::env::var("LANG")
             .ok()
             .and_then(|l| l.split(".").next().map(str::to_string));
-        let mut all_entries: Vec<ApplicationEntry> =
+        let mut all_entries: Vec<Arc<ApplicationEntry>> =
             cosmic::desktop::load_applications(locale.as_slice(), false, None)
                 .into_iter()
                 .map(Into::into)
+                .map(Arc::new)
                 .collect();
         all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
         all_entries
     }
 
-    pub async fn load_filtered_apps(filter: String) -> Vec<ApplicationEntry> {
+    pub async fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
         let matcher: SkimMatcherV2 = SkimMatcherV2::default();
-        let mut search_result: Vec<(Option<i64>, ApplicationEntry)> = Self::load_apps()
+        let mut search_result: Vec<(Option<i64>, Arc<ApplicationEntry>)> = Self::load_apps()
             .await
             .into_iter()
             .map(|app| (matcher.fuzzy_match(&app.name, &filter), app))
@@ -88,11 +89,11 @@ impl Apps {
         categories
     }
 
-    pub async fn get_recent_applications() -> Vec<ApplicationEntry> {
+    pub async fn get_recent_applications() -> Vec<Arc<ApplicationEntry>> {
         println!("Loading recent applications...");
         let recent_applications: &Vec<RecentApplication> =
             &CosmicClassicMenuConfig::config().recent_applications;
-        let all_applications_entries: HashMap<String, ApplicationEntry> = Self::load_apps()
+        let all_applications_entries: HashMap<String, Arc<ApplicationEntry>> = Self::load_apps()
             .await
             .into_iter()
             .map(|app| (app.id.clone(), app))
@@ -105,7 +106,7 @@ impl Apps {
             .collect()
     }
 
-    pub async fn get_apps_of_category(category: ApplicationCategory) -> Vec<ApplicationEntry> {
+    pub async fn get_apps_of_category(category: ApplicationCategory) -> Vec<Arc<ApplicationEntry>> {
         println!("Getting apps of category: {}", category.mime_name);
         if category == ApplicationCategory::ALL {
             Self::load_apps().await

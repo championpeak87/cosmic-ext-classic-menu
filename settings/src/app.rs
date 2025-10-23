@@ -427,6 +427,9 @@ impl cosmic::Application for AppModel {
 impl AppModel {
     /// Helper to find available system icons in standard locations.
     fn system_icon_names() -> Vec<String> {
+        // Prefer runtime discovery using XDG_DATA_DIRS so the app works correctly
+        // inside Flatpak (where icons live under /app/share) as well as on
+        // a system installation (under /usr/share).
         let mut icons: Vec<String> = Vec::new();
 
         // Build a list of candidate data dirs from XDG_DATA_DIRS. If the
@@ -460,6 +463,7 @@ impl AppModel {
                 }
             }
         }
+
         icons.sort();
         icons.dedup();
         icons
