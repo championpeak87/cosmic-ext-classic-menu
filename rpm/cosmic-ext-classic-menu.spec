@@ -28,7 +28,7 @@ just build-release --verbose
 just rootdir=%{buildroot} install
 
 %files
-%{_bindir}/%{name}
+%{_bindir}/%{name}-applet
 %{_bindir}/%{name}-settings
 %{_datadir}/applications/com.championpeak87.cosmic-ext-classic-menu.desktop
 %{_datadir}/metainfo/com.championpeak87.cosmic-ext-classic-menu.metainfo.xml

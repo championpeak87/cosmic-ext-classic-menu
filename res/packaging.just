@@ -2,10 +2,10 @@ rootdir := ''
 prefix := '/usr'
 base-dir := absolute_path(clean(rootdir / prefix))
 
-bin-src := 'target' / 'release' / name
+bin-src := 'target' / 'release' / name+ '-applet'
 settings-bin-src := 'target' / 'release' / name + '-settings'
-bin-path := 'bin' / name
-bin-dst := base-dir / bin-path
+bin-path := 'bin' / name 
+bin-dst := base-dir / bin-path + '-applet'
 settings-bin-dst := base-dir / bin-path + '-settings'
 
 desktop := APPID + '.desktop'
@@ -27,8 +27,8 @@ button-icons-src := 'res' / 'icons' / 'bundled' / 'applet-button'
 
 # Compiles with debug profile
 build-debug *args:
-    cargo build -p cosmic-ext-classic-menu {{args}}
-    cargo build -p cosmic-ext-classic-menu-settings {{args}}
+    cargo build -p {{name}}-applet {{args}}
+    cargo build -p {{name}}-settings {{args}}
 
 # Compiles with release profile
 build-release *args: (build-debug '--release' args)
@@ -59,7 +59,8 @@ uninstall:
 # Installs files locally
 [no-cd]
 install-local:
-    install -Dm0755  ~/.local/bin/{{name}}
+    install -Dm0755  ~/.local/bin/{{name}}-applet
+    install -Dm0755  ~/.local/bin/{{name}}-settings
     install -Dm0644  ${XDG_DATA_HOME:-~/.local/share}/{{desktop-path}}
     install -Dm0644  ${XDG_DATA_HOME:-~/.local/share}/{{metainfo-path}}
     install -Dm0644  ${XDG_DATA_HOME:-~/.local/share}/{{icons-dst}}
@@ -69,7 +70,8 @@ install-local:
 
 # Uninstalls locally installed files
 uninstall-local:
-    rm ~/.local/bin/{{name}}
+    rm ~/.local/bin/{{name}}-applet
+    rm ~/.local/bin/{{name}}-settings
     rm ${XDG_DATA_HOME:-~/.local/share}/{{desktop-path}}
     rm ${XDG_DATA_HOME:-~/.local/share}/{{metainfo-path}}
     rm ${XDG_DATA_HOME:-~/.local/share}/{{icons-dst}}

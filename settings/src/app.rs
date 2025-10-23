@@ -8,7 +8,7 @@ use cosmic::iced::{Alignment, Length, Subscription};
 use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu};
 use cosmic::{iced::Background, widget::text, Element};
-use cosmic_ext_classic_menu::config::{
+use cosmic_ext_classic_menu_applet::config::{
     AppletButtonStyle, CosmicClassicMenuConfig, HorizontalPosition, UserWidgetStyle,
     VerticalPosition,
 };
@@ -61,7 +61,7 @@ impl cosmic::Application for AppModel {
     type Message = Message;
 
     /// Unique identifier in RDNN (reverse domain name notation) format.
-    const APP_ID: &'static str = cosmic_ext_classic_menu::applet::APP_ID;
+    const APP_ID: &'static str = cosmic_ext_classic_menu_applet::applet::APP_ID;
 
     fn core(&self) -> &cosmic::Core {
         &self.core
@@ -428,15 +428,26 @@ impl AppModel {
     /// Helper to find available system icons in standard locations.
     fn system_icon_names() -> Vec<String> {
         let mut icons: Vec<String> = Vec::new();
-        let search_dirs = [
-            format!(
-                "/usr/share/cosmic/{}/applet-buttons",
-                cosmic_ext_classic_menu::applet::APP_ID
-            ),
-            // Add more icon theme paths if needed
-        ];
-        for dir in &search_dirs {
-            if let Ok(entries) = fs::read_dir(dir) {
+
+        // Build a list of candidate data dirs from XDG_DATA_DIRS. If the
+        // variable isn't set, fall back to common locations including /usr and
+        // /app so we cover both host and Flatpak runtimes.
+        let mut candidate_dirs: Vec<String> = Vec::new();
+        if let Ok(xdg) = std::env::var("XDG_DATA_DIRS") {
+            for part in xdg.split(':') {
+                let part = part.trim_end_matches('/');
+                if !part.is_empty() {
+                    candidate_dirs.push(part.to_string());
+                }
+            }
+        } else {
+            candidate_dirs.push("/usr/share".to_string());
+            candidate_dirs.push("/app/share".to_string());
+        }
+
+        for data_dir in candidate_dirs {
+            let dir = format!("{}/cosmic/{}/applet-buttons", data_dir, cosmic_ext_classic_menu_applet::applet::APP_ID);
+            if let Ok(entries) = fs::read_dir(&dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if let Some(ext) = path.extension() {
