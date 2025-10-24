@@ -6,7 +6,7 @@
   "base-version": "stable",
   "sdk": "org.freedesktop.Sdk",
   "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
-  "command": "cosmic-ext-classic-menu",
+  "command": "cosmic-ext-classic-menu-applet",
   "finish-args": [
     "--socket=wayland",
     "--socket=fallback-x11",
