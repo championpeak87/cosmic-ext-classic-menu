@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
 #[version = 1]
 #[id = "cosmic-ext-classic-menu"]
-pub struct CosmicClassicMenuConfig {
+pub struct AppletConfig {
     pub app_menu_position: HorizontalPosition,
     pub search_field_position: VerticalPosition,
     pub applet_button_style: AppletButtonStyle,
@@ -20,30 +20,30 @@ pub struct CosmicClassicMenuConfig {
     pub recent_applications: Vec<RecentApplication>,
 }
 
-impl Default for CosmicClassicMenuConfig {
+impl Default for AppletConfig {
     fn default() -> Self {
-        CosmicClassicMenuConfig {
+        AppletConfig {
             app_menu_position: HorizontalPosition::default(),
             search_field_position: VerticalPosition::default(),
             applet_button_style: AppletButtonStyle::default(),
             user_widget: UserWidgetStyle::default(),
             button_label: fl!("menu-label").to_owned(),
-            button_icon: format!("/usr/share/cosmic/{}/applet-buttons/default.svg", crate::applet::CosmicClassicMenu::APP_ID).to_owned(),
+            button_icon: format!("/usr/share/cosmic/{}/applet-buttons/default.svg", crate::applet::Applet::APP_ID).to_owned(),
             recent_applications: vec![],
         }
     }
 }
 
-impl CosmicClassicMenuConfig {
+impl AppletConfig {
     pub fn config_handler() -> Option<Config> {
-        Config::new(crate::applet::CosmicClassicMenu::APP_ID, 1).ok()
+        Config::new(crate::applet::Applet::APP_ID, 1).ok()
     }
 
-    pub fn config() -> CosmicClassicMenuConfig {
+    pub fn config() -> AppletConfig {
         match Self::config_handler() {
-            Some(config_handler) => CosmicClassicMenuConfig::get_entry(&config_handler)
+            Some(config_handler) => AppletConfig::get_entry(&config_handler)
                 .unwrap_or_else(|(_errs, config)| config),
-            None => CosmicClassicMenuConfig::default(),
+            None => AppletConfig::default(),
         }
     }
 }

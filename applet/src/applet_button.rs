@@ -6,7 +6,7 @@ use cosmic::Element;
 
 use once_cell::sync::Lazy;
 
-use crate::applet::{CosmicClassicMenu, Message, PopupType};
+use crate::applet::{Applet, Message, PopupType};
 
 static AUTOSIZE_MAIN_ID: Lazy<cosmic::widget::Id> =
     Lazy::new(|| cosmic::widget::Id::new("autosize-main"));
@@ -29,7 +29,7 @@ impl AppletButton {
     ///
     /// # Returns
     /// An `Element<Message>` representing the icon-only applet button.
-    pub fn view_icon_only(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    pub fn view_icon_only(applet: &Applet) -> Element<'_, Message> {
         let button_icon: PathBuf = applet.config.button_icon.clone().into();
         let icon_handle = if button_icon.exists() {
             cosmic::widget::icon::from_path(button_icon)
@@ -59,9 +59,9 @@ impl AppletButton {
     ///
     /// # Returns
     /// An `Element<Message>` representing the label-only applet button.
-    pub fn view_label_only(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    pub fn view_label_only(applet: &Applet) -> Element<'_, Message> {
         let button_label = if applet.config.button_label.is_empty() {
-            CosmicClassicMenu::default().config.button_label.clone()
+            Applet::default().config.button_label.clone()
         } else {
             applet.config.button_label.clone()
         };
@@ -100,9 +100,9 @@ impl AppletButton {
     ///
     /// # Returns
     /// An `Element<Message>` representing the applet button with both an icon and a label.
-    pub fn view_icon_and_label(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    pub fn view_icon_and_label(applet: &Applet) -> Element<'_, Message> {
         let button_label = if applet.config.button_label.is_empty() {
-            CosmicClassicMenu::default().config.button_label.clone()
+            Applet::default().config.button_label.clone()
         } else {
             applet.config.button_label.clone()
         };

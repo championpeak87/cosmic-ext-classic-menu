@@ -9,7 +9,7 @@ use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu};
 use cosmic::{iced::Background, widget::text, Element};
 use cosmic_ext_classic_menu_applet::config::{
-    AppletButtonStyle, CosmicClassicMenuConfig, HorizontalPosition, UserWidgetStyle,
+    AppletButtonStyle, AppletConfig, HorizontalPosition, UserWidgetStyle,
     VerticalPosition,
 };
 use futures_util::SinkExt;
@@ -29,14 +29,14 @@ pub struct AppModel {
     /// Key bindings for the application's menu bar.
     key_binds: HashMap<menu::KeyBind, MenuAction>,
     // Configuration data that persists between application runs.
-    config: CosmicClassicMenuConfig,
+    config: AppletConfig,
 }
 
 /// Messages emitted by the application and its widgets.
 #[derive(Debug, Clone)]
 pub enum Message {
     SubscriptionChannel,
-    UpdateConfig(CosmicClassicMenuConfig),
+    UpdateConfig(AppletConfig),
     LaunchUrl(String),
     AppPositionChanged(HorizontalPosition),
     SearchFieldPositionChanged(VerticalPosition),
@@ -102,7 +102,7 @@ impl cosmic::Application for AppModel {
             context_page: ContextPage::default(),
             key_binds: HashMap::new(),
             // Optional configuration file for an application.
-            config: CosmicClassicMenuConfig::config(),
+            config: AppletConfig::config(),
         };
 
         (app, Task::none())
@@ -274,7 +274,7 @@ impl cosmic::Application for AppModel {
             ),
             // Watch for application configuration changes.
             self.core()
-                .watch_config::<CosmicClassicMenuConfig>(Self::APP_ID)
+                .watch_config::<AppletConfig>(Self::APP_ID)
                 .map(|update| {
                     // for why in update.errors {
                     //     tracing::error!(?why, "app config error");
@@ -299,7 +299,7 @@ impl cosmic::Application for AppModel {
                 self.config = config;
 
                 self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write recent applications config");
 
                 Task::none()
@@ -308,33 +308,33 @@ impl cosmic::Application for AppModel {
                 match open::that_detached(&url) {
                     Ok(()) => {}
                     Err(err) => {
-                        eprintln!("failed to open {url:?}: {err}");
+                        log::error!("failed to open {url:?}: {err}");
                     }
                 }
                 Task::none()
             }
             Message::AppPositionChanged(horizontal_position) => {
-                println!("App position changed to: {:?}", horizontal_position);
+                log::info!("App position changed to: {:?}", horizontal_position);
                 self.config.app_menu_position = horizontal_position;
 
                 self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write recent applications config");
 
                 Task::none()
             }
             Message::SearchFieldPositionChanged(vertical_position) => {
-                println!("Search field position changed to: {:?}", vertical_position);
+                log::info!("Search field position changed to: {:?}", vertical_position);
                 self.config.search_field_position = vertical_position;
 
                 self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write search field position config");
 
                 Task::none()
             }
             Message::AppletButtonStyleChanged(applet_button_style) => {
-                println!("Applet button style changed to: {:?}", applet_button_style);
+                log::info!("Applet button style changed to: {:?}", applet_button_style);
                 self.config.applet_button_style = match applet_button_style {
                     0 => AppletButtonStyle::IconOnly,
                     1 => AppletButtonStyle::LabelOnly,
@@ -344,13 +344,13 @@ impl cosmic::Application for AppModel {
                 };
 
                 self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write applet button style config");
 
                 Task::none()
             }
             Message::UserWidgetChanged(user_widget_style) => {
-                println!("User widget style changed to: {:?}", user_widget_style);
+                log::info!("User widget style changed to: {:?}", user_widget_style);
                 self.config.user_widget = match user_widget_style {
                     0 => UserWidgetStyle::UsernamePrefered,
                     1 => UserWidgetStyle::RealNamePrefered,
@@ -359,7 +359,7 @@ impl cosmic::Application for AppModel {
                 };
 
                 self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write user widget style config");
 
                 Task::none()
@@ -368,27 +368,27 @@ impl cosmic::Application for AppModel {
                 let mut new_label = new_label;
                 if new_label.len() == 0 {
                     // If the field is empty, reset to default.
-                    new_label = CosmicClassicMenuConfig::default().button_label;
+                    new_label = AppletConfig::default().button_label;
                 }
 
-                println!("Button label changed to: {:?}", new_label);
+                log::info!("Button label changed to: {:?}", new_label);
                 self.config.button_label = new_label;
 
                 self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write button label config");
 
                 Task::none()
             }
             Message::ButtonIconChanged(new_icon) => {
-                println!(
+                log::info!(
                     "Button icon changed to: {:?}",
                     new_icon.clone().to_string_lossy()
                 );
                 self.config.button_icon = new_icon.to_string_lossy().into_owned();
 
                 self.config
-                    .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
                     .expect("Failed to write button icon config");
 
                 Task::none()
@@ -626,7 +626,7 @@ impl menu::action::MenuAction for MenuAction {
         match self {
             MenuAction::About => Message::ToggleContextPage(ContextPage::About),
             MenuAction::SetDefaultSettings => {
-                Message::UpdateConfig(CosmicClassicMenuConfig::default())
+                Message::UpdateConfig(AppletConfig::default())
             }
         }
     }

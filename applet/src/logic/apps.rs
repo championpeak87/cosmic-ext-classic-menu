@@ -1,5 +1,5 @@
 use crate::{
-    config::{CosmicClassicMenuConfig, RecentApplication},
+    config::{AppletConfig, RecentApplication},
     fl,
     model::application_entry::ApplicationEntry,
 };
@@ -9,8 +9,7 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::{Deserialize, Serialize};
 
 use cosmic::{
-    iced::{stream, Subscription},
-    iced_futures::futures::{self, SinkExt},
+    iced::{stream, Subscription}, iced_futures::futures::{self, SinkExt}
 };
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fmt::Debug;
@@ -21,7 +20,7 @@ pub struct Apps;
 
 impl Apps {
     pub async fn load_apps() -> Vec<Arc<ApplicationEntry>> {
-        println!("Loading applications...");
+        log::info!("Loading applications...");
         let locale = std::env::var("LANG")
             .ok()
             .and_then(|l| l.split(".").next().map(str::to_string));
@@ -33,6 +32,7 @@ impl Apps {
                 .collect();
         all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
+        log::info!("Applications fetched...");
         all_entries
     }
 
@@ -53,7 +53,7 @@ impl Apps {
     pub async fn load_app_categories() -> Vec<ApplicationCategory> {
         use std::collections::HashSet;
 
-        println!("Loading app categories...");
+        log::info!("Loading app categories...");
         let all_apps = Self::load_apps().await;
         let mut used_categories = HashSet::new();
         for app in &all_apps {
@@ -90,9 +90,9 @@ impl Apps {
     }
 
     pub async fn get_recent_applications() -> Vec<Arc<ApplicationEntry>> {
-        println!("Loading recent applications...");
+        log::info!("Loading recent applications...");
         let recent_applications: &Vec<RecentApplication> =
-            &CosmicClassicMenuConfig::config().recent_applications;
+            &AppletConfig::config().recent_applications;
         let all_applications_entries: HashMap<String, Arc<ApplicationEntry>> = Self::load_apps()
             .await
             .into_iter()
@@ -107,7 +107,7 @@ impl Apps {
     }
 
     pub async fn get_apps_of_category(category: ApplicationCategory) -> Vec<Arc<ApplicationEntry>> {
-        println!("Getting apps of category: {}", category.mime_name);
+        log::info!("Getting apps of category: {}", category.mime_name);
         if category == ApplicationCategory::ALL {
             Self::load_apps().await
         } else if category == ApplicationCategory::RECENTLY_USED {

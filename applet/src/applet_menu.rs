@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use cosmic::cosmic_theme::Spacing;
-use cosmic::desktop::IconSourceExt;
 use cosmic::iced::{
     widget::{column, row},
     Alignment, Length,
@@ -11,7 +10,7 @@ use cosmic::widget::{container, ListColumn};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 
-use crate::applet::{CosmicClassicMenu, Message, PowerAction};
+use crate::applet::{Applet, Message, PowerAction};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
 
@@ -36,7 +35,7 @@ impl AppletMenu {
     const USER_IDLE_SYMBOLIC: &[u8] =
         include_bytes!("../../res/icons/bundled/user-idle-symbolic.svg");
 
-    pub fn view_main_menu_list(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    pub fn view_main_menu_list(applet: &Applet) -> Element<'_, Message> {
         let Spacing {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
@@ -83,7 +82,7 @@ impl AppletMenu {
             .into()
     }
 
-    fn create_power_menu(_applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    fn create_power_menu(_applet: &Applet) -> Element<'_, Message> {
         container(
             row![
                 cosmic::widget::button::icon(cosmic::widget::icon::from_svg_bytes(
@@ -115,7 +114,7 @@ impl AppletMenu {
         .into()
     }
 
-    fn create_search_field(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    fn create_search_field(applet: &Applet) -> Element<'_, Message> {
         let Spacing {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
@@ -128,7 +127,7 @@ impl AppletMenu {
             .into()
     }
 
-    fn create_app_list(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    fn create_app_list(applet: &Applet) -> Element<'_, Message> {
         let Spacing {
             space_l, space_xl, ..
         } = theme::active().cosmic().spacing;
@@ -137,19 +136,30 @@ impl AppletMenu {
             cosmic::widget::list_column().padding([0., 0.]),
             |list, app| {
                 let button = cosmic::widget::button::custom(
-                    container(row![
-                        app.icon
-                            .as_cosmic_icon()
-                            .width(Length::Fixed(space_l.into()))
-                            .height(Length::Fixed(space_l.into()))
-                            .content_fit(ContentFit::ScaleDown),
+                    row![
+                        match app.icon.clone().unwrap_or_default() {
+                            crate::model::application_entry::IconHandle::SvgHandle(handle) =>
+                                container(
+                                    cosmic::widget::svg(handle)
+                                        .width(Length::Fixed(space_l.into()))
+                                        .height(Length::Fixed(space_l.into()))
+                                        .content_fit(ContentFit::Contain)
+                                ),
+                            crate::model::application_entry::IconHandle::RasterHandle(handle) =>
+                                container(
+                                    cosmic::widget::image(handle)
+                                        .width(Length::Fixed(space_l.into()))
+                                        .height(Length::Fixed(space_l.into()))
+                                        .content_fit(ContentFit::Contain)
+                                ),
+                        },
                         cosmic::widget::Space::new(5, Length::Fill),
                         column![
                             text(&app.name),
                             text(app.comment.as_deref().unwrap_or_default()).size(8.0),
                         ]
                         .padding([0, 0]),
-                    ])
+                    ]
                     .align_y(Alignment::Center),
                 )
                 .on_press(Message::ApplicationSelected(app.clone()))
@@ -167,7 +177,7 @@ impl AppletMenu {
             .into()
     }
 
-    fn create_categories_pane(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    fn create_categories_pane(applet: &Applet) -> Element<'_, Message> {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
         let mut categories_pane: Vec<Element<Message>> = applet
@@ -217,7 +227,7 @@ impl AppletMenu {
             .into()
     }
 
-    pub fn create_logged_user_widget(applet: &CosmicClassicMenu) -> Element<'_, Message> {
+    pub fn create_logged_user_widget(applet: &Applet) -> Element<'_, Message> {
         if applet.config.user_widget == crate::config::UserWidgetStyle::None {
             return cosmic::widget::Space::new(0, 0).into();
         }
