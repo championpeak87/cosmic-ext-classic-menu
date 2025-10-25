@@ -4,6 +4,10 @@ mod app;
 mod i18n;
 
 fn main() -> cosmic::iced::Result {
+    // Initialize logging
+    simple_logger::init_with_env().unwrap();
+    log::info!("Starting Cosmic Classic Menu Settings");
+
     // Get the system's preferred languages.
     let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
 

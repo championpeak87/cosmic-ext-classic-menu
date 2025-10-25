@@ -1,16 +1,25 @@
-use cosmic::desktop::DesktopEntryData;
-use freedesktop_desktop_entry::{DesktopEntry, IconSource};
+use cosmic::{
+    desktop::{DesktopEntryData, IconSourceExt},
+    widget::image::Handle,
+};
+use freedesktop_desktop_entry::DesktopEntry;
 
 #[derive(Clone, Debug)]
 /// Represents an application entry in the Cosmic Classic Menu.
 pub struct ApplicationEntry {
     pub name: String,
     pub id: String,
-    pub icon: IconSource,
+    pub icon: Option<IconHandle>,
     pub comment: Option<String>,
     pub exec: Option<String>,
     pub category: Vec<String>,
     pub is_terminal: bool,
+}
+
+#[derive(Clone, Debug)]
+pub enum IconHandle {
+    SvgHandle(cosmic::widget::svg::Handle),
+    RasterHandle(cosmic::widget::image::Handle),
 }
 
 impl Into<ApplicationEntry> for DesktopEntryData {
@@ -20,18 +29,48 @@ impl Into<ApplicationEntry> for DesktopEntryData {
             is_terminal: get_is_terminal(&self),
             id: self.id,
             name: self.name,
-            icon: self.icon,
+            icon: {
+                if let Some(handle) = self.icon.as_cosmic_icon().into_svg_handle() {
+                    Some(IconHandle::SvgHandle(handle))
+                } else {
+                    match self.icon {
+                        freedesktop_desktop_entry::IconSource::Name(name) => {
+                            if let Some(path) =
+                                cosmic::widget::icon::from_name(name).size(64).path()
+                            {
+                                Some(IconHandle::RasterHandle(Handle::from(path)))
+                            } else {
+                                None
+                            }
+                        }
+                        freedesktop_desktop_entry::IconSource::Path(path_buf) => {
+                            Some(IconHandle::RasterHandle(Handle::from(path_buf)))
+                        }
+                    }
+                }
+            },
             exec: self.exec,
             category: self.categories,
         }
     }
 }
 
+impl Default for IconHandle {
+    fn default() -> Self {
+        IconHandle::SvgHandle(
+            cosmic::widget::icon::from_name("application-x-executable")
+                .size(32)
+                .handle()
+                .icon().into_svg_handle().unwrap(),
+        )
+    }
+}
+
 fn get_comment(app: &DesktopEntryData) -> Option<String> {
     if let Some(path) = &app.path {
         let locale = std::env::var("LANG")
-                .ok()
-                .and_then(|l| l.split(".").next().map(str::to_string));
+            .ok()
+            .and_then(|l| l.split(".").next().map(str::to_string));
         let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
 
         if let Ok(entry) = desktop_entry {
@@ -50,8 +89,8 @@ fn get_comment(app: &DesktopEntryData) -> Option<String> {
 fn get_is_terminal(app: &DesktopEntryData) -> bool {
     if let Some(path) = &app.path {
         let locale = std::env::var("LANG")
-                .ok()
-                .and_then(|l| l.split(".").next().map(str::to_string));
+            .ok()
+            .and_then(|l| l.split(".").next().map(str::to_string));
         let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
 
         if let Ok(entry) = desktop_entry {

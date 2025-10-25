@@ -13,13 +13,13 @@ use cosmic::iced::{
     window::Id,
     Alignment,
 };
-use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
 use cosmic::{Application, Element};
 use std::process;
+use std::sync::Arc;
 
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
-use crate::config::{AppletButtonStyle, CosmicClassicMenuConfig, RecentApplication};
+use crate::config::{AppletButtonStyle, AppletConfig, RecentApplication};
 use crate::fl;
 use crate::logic::apps::{desktop_files, ApplicationCategory, Event, User};
 use crate::model::application_entry::ApplicationEntry;
@@ -29,17 +29,17 @@ pub const APP_ID: &str = "com.championpeak87.cosmic-ext-classic-menu";
 /// This is the struct that represents your application.
 /// It is used to define the data that will be used by your application.
 #[derive(Default)]
-pub struct CosmicClassicMenu {
+pub struct Applet {
     /// Application state which is managed by the COSMIC runtime.
     pub core: Core,
     /// The popup id.
     popup: Option<Id>,
     /// The configuration that is used to store the application settings.
-    pub config: CosmicClassicMenuConfig,
+    pub config: AppletConfig,
     /// The search field that is used to filter the applications.
     pub search_field: String,
     /// The list of available applications that are displayed in the menu.
-    pub available_applications: Vec<ApplicationEntry>,
+    pub available_applications: Vec<Arc<ApplicationEntry>>,
     /// The list of available categories that are displayed in the menu.
     pub available_categories: Vec<ApplicationCategory>,
     /// The popup type that is used to determine which popup to display.
@@ -59,14 +59,14 @@ pub enum Message {
     PopupClosed(Id),
     SearchFieldInput(String),
     PowerOptionSelected(PowerAction),
-    ApplicationSelected(ApplicationEntry),
+    ApplicationSelected(Arc<ApplicationEntry>),
     CategorySelected(ApplicationCategory),
     LaunchTool(SystemTool),
     Zbus(Result<(), zbus::Error>),
     UpdateLoggedUser(Result<User, zbus::Error>),
     FileEvent(Event),
-    UpdateConfig(CosmicClassicMenuConfig),
-    UpdateAvailableApplications(Vec<ApplicationEntry>),
+    UpdateConfig(AppletConfig),
+    UpdateAvailableApplications(Vec<Arc<ApplicationEntry>>),
     UpdateAvailableCategories(Vec<ApplicationCategory>),
 }
 
@@ -79,50 +79,75 @@ pub enum SystemTool {
 }
 
 impl SystemTool {
-    fn perform(&self) {
+    pub fn perform(&self) {
         match self {
             SystemTool::AppletSettings => {
-                let env_vars: Vec<(String, String)> = std::env::vars().collect();
-                let app_id = Some("com.championpeak87.cosmic-ext-classic-menu.settings");
-                tokio::spawn(async move {
-                    cosmic::desktop::spawn_desktop_exec(
-                        "cosmic-ext-classic-menu-settings",
-                        env_vars,
-                        app_id.as_deref(),
-                        false,
-                    )
-                    .await;
-                });
-                return;
+                // Special case requiring async spawning
+                self.handle_applet_settings();
             }
-            _ => (),
+            tool => {
+                // Handle all other tools
+                self.handle_generic_tool(tool);
+            }
         }
+    }
+
+    fn handle_applet_settings(&self) {
+        let env_vars: Vec<(String, String)> = std::env::vars().collect();
+        let app_id = Some("com.championpeak87.cosmic-ext-classic-menu.settings");
+
+        // Spawn the asynchronous execution
+        tokio::spawn(async move {
+            let _ = cosmic::desktop::spawn_desktop_exec(
+                "cosmic-ext-classic-menu-settings",
+                env_vars,
+                app_id.as_deref(),
+                false,
+            )
+            .await;
+        });
+    }
+
+    /// Determines the executable name for the native environment.
+    fn get_exec_name(&self) -> Option<&'static str> {
+        match self {
+            SystemTool::SystemSettings => Some("cosmic-settings"),
+            SystemTool::SystemMonitor => Some("gnome-system-monitor"),
+            SystemTool::DiskManagement => Some("gnome-disks"),
+            // Filter out tools that are handled elsewhere or have no executable
+            _ => None,
+        }
+    }
+
+    fn handle_generic_tool(&self, tool: &SystemTool) {
+        let exec_name = match tool.get_exec_name() {
+            Some(name) => name,
+            None => return, // Stop if the tool is not meant to be executed this way
+        };
 
         let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
-        let main_exec = if is_flatpak {
-            "flatpak-spawn"
+
+        // Logic to determine the final command and arguments, centralizing Flatpak handling
+        let (main_exec, args) = if is_flatpak {
+            // For Flatpak, use `flatpak-spawn` with the `--host` argument
+            ("flatpak-spawn", vec!["--host", exec_name])
         } else {
-            match self {
-                SystemTool::SystemSettings => "cosmic-settings",
-                SystemTool::SystemMonitor => "gnome-system-monitor",
-                SystemTool::DiskManagement => "gnome-disks",
-                _ => "",
-            }
-        };
-        let args = if is_flatpak {
-            match self {
-                SystemTool::SystemSettings => vec!["--host", "cosmic-settings"],
-                SystemTool::SystemMonitor => vec!["--host", "gnome-system-monitor"],
-                SystemTool::DiskManagement => vec!["--host", "gnome-disks"],
-                _ => vec![],
-            }
-        } else {
-            vec![]
+            // For native, use the direct executable name
+            (exec_name, vec![])
         };
 
-        if let Err(_) = process::Command::new(main_exec).args(args).spawn() {
-            eprintln!("Selected tool cannot be opened");
+        // Execute the command and provide better error reporting
+        if let Err(e) = process::Command::new(main_exec).args(args).spawn() {
+            log::error!("Error launching tool '{}': {}", main_exec, e);
         }
+    }
+
+    pub fn is_executable_available(tool: &SystemTool) -> bool {
+        if let Some(exec_name) = tool.get_exec_name() {
+            return which::which(exec_name).is_ok();
+        }
+
+        false
     }
 }
 
@@ -176,7 +201,7 @@ impl Default for PopupType {
 /// - `Flags` is the data that your application needs to use before it starts.
 /// - `Message` is the enum that contains all the possible variants that your application will need to transmit messages.
 /// - `APP_ID` is the unique identifier of your application.
-impl Application for CosmicClassicMenu {
+impl Application for Applet {
     type Executor = cosmic::executor::multi::Executor;
     type Flags = ();
     type Message = Message;
@@ -198,7 +223,7 @@ impl Application for CosmicClassicMenu {
     /// - `flags` is used to pass in any data that your application needs to use before it starts.
     /// - `Task` type is used to send messages to your application. `Task::none()` can be used to send no messages to your application.
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
-        let window = CosmicClassicMenu {
+        let window = Applet {
             core,
             popup: None,
             search_field: "".to_owned(),
@@ -206,7 +231,7 @@ impl Application for CosmicClassicMenu {
             available_categories: vec![],
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::ALL),
-            config: CosmicClassicMenuConfig::config(),
+            config: AppletConfig::config(),
             current_user: None,
         };
 
@@ -297,7 +322,6 @@ impl Application for CosmicClassicMenu {
     /// what message was received. Tasks may be returned for asynchronous execution on a
     /// background thread managed by the application's executor.
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
-        println!("Received message: {:?}", message);
         match message {
             Message::TogglePopup(popup_type) => self.toggle_popup(popup_type),
             Message::PopupClosed(id) => self.close_popup(id),
@@ -313,7 +337,6 @@ impl Application for CosmicClassicMenu {
             }
             Message::FileEvent(event) => self.handle_event(event),
             Message::UpdateConfig(config) => {
-                println!("Received updated config: {:?}", config);
                 self.config = config;
 
                 Task::none()
@@ -342,16 +365,16 @@ impl Application for CosmicClassicMenu {
     /// beginning of the application, and persist through its lifetime.
     fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch(vec![
-            desktop_files(Id::unique()).map(Message::FileEvent),
+            desktop_files(self.core.main_window_id()).map(Message::FileEvent),
             // Watch for application configuration changes.
             self.core
-                .watch_config::<CosmicClassicMenuConfig>(Self::APP_ID)
+                .watch_config::<AppletConfig>(Self::APP_ID)
                 .map(|update| Message::UpdateConfig(update.config)),
         ])
     }
 }
 
-impl CosmicClassicMenu {
+impl Applet {
     pub fn handle_event(&mut self, event: Event) -> Task<Message> {
         match event {
             Event::Changed => {
@@ -379,7 +402,6 @@ impl CosmicClassicMenu {
         } else {
             let new_id = Id::unique();
             self.popup.replace(new_id);
-
             let mut popup_settings = self.core.applet.get_popup_settings(
                 self.core.main_window_id().unwrap(),
                 new_id,
@@ -387,35 +409,14 @@ impl CosmicClassicMenu {
                 None,
                 None,
             );
-
-            // Position the popup based on the panel anchor
-            let width = self.core.applet.suggested_window_size().0;
-            let height = self.core.applet.suggested_window_size().1;
-            popup_settings.positioner = SctkPositioner {
-                gravity: match self.core.applet.anchor {
-                    PanelAnchor::Left => Gravity::BottomLeft,
-                    PanelAnchor::Right => Gravity::BottomRight,
-                    PanelAnchor::Top => Gravity::TopRight,
-                    PanelAnchor::Bottom => Gravity::BottomRight,
-                },
-                anchor: match self.core.applet.anchor {
-                    PanelAnchor::Left => Anchor::TopRight,
-                    PanelAnchor::Right => Anchor::TopLeft,
-                    PanelAnchor::Top => Anchor::BottomLeft,
-                    PanelAnchor::Bottom => Anchor::TopLeft,
-                },
-                offset: (
-                    match self.core.applet.anchor {
-                        PanelAnchor::Left => width.get() as i32, // offset right
-                        _ => 0,
-                    },
-                    match self.core.applet.anchor {
-                        PanelAnchor::Top => height.get() as i32, // offset down
-                        _ => 0,
-                    },
-                ),
-                ..Default::default()
+            let (anchor, gravity) = match self.core.applet.anchor {
+                PanelAnchor::Left => (Anchor::TopRight, Gravity::BottomRight),
+                PanelAnchor::Right => (Anchor::TopLeft, Gravity::BottomLeft),
+                PanelAnchor::Top => (Anchor::BottomLeft, Gravity::BottomRight),
+                PanelAnchor::Bottom => (Anchor::TopLeft, Gravity::TopRight),
             };
+            popup_settings.positioner.anchor = anchor;
+            popup_settings.positioner.gravity = gravity;
 
             tasks.push(get_popup(popup_settings));
             Task::batch(tasks)
@@ -488,7 +489,7 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn launch_application(&mut self, app: ApplicationEntry) -> Task<Message> {
+    fn launch_application(&mut self, app: Arc<ApplicationEntry>) -> Task<Message> {
         let mut app_exec = app.exec.clone().unwrap();
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
@@ -513,7 +514,7 @@ impl CosmicClassicMenu {
         Task::none()
     }
 
-    fn update_recent_applications(&mut self, app: ApplicationEntry) {
+    fn update_recent_applications(&mut self, app: Arc<ApplicationEntry>) {
         let current_recent_application = self
             .config
             .recent_applications
@@ -531,7 +532,7 @@ impl CosmicClassicMenu {
         }
 
         self.config
-            .write_entry(CosmicClassicMenuConfig::config_handler().as_ref().unwrap())
+            .write_entry(AppletConfig::config_handler().as_ref().unwrap())
             .expect("Failed to write recent applications config");
     }
 
@@ -555,7 +556,7 @@ impl CosmicClassicMenu {
 
     fn handle_zbus_result(&self, result: Result<(), zbus::Error>) -> Task<Message> {
         if let Err(e) = result {
-            eprintln!("cosmic-ext-classic-menu ERROR: '{}'", e);
+            log::error!("cosmic-ext-classic-menu ERROR: '{}'", e);
         }
 
         Task::none()

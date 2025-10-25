@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-ext-classic-menu-applet"
-version = "0.0.7"
+version = "0.0.8"
 edition = "2021"
 authors = ["Kamil Lihan <k.lihan@outlook.com>"]
 license = "GPL-3.0-only"
@@ -22,6 +22,9 @@ once_cell = "1.21.3"
 users = "0.11.0"
 accounts-zbus = { git = "https://github.com/pop-os/dbus-settings-bindings" }
 notify = "*"
+which = "8.0.0"
+simple_logger = "5.1.0"
+log = "0.4.28"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
