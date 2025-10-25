@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-ext-classic-menu-applet"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "accounts-zbus",
  "freedesktop-desktop-entry",
@@ -1061,7 +1061,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-ext-classic-menu-settings"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "cosmic-ext-classic-menu-applet",
  "futures-util",

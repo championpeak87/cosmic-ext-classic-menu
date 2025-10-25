@@ -6,7 +6,7 @@ debug/
 target/
 vendor/
 vendor.tar
-.vscode
+.vscode/
 .flatpak-builder
 build-dir
 flatpak-builder
