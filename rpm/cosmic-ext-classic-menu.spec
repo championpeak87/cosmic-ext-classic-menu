@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu
-Version:        0.0.8
+Version:        0.0.9
 Release:        1%{?dist}
 Summary:        COSMIC Classic Menu Application
 

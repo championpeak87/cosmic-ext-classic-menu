@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use cosmic::app::{Core, Task};
+use cosmic::app::{ Core, Task};
 use cosmic::applet::cosmic_panel_config::PanelAnchor;
 use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner::{
     Anchor, Gravity,
 };
+use cosmic::surface::Action;
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::Subscription;
 use cosmic::iced::{
@@ -13,7 +14,6 @@ use cosmic::iced::{
     window::Id,
     Alignment,
 };
-use cosmic::iced_runtime::platform_specific::wayland::popup::SctkPositioner;
 use cosmic::{Application, Element};
 use cosmic_app_list_config::AppListConfig;
 use std::process;
@@ -76,6 +76,7 @@ pub enum Message {
     PinToAppTray(Arc<ApplicationEntry>),
     UnPinFromAppTray(Arc<ApplicationEntry>),
     AppListConfigUpdated(AppListConfig),
+    ContextMenuAction(Action)
 }
 
 #[derive(Clone, Debug)]
@@ -225,15 +226,11 @@ impl Application for Applet {
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
         let window = Applet {
             core,
-            popup: None,
             search_field: "".to_owned(),
-            available_applications: vec![],
-            available_categories: vec![],
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::ALL),
             config: AppletConfig::config(),
-            current_user: None,
-            app_list_config: Default::default(),
+            ..Default::default()
         };
 
         // fetch current user asynchronously
@@ -381,6 +378,11 @@ impl Application for Applet {
 
                 Task::none()
             }
+            Message::ContextMenuAction(action) => {
+                return cosmic::task::message(cosmic::Action::Cosmic(
+                    cosmic::app::Action::Surface(action),
+                ));
+            }
         }
     }
 
@@ -459,15 +461,19 @@ impl Applet {
     }
 
     fn close_popup(&mut self, id: Id) -> Task<Message> {
-        self.search_field.clear();
-        self.selected_category = Some(ApplicationCategory::ALL);
-        self.available_applications = Vec::new();
-
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
+
+            self.search_field.clear();
+            self.selected_category = Some(ApplicationCategory::ALL);
+            
+            return Task::perform(crate::logic::apps::Apps::load_apps(), |res| {
+                cosmic::action::app(Message::UpdateAvailableApplications(res))
+            });
         }
 
         Task::none()
+
     }
 
     fn update_search_field(&mut self, input: &str) -> Task<Message> {
