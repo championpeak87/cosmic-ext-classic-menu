@@ -155,9 +155,74 @@
     </binaries>
   </provides>
   <releases>
+    <release version="0.0.9" date="2025-11-19">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Fix flatpak issues</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.0.8" date="2025-10-25">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Resolve performance issues</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.0.7" date="2025-10-17">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Rename applet to cosmic-ext-classic-menu</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.0.6" date="2025-09-29">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Resolve performance issues</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.0.5" date="2025-09-27">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Patch popup positioning</li>
+          <li>Ability to set custom icon</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.0.4" date="2025-09-24">
       <description>
-        <p>Initial public release with COSMIC Desktop integration, customizable button styles, and settings panel.</p>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Add configuration options</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.0.3" date="2025-09-11">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Fix launching applications in flatpak version of the applet</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.0.2" date="2025-05-17">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Layout updates</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.0.1-preview" date="2025-05-12">
+      <description>
+        <p>Initial test release</p>
       </description>
     </release>
   </releases>

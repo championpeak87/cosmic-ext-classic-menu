@@ -6,7 +6,7 @@ use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::dialog::file_chooser::FileFilter;
 use cosmic::iced::{Alignment, Length, Subscription};
 use cosmic::prelude::*;
-use cosmic::widget::{button, icon, menu};
+use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
 use cosmic::{iced::Background, widget::text, Element};
 use cosmic_ext_classic_menu_applet::config::{
     AppletButtonStyle, AppletConfig, HorizontalPosition, UserWidgetStyle,
@@ -124,7 +124,8 @@ impl cosmic::Application for AppModel {
                 ],
             ),
         )])
-        .width(Length::Fill);
+        .item_height(ItemHeight::Dynamic(40))
+        .item_width(ItemWidth::Uniform(240));
 
         vec![menu_bar.into()]
     }
