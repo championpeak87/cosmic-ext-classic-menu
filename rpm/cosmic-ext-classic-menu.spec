@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu
-Version:        0.0.8
+Version:        0.0.9
 Release:        1%{?dist}
 Summary:        COSMIC Classic Menu Application
 
@@ -36,5 +36,30 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/com.championpeak87.cosmic-ext-classic-menu/applet-buttons/*
 
 %changelog
-* Wed Feb 19 2025 Kamil Lihan <k.lihan@outlook.com> - 0.0.1
-- Initial package
+* St Nov 19 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.9-1
+- Fix flatpak issues
+
+* So Okt 25 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.8-1
+- Resolve performance issues
+
+* Pi Okt 17 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.7-1
+- Rename applet to cosmic-ext-classic-menu
+
+* Po Sep 29 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.6-1
+- Resolve performance issues
+
+* So Sep 27 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.5-1
+- Patch popup positioning
+- Ability to set custom icon
+
+* Ut Sep 24 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.4-1
+- Add configuration options
+
+* Pi Sep 11 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.3-1
+- Fix launching applications in flatpak version of the applet
+
+* So Máj 17 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.2-1
+- Layout updates
+
+* Po Máj 12 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.1-0.1.preview
+- Initial test release

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use cosmic::iced::{widget::row, Alignment, Length};
+use cosmic::iced::Length;
+use cosmic::iced::{widget::row, Alignment};
 use cosmic::widget::mouse_area;
 use cosmic::Element;
 
@@ -69,17 +70,15 @@ impl AppletButton {
         let content = row!(
             applet.core.applet.text(button_label),
             cosmic::widget::Space::new(5, Length::Shrink),
-            cosmic::widget::vertical_space().height(Length::Fixed(
-                (applet.core.applet.suggested_size(true).1
-                    + 2 * applet.core.applet.suggested_padding(true)) as f32
-            ))
         )
         .align_y(Alignment::Center);
+
+        let suggested_padding = applet.core.applet.suggested_padding(true);
 
         cosmic::widget::autosize::autosize(
             mouse_area(
                 cosmic::widget::button::custom(content)
-                    .padding([0, applet.core.applet.suggested_padding(true)])
+                    .padding([suggested_padding.0, suggested_padding.1])
                     .class(cosmic::theme::Button::AppletIcon)
                     .on_press(Message::TogglePopup(PopupType::MainMenu)),
             )
@@ -116,17 +115,15 @@ impl AppletButton {
         let content = row!(
             icon_handle.icon(),
             applet.core.applet.text(button_label),
-            cosmic::widget::vertical_space().height(Length::Fixed(
-                (applet.core.applet.suggested_size(true).1
-                    + 2 * applet.core.applet.suggested_padding(true)) as f32
-            ))
         )
         .align_y(Alignment::Center);
+
+        let suggested_padding = applet.core.applet.suggested_padding(true);
 
         cosmic::widget::autosize::autosize(
             mouse_area(
                 cosmic::widget::button::custom(content)
-                    .padding([0, applet.core.applet.suggested_padding(true)])
+                    .padding([suggested_padding.0, suggested_padding.1])
                     .class(cosmic::theme::Button::AppletIcon)
                     .on_press(Message::TogglePopup(PopupType::MainMenu)),
             )

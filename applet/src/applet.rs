@@ -141,14 +141,6 @@ impl SystemTool {
             log::error!("Error launching tool '{}': {}", main_exec, e);
         }
     }
-
-    pub fn is_executable_available(tool: &SystemTool) -> bool {
-        if let Some(exec_name) = tool.get_exec_name() {
-            return which::which(exec_name).is_ok();
-        }
-
-        false
-    }
 }
 
 #[derive(Clone, Debug)]
