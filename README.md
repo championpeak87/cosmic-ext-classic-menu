@@ -1,8 +1,8 @@
 # cosmic-ext-classic-menu
 
-COSMIC™ Classic Menu is a customizable application launcher for the COSMIC™ desktop environment. It provides a classic style menu for launching applications, accessing system tools, and managing power options.
+Classic Menu is a customizable application launcher for the COSMIC™ desktop environment. It provides a classic style menu for launching applications, accessing system tools, and managing power options.
 
-![COSMIC™ Classic Menu Screenshot](cosmic-ext-classic-menu.png)
+![Classic Menu Screenshot](screenshots/cosmic-ext-classic-menu-applet.png)
 
 ## Features
 

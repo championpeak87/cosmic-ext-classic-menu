@@ -1,16 +1,12 @@
 use std::path::PathBuf;
 
+use cosmic::iced::mouse::Interaction;
 use cosmic::iced::Length;
 use cosmic::iced::{widget::row, Alignment};
 use cosmic::widget::mouse_area;
 use cosmic::Element;
 
-use once_cell::sync::Lazy;
-
 use crate::applet::{Applet, Message, PopupType};
-
-static AUTOSIZE_MAIN_ID: Lazy<cosmic::widget::Id> =
-    Lazy::new(|| cosmic::widget::Id::new("autosize-main"));
 
 const BUTTON_DEFAULT_ICON: &[u8] =
     include_bytes!("../../res/icons/bundled/applet-button/default.svg");
@@ -45,6 +41,7 @@ impl AppletButton {
                 .icon_button_from_handle(icon_handle)
                 .on_press(Message::TogglePopup(PopupType::MainMenu)),
         )
+        .interaction(Interaction::Idle)
         .on_right_press(Message::TogglePopup(PopupType::ContextMenu))
         .into()
     }
@@ -61,31 +58,18 @@ impl AppletButton {
     /// # Returns
     /// An `Element<Message>` representing the label-only applet button.
     pub fn view_label_only(applet: &Applet) -> Element<'_, Message> {
-        let button_label = if applet.config.button_label.is_empty() {
-            Applet::default().config.button_label.clone()
-        } else {
-            applet.config.button_label.clone()
-        };
-
-        let content = row!(
-            applet.core.applet.text(button_label),
-            cosmic::widget::Space::new(5, Length::Shrink),
-        )
-        .align_y(Alignment::Center);
-
-        let suggested_padding = applet.core.applet.suggested_padding(true);
-
-        cosmic::widget::autosize::autosize(
-            mouse_area(
-                cosmic::widget::button::custom(content)
-                    .padding([suggested_padding.0, suggested_padding.1])
-                    .class(cosmic::theme::Button::AppletIcon)
-                    .on_press(Message::TogglePopup(PopupType::MainMenu)),
+        applet
+            .core
+            .applet
+            .autosize_window(
+                mouse_area(applet.core.applet.text_button(
+                    applet.config.button_label.as_str(),
+                    Message::TogglePopup(PopupType::MainMenu),
+                ))
+                .interaction(Interaction::Idle)
+                .on_right_press(Message::TogglePopup(PopupType::ContextMenu)),
             )
-            .on_right_press(Message::TogglePopup(PopupType::ContextMenu)),
-            AUTOSIZE_MAIN_ID.clone(),
-        )
-        .into()
+            .into()
     }
 
     /// Creates a view for the applet button with both an icon and a label.
@@ -100,11 +84,6 @@ impl AppletButton {
     /// # Returns
     /// An `Element<Message>` representing the applet button with both an icon and a label.
     pub fn view_icon_and_label(applet: &Applet) -> Element<'_, Message> {
-        let button_label = if applet.config.button_label.is_empty() {
-            Applet::default().config.button_label.clone()
-        } else {
-            applet.config.button_label.clone()
-        };
         let button_icon: PathBuf = applet.config.button_icon.clone().into();
         let icon_handle = if button_icon.exists() {
             cosmic::widget::icon::from_path(button_icon)
@@ -112,24 +91,31 @@ impl AppletButton {
             cosmic::widget::icon::from_svg_bytes(BUTTON_DEFAULT_ICON)
         };
 
-        let content = row!(
-            icon_handle.icon(),
-            applet.core.applet.text(button_label),
-        )
+        let suggested_size = applet.core.applet.suggested_size(icon_handle.symbolic);
+
+        let content = row![
+            cosmic::widget::icon(icon_handle)
+                .width(Length::Fixed(suggested_size.0 as f32))
+                .height(Length::Fixed(suggested_size.1 as f32)),
+            cosmic::widget::Space::new(5, Length::Shrink),
+            cosmic::widget::text(applet.config.button_label.as_str())
+        ]
         .align_y(Alignment::Center);
 
-        let suggested_padding = applet.core.applet.suggested_padding(true);
-
-        cosmic::widget::autosize::autosize(
-            mouse_area(
-                cosmic::widget::button::custom(content)
-                    .padding([suggested_padding.0, suggested_padding.1])
-                    .class(cosmic::theme::Button::AppletIcon)
-                    .on_press(Message::TogglePopup(PopupType::MainMenu)),
+        applet
+            .core
+            .applet
+            .autosize_window(
+                mouse_area(
+                    cosmic::widget::button::custom(content)
+                        .class(cosmic::theme::Button::AppletIcon)
+                        .on_press(Message::TogglePopup(PopupType::MainMenu)),
+                )
+                .interaction(Interaction::Idle)
+                .on_right_press(Message::TogglePopup(PopupType::ContextMenu)),
             )
-            .on_right_press(Message::TogglePopup(PopupType::ContextMenu)),
-            AUTOSIZE_MAIN_ID.clone(),
-        )
-        .into()
+            .auto_height(true)
+            .auto_width(true)
+            .into()
     }
 }

@@ -1,4 +1,4 @@
-app-title = COSMIC™ Classic Menu
+app-title = Classic Menu
 about = О апликацији
 settings = Подешавања
 default-settings = Врати на подразумевано

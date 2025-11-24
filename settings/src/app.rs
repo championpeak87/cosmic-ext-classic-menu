@@ -4,7 +4,7 @@ use crate::fl;
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::dialog::file_chooser::FileFilter;
-use cosmic::iced::{Alignment, Length, Subscription};
+use cosmic::iced::{Alignment, Length};
 use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
 use cosmic::{iced::Background, widget::text, Element};
@@ -12,7 +12,6 @@ use cosmic_ext_classic_menu_applet::config::{
     AppletButtonStyle, AppletConfig, HorizontalPosition, UserWidgetStyle,
     VerticalPosition,
 };
-use futures_util::SinkExt;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -35,7 +34,6 @@ pub struct AppModel {
 /// Messages emitted by the application and its widgets.
 #[derive(Debug, Clone)]
 pub enum Message {
-    SubscriptionChannel,
     UpdateConfig(AppletConfig),
     LaunchUrl(String),
     AppPositionChanged(HorizontalPosition),
@@ -260,31 +258,31 @@ impl cosmic::Application for AppModel {
     /// Subscriptions are long-running async tasks running in the background which
     /// emit messages to the application through a channel. They are started at the
     /// beginning of the application, and persist through its lifetime.
-    fn subscription(&self) -> Subscription<Self::Message> {
-        struct MySubscription;
+    // fn subscription(&self) -> Subscription<Self::Message> {
+    //     struct MySubscription;
 
-        Subscription::batch(vec![
-            // Create a subscription which emits updates through a channel.
-            Subscription::run_with_id(
-                std::any::TypeId::of::<MySubscription>(),
-                cosmic::iced::stream::channel(4, move |mut channel| async move {
-                    _ = channel.send(Message::SubscriptionChannel).await;
+    //     Subscription::batch(vec![
+    //         // Create a subscription which emits updates through a channel.
+    //         Subscription::run_with_id(
+    //             std::any::TypeId::of::<MySubscription>(),
+    //             cosmic::iced::stream::channel(4, move |mut channel| async move {
+    //                 _ = channel.send(Message::SubscriptionChannel).await;
 
-                    futures_util::future::pending().await
-                }),
-            ),
-            // Watch for application configuration changes.
-            self.core()
-                .watch_config::<AppletConfig>(Self::APP_ID)
-                .map(|update| {
-                    // for why in update.errors {
-                    //     tracing::error!(?why, "app config error");
-                    // }
+    //                 futures_util::future::pending().await
+    //             }),
+    //         ),
+    //         // Watch for application configuration changes.
+    //         self.core()
+    //             .watch_config::<AppletConfig>(Self::APP_ID)
+    //             .map(|update| {
+    //                 // for why in update.errors {
+    //                 //     tracing::error!(?why, "app config error");
+    //                 // }
 
-                    Message::UpdateConfig(update.config)
-                }),
-        ])
-    }
+    //                 Message::UpdateConfig(update.config)
+    //             }),
+    //     ])
+    // }
 
     /// Handles messages emitted by the application and its widgets.
     ///
@@ -292,10 +290,6 @@ impl cosmic::Application for AppModel {
     /// on the application's async runtime.
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
-            Message::SubscriptionChannel => {
-                // For example purposes only.
-                Task::none()
-            }
             Message::UpdateConfig(config) => {
                 self.config = config;
 

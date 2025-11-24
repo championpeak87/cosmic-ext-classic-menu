@@ -1,7 +1,7 @@
 Name:           cosmic-ext-classic-menu
-Version:        0.0.9
+Version:        0.0.10
 Release:        1%{?dist}
-Summary:        COSMIC Classic Menu Application
+Summary:        Classic Menu Applet
 
 License:        GPLv3
 URL:            https://github.com/championpeak87/cosmic-ext-classic-menu
@@ -16,7 +16,7 @@ BuildRequires:  just
 Requires:       cosmic-osd
 
 %description
-COSMIC Classic Menu is a Rust-based applet for COSMIC Desktop, providing an app menu launcher with apps divided into their respective categories.
+Classic Menu is a Rust-based applet for COSMIC Desktop, providing an app menu launcher with apps divided into their respective categories.
 
 %prep
 %autosetup
@@ -36,30 +36,34 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/com.championpeak87.cosmic-ext-classic-menu/applet-buttons/*
 
 %changelog
-* St Nov 19 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.9-1
+* Mon Nov 24 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.10-1
+- Rename to Classic Menu
+- Update manifest file
+
+* Wed Nov 19 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.9-1
 - Fix flatpak issues
 
-* So Okt 25 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.8-1
+* Sat Oct 25 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.8-1
 - Resolve performance issues
 
-* Pi Okt 17 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.7-1
+* Fri Oct 17 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.7-1
 - Rename applet to cosmic-ext-classic-menu
 
-* Po Sep 29 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.6-1
+* Mon Sep 29 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.6-1
 - Resolve performance issues
 
-* So Sep 27 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.5-1
+* Sat Sep 27 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.5-1
 - Patch popup positioning
 - Ability to set custom icon
 
-* Ut Sep 24 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.4-1
+* Tue Sep 24 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.4-1
 - Add configuration options
 
-* Pi Sep 11 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.3-1
+* Fri Sep 11 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.3-1
 - Fix launching applications in flatpak version of the applet
 
-* So Máj 17 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.2-1
+* Sat May 17 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.2-1
 - Layout updates
 
-* Po Máj 12 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.1-0.1.preview
+* Mon May 12 2025 Kamil Lihan <k.lihan@outlook.com> 0.0.1-0.1.preview
 - Initial test release
