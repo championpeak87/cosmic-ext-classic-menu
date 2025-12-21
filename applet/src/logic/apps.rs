@@ -62,7 +62,7 @@ impl Apps {
             }
         }
 
-        // Všechny možné kategorie
+        // Define all app categories
         const APPS_CATEGORIES: &[ApplicationCategory] = &[
             ApplicationCategory::AUDIO,
             ApplicationCategory::VIDEO,
@@ -77,7 +77,7 @@ impl Apps {
             ApplicationCategory::UTILITY,
         ];
 
-        // Vyberte pouze ty, které jsou použité
+        // Filter only available ones
         let mut categories = Vec::with_capacity(2 + APPS_CATEGORIES.len());
         categories.push(ApplicationCategory::ALL);
         categories.push(ApplicationCategory::RECENTLY_USED);
@@ -91,15 +91,15 @@ impl Apps {
 
     pub async fn get_recent_applications() -> Vec<Arc<ApplicationEntry>> {
         log::info!("Loading recent applications...");
-        let recent_applications: &Vec<RecentApplication> =
-            &AppletConfig::config().recent_applications;
+        let mut recent_applications: Vec<RecentApplication> =
+            AppletConfig::config().recent_applications;
         let all_applications_entries: HashMap<String, Arc<ApplicationEntry>> = Self::load_apps()
             .await
             .into_iter()
             .map(|app| (app.id.clone(), app))
             .collect();
 
-        // recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
+        recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
         recent_applications
             .iter()
             .filter_map(|app| all_applications_entries.get(&app.app_id).cloned())
