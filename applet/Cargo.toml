@@ -25,6 +25,7 @@ notify = "*"
 which = "8.0.0"
 simple_logger = "5.1.0"
 log = "0.4.28"
+cosmic-settings-config = { git = "https://github.com/pop-os/cosmic-settings-daemon" }
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"

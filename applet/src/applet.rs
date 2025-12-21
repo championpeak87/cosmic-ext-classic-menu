@@ -485,11 +485,27 @@ impl Applet {
         let mut app_exec = app.exec.clone().unwrap();
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
-        let is_terminal = app.is_terminal;
+        let mut is_terminal = app.is_terminal;
 
         let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
 
         if is_flatpak {
+            if is_terminal {
+                // For flatpaks handle terminal applications manually
+                // not through libcosmic implementation
+                let term = cosmic_settings_config::shortcuts::context()
+                    .ok()
+                    .and_then(|config| {
+                        cosmic_settings_config::shortcuts::system_actions(&config)
+                            .get(&cosmic_settings_config::shortcuts::action::System::Terminal)
+                            .cloned()
+                    })
+                    .unwrap_or_else(|| String::from("cosmic-term"));
+
+                app_exec = format!("{term} -- {}", app_exec);
+                is_terminal = false;
+            }
+
             app_exec = format!("flatpak-spawn --host {}", app_exec);
         }
 

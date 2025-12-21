@@ -1039,6 +1039,7 @@ name = "cosmic-ext-classic-menu-applet"
 version = "0.0.10"
 dependencies = [
  "accounts-zbus",
+ "cosmic-settings-config",
  "freedesktop-desktop-entry",
  "fuzzy-matcher",
  "i18n-embed 0.14.1",
