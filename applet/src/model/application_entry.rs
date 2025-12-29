@@ -1,6 +1,7 @@
+
 use cosmic::{
-    desktop::{DesktopEntryData, IconSourceExt},
-    widget::image::Handle,
+    desktop::DesktopEntryData,
+    widget::{icon::Named, image::Handle},
 };
 use freedesktop_desktop_entry::DesktopEntry;
 
@@ -29,28 +30,41 @@ impl Into<ApplicationEntry> for DesktopEntryData {
             is_terminal: get_is_terminal(&self),
             id: self.id,
             name: self.name,
-            icon: {
-                if let Some(handle) = self.icon.as_cosmic_icon().into_svg_handle() {
-                    Some(IconHandle::SvgHandle(handle))
-                } else {
-                    match self.icon {
-                        freedesktop_desktop_entry::IconSource::Name(name) => {
-                            if let Some(path) =
-                                cosmic::widget::icon::from_name(name).size(64).path()
-                            {
-                                Some(IconHandle::RasterHandle(Handle::from(path)))
-                            } else {
-                                None
-                            }
-                        }
-                        freedesktop_desktop_entry::IconSource::Path(path_buf) => {
-                            Some(IconHandle::RasterHandle(Handle::from(path_buf)))
-                        }
-                    }
+            icon: match self.icon {
+                freedesktop_desktop_entry::IconSource::Name(name) => Some(
+                    cosmic::widget::icon::from_name(name.as_str())
+                        .size(64)
+                        .fallback(Some(cosmic::widget::icon::IconFallback::Names(vec![
+                            "application-default".into(),
+                            "application-x-executable".into(),
+                        ])))
+                        .prefer_svg(true)
+                        .into(),
+                ),
+                freedesktop_desktop_entry::IconSource::Path(path) => {
+                    Some(cosmic::widget::icon(cosmic::widget::icon::from_path(path.clone())).into())
                 }
             },
             exec: self.exec,
             category: self.categories,
+        }
+    }
+}
+
+impl Into<IconHandle> for cosmic::widget::Icon {
+    fn into(self) -> IconHandle {
+        IconHandle::SvgHandle(cosmic::widget::svg::Handle::from(
+            self.into_svg_handle().unwrap(),
+        ))
+    }
+}
+
+impl Into<IconHandle> for Named {
+    fn into(self) -> IconHandle {
+        if let Some(handle) = self.clone().icon().into_svg_handle() {
+            IconHandle::SvgHandle(handle)
+        } else {
+            IconHandle::RasterHandle(Handle::from_path(self.path().unwrap()))
         }
     }
 }
@@ -61,7 +75,9 @@ impl Default for IconHandle {
             cosmic::widget::icon::from_name("application-x-executable")
                 .size(32)
                 .handle()
-                .icon().into_svg_handle().unwrap(),
+                .icon()
+                .into_svg_handle()
+                .unwrap(),
         )
     }
 }
