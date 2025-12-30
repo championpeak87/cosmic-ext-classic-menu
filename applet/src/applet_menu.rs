@@ -10,9 +10,10 @@ use cosmic::widget::{container, ListColumn};
 use cosmic::widget::{scrollable, text};
 use cosmic::{theme, Element};
 
-use crate::applet::{Applet, Message, PowerAction};
+use crate::applet::{Applet, Message};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
+use crate::model::power_action::PowerAction;
 
 pub struct AppletMenu;
 
@@ -121,6 +122,7 @@ impl AppletMenu {
 
         cosmic::widget::search_input(fl!("search-placeholder"), &applet.search_field)
             .on_input(Message::SearchFieldInput)
+            .on_clear(Message::SearchCleared)
             .always_active()
             .width(Length::Fill)
             .padding([space_xxs, space_s])

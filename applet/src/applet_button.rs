@@ -6,7 +6,8 @@ use cosmic::iced::{widget::row, Alignment};
 use cosmic::widget::mouse_area;
 use cosmic::Element;
 
-use crate::applet::{Applet, Message, PopupType};
+use crate::applet::{Applet, Message};
+use crate::model::popup_type::PopupType;
 
 const BUTTON_DEFAULT_ICON: &[u8] =
     include_bytes!("../../res/icons/bundled/applet-button/default.svg");

@@ -1,124 +1,153 @@
 use crate::{
     config::{AppletConfig, RecentApplication},
-    fl,
-    model::application_entry::ApplicationEntry,
+    model::{application_category::ApplicationCategory, application_entry::ApplicationEntry},
 };
-use std::{collections::HashMap, fmt::Display, string::String, sync::Arc};
+use std::{collections::HashMap, string::String, sync::Arc};
 
+use cached::{proc_macro::cached, UnboundCache};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-use serde::{Deserialize, Serialize};
 
 use cosmic::{
-    iced::{stream, Subscription}, iced_futures::futures::{self, SinkExt}
+    iced::{stream, Subscription},
+    iced_futures::futures::{self, SinkExt},
 };
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fmt::Debug;
 use std::hash::Hash;
 use tokio::sync::mpsc;
 
-pub struct Apps;
-
-impl Apps {
-    pub async fn load_apps() -> Vec<Arc<ApplicationEntry>> {
-        log::info!("Loading applications...");
-        let locale = std::env::var("LANG")
-            .ok()
-            .and_then(|l| l.split(".").next().map(str::to_string));
-        let mut all_entries: Vec<Arc<ApplicationEntry>> =
-            cosmic::desktop::load_applications(locale.as_slice(), false, None)
-                .into_iter()
-                .map(Into::into)
-                .map(Arc::new)
-                .collect();
-        all_entries.sort_by(|a, b| a.name.cmp(&b.name));
-
-        log::info!("Applications fetched...");
-        all_entries
-    }
-
-    pub async fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
-        let matcher: SkimMatcherV2 = SkimMatcherV2::default();
-        let mut search_result: Vec<(Option<i64>, Arc<ApplicationEntry>)> = Self::load_apps()
-            .await
+#[cached(
+    name = "APPS_CACHE",
+    ty = "UnboundCache<(), Vec<Arc<ApplicationEntry>>>",
+    create = "{ UnboundCache::new() }"
+)]
+pub fn load_apps() -> Vec<Arc<ApplicationEntry>> {
+    log::info!("Loading applications");
+    let locale = std::env::var("LANG")
+        .ok()
+        .and_then(|l| l.split(".").next().map(str::to_string));
+    let mut all_entries: Vec<Arc<ApplicationEntry>> =
+        cosmic::desktop::load_applications(locale.as_slice(), false, None)
             .into_iter()
-            .map(|app| (matcher.fuzzy_match(&app.name, &filter), app))
-            .filter(|app| app.0.is_some())
+            .map(Into::into)
+            .map(Arc::new)
             .collect();
+    all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
-        search_result.sort_by(|a, b| b.0.cmp(&a.0));
+    log::info!("Applications fetched");
+    all_entries
+}
 
-        search_result.into_iter().map(|(_, app)| app).collect()
+pub fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
+    use unicode_normalization::UnicodeNormalization;
+
+    let filter = filter.trim().nfc().collect::<String>();
+    let apps = load_apps();
+
+    // If filter is empty, return all apps unsorted
+    if filter.is_empty() {
+        return apps;
     }
 
-    pub async fn load_app_categories() -> Vec<ApplicationCategory> {
-        use std::collections::HashSet;
+    let matcher = SkimMatcherV2::default();
 
-        log::info!("Loading app categories...");
-        let all_apps = Self::load_apps().await;
-        let mut used_categories = HashSet::new();
-        for app in &all_apps {
-            for cat in &app.category {
-                used_categories.insert(cat);
-            }
-        }
+    let mut scored: Vec<(i64, Arc<ApplicationEntry>)> = apps
+        .into_iter()
+        .filter_map(|app| {
+            // Match against the name
+            let name_score = matcher.fuzzy_match(&app.name, &filter);
 
-        // Define all app categories
-        const APPS_CATEGORIES: &[ApplicationCategory] = &[
-            ApplicationCategory::AUDIO,
-            ApplicationCategory::VIDEO,
-            ApplicationCategory::DEVELOPMENT,
-            ApplicationCategory::GAMES,
-            ApplicationCategory::GRAPHICS,
-            ApplicationCategory::NETWORK,
-            ApplicationCategory::OFFICE,
-            ApplicationCategory::SCIENCE,
-            ApplicationCategory::SETTINGS,
-            ApplicationCategory::SYSTEM,
-            ApplicationCategory::UTILITY,
-        ];
+            // Match against the generic name
+            let generic_name_score = app
+                .generic_name
+                .as_ref()
+                .and_then(|d| matcher.fuzzy_match(d, &filter))
+                .map(|x| x - 2); // penalize generic_name by 2
 
-        // Filter only available ones
-        let mut categories = Vec::with_capacity(2 + APPS_CATEGORIES.len());
-        categories.push(ApplicationCategory::ALL);
-        categories.push(ApplicationCategory::RECENTLY_USED);
-        for cat in APPS_CATEGORIES {
-            if !cat.mime_name.is_empty() && used_categories.contains(&cat.mime_name.to_string()) {
-                categories.push(cat.clone());
-            }
-        }
-        categories
-    }
+            // Match against the comment
+            let comment_score = app
+                .comment
+                .as_ref()
+                .and_then(|d| matcher.fuzzy_match(d, &filter))
+                .map(|x| x - 5); // penalize comment by 5
 
-    pub async fn get_recent_applications() -> Vec<Arc<ApplicationEntry>> {
-        log::info!("Loading recent applications...");
-        let mut recent_applications: Vec<RecentApplication> =
-            AppletConfig::config().recent_applications;
-        let all_applications_entries: HashMap<String, Arc<ApplicationEntry>> = Self::load_apps()
-            .await
+            // Take the best score from all fields
+            let final_score = name_score.max(comment_score).max(generic_name_score);
+
+            final_score.map(|score| (score, app))
+        })
+        .collect();
+
+    // Highest score first
+    scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+
+    scored.into_iter().map(|(_, app)| app).collect()
+}
+
+pub fn load_app_categories() -> Vec<ApplicationCategory> {
+    use std::collections::HashSet;
+
+    log::info!("Loading app categories...");
+    let all_apps = load_apps();
+    let used_categories: HashSet<&String> = all_apps.iter().flat_map(|app| &app.category).collect();
+
+    // Define all app categories
+    let apps_categories = [
+        ApplicationCategory::ALL,
+        ApplicationCategory::RECENTLY_USED,
+        ApplicationCategory::AUDIO,
+        ApplicationCategory::VIDEO,
+        ApplicationCategory::DEVELOPMENT,
+        ApplicationCategory::GAMES,
+        ApplicationCategory::GRAPHICS,
+        ApplicationCategory::NETWORK,
+        ApplicationCategory::OFFICE,
+        ApplicationCategory::SCIENCE,
+        ApplicationCategory::SETTINGS,
+        ApplicationCategory::SYSTEM,
+        ApplicationCategory::UTILITY,
+    ];
+
+    // Filter only available ones
+    let categories = apps_categories
+        .into_iter()
+        .filter(|x| {
+            x.permanent == true
+                || (!x.mime_name.is_empty() && used_categories.contains(&x.mime_name.to_string()))
+        })
+        .collect();
+
+    categories
+}
+
+pub fn get_recent_applications() -> Vec<Arc<ApplicationEntry>> {
+    log::info!("Loading recent applications...");
+    let mut recent_applications: Vec<RecentApplication> =
+        AppletConfig::config().recent_applications;
+    let all_applications_entries: HashMap<String, Arc<ApplicationEntry>> = load_apps()
+        .into_iter()
+        .map(|app| (app.id.clone(), app))
+        .collect();
+
+    recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
+    recent_applications
+        .iter()
+        .take(15) // take only first 15 recent entries, not to clutter the list
+        .filter_map(|app| all_applications_entries.get(&app.app_id).cloned())
+        .collect()
+}
+
+pub fn get_apps_of_category(category: ApplicationCategory) -> Vec<Arc<ApplicationEntry>> {
+    log::info!("Getting apps of category: {}", category.mime_name);
+    if category == ApplicationCategory::ALL {
+        load_apps()
+    } else if category == ApplicationCategory::RECENTLY_USED {
+        get_recent_applications()
+    } else {
+        load_apps()
             .into_iter()
-            .map(|app| (app.id.clone(), app))
-            .collect();
-
-        recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
-        recent_applications
-            .iter()
-            .filter_map(|app| all_applications_entries.get(&app.app_id).cloned())
+            .filter(|app| app.category.contains(&category.mime_name.to_string()))
             .collect()
-    }
-
-    pub async fn get_apps_of_category(category: ApplicationCategory) -> Vec<Arc<ApplicationEntry>> {
-        log::info!("Getting apps of category: {}", category.mime_name);
-        if category == ApplicationCategory::ALL {
-            Self::load_apps().await
-        } else if category == ApplicationCategory::RECENTLY_USED {
-            Self::get_recent_applications().await
-        } else {
-            Self::load_apps()
-                .await
-                .into_iter()
-                .filter(|app| app.category.contains(&category.mime_name.to_string()))
-                .collect()
-        }
     }
 }
 
@@ -171,162 +200,4 @@ pub fn desktop_files<I: 'static + Hash + Copy + Send + Sync + Debug>(
             futures::future::pending().await
         }),
     )
-}
-
-pub async fn get_current_user() -> Result<User, zbus::Error> {
-    let uid = users::get_current_uid() as u64;
-
-    let conn = zbus::Connection::system().await?;
-    let user = accounts_zbus::UserProxy::from_uid(&conn, uid).await?;
-
-    // Fetch all fields concurrently
-    let (username, user_realname, profile_picture, uid, user_home, user_shell) = tokio::join!(
-        user.user_name(),
-        user.real_name(),
-        user.icon_file(),
-        user.uid(),
-        user.home_directory(),
-        user.shell()
-    );
-
-    Ok(User {
-        username: username?,
-        user_realname: user_realname?,
-        profile_picture: profile_picture?,
-        uid: uid?,
-        user_home: user_home?,
-        user_shell: user_shell?,
-    })
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct User {
-    pub username: String,
-    pub user_realname: String,
-    pub profile_picture: String,
-    pub uid: u64,
-    pub user_home: String,
-    pub user_shell: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ApplicationCategory {
-    pub display_name: &'static str,
-    pub icon_svg_bytes: &'static [u8],
-    pub mime_name: &'static str,
-}
-
-impl ApplicationCategory {
-    pub const ALL: ApplicationCategory = ApplicationCategory {
-        display_name: "all-applications",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/open-menu-symbolic.svg"),
-        mime_name: "",
-    };
-    pub const RECENTLY_USED: ApplicationCategory = ApplicationCategory {
-        display_name: "recently-used",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/document-open-recent-symbolic.svg"
-        ),
-        mime_name: "",
-    };
-    pub const AUDIO: ApplicationCategory = ApplicationCategory {
-        display_name: "audio",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-audio-symbolic.svg"
-        ),
-        mime_name: "Audio",
-    };
-    pub const VIDEO: ApplicationCategory = ApplicationCategory {
-        display_name: "video",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-video-symbolic.svg"
-        ),
-        mime_name: "Video",
-    };
-    pub const DEVELOPMENT: ApplicationCategory = ApplicationCategory {
-        display_name: "development",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-engineering-symbolic.svg"
-        ),
-        mime_name: "Development",
-    };
-    pub const GAMES: ApplicationCategory = ApplicationCategory {
-        display_name: "games",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-games-symbolic.svg"
-        ),
-        mime_name: "Game",
-    };
-    pub const GRAPHICS: ApplicationCategory = ApplicationCategory {
-        display_name: "graphics",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-graphics-symbolic.svg"
-        ),
-        mime_name: "Graphics",
-    };
-    pub const NETWORK: ApplicationCategory = ApplicationCategory {
-        display_name: "network",
-        icon_svg_bytes: include_bytes!("../../../res/icons/bundled/network-workgroup-symbolic.svg"),
-        mime_name: "Network",
-    };
-    pub const OFFICE: ApplicationCategory = ApplicationCategory {
-        display_name: "office",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-office-symbolic.svg"
-        ),
-        mime_name: "Office",
-    };
-    pub const SCIENCE: ApplicationCategory = ApplicationCategory {
-        display_name: "science",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-science-symbolic.svg"
-        ),
-        mime_name: "Science",
-    };
-    pub const SETTINGS: ApplicationCategory = ApplicationCategory {
-        display_name: "settings",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/preferences-system-symbolic.svg"
-        ),
-        mime_name: "Settings",
-    };
-    pub const SYSTEM: ApplicationCategory = ApplicationCategory {
-        display_name: "system",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-system-symbolic.svg"
-        ),
-        mime_name: "System",
-    };
-    pub const UTILITY: ApplicationCategory = ApplicationCategory {
-        display_name: "utility",
-        icon_svg_bytes: include_bytes!(
-            "../../../res/icons/bundled/applications-utilities-symbolic.svg"
-        ),
-        mime_name: "Utility",
-    };
-
-    pub fn get_display_name(&self) -> String {
-        match self.display_name {
-            "all-applications" => fl!("all-applications"),
-            "recently-used" => fl!("recently-used"),
-            "audio" => fl!("audio"),
-            "video" => fl!("video"),
-            "development" => fl!("development"),
-            "games" => fl!("games"),
-            "graphics" => fl!("graphics"),
-            "network" => fl!("network"),
-            "office" => fl!("office"),
-            "science" => fl!("science"),
-            "settings" => fl!("settings"),
-            "system" => fl!("system"),
-            "utility" => fl!("utility"),
-            _ => self.display_name.to_string(),
-        }
-    }
-}
-
-impl Display for ApplicationCategory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.mime_name)
-    }
 }

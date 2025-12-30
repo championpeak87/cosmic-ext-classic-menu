@@ -1,4 +1,3 @@
-
 use cosmic::{
     desktop::DesktopEntryData,
     widget::{icon::Named, image::Handle},
@@ -9,6 +8,7 @@ use freedesktop_desktop_entry::DesktopEntry;
 /// Represents an application entry in the Cosmic Classic Menu.
 pub struct ApplicationEntry {
     pub name: String,
+    pub generic_name: Option<String>,
     pub id: String,
     pub icon: Option<IconHandle>,
     pub comment: Option<String>,
@@ -28,6 +28,7 @@ impl Into<ApplicationEntry> for DesktopEntryData {
         ApplicationEntry {
             comment: get_comment(&self),
             is_terminal: get_is_terminal(&self),
+            generic_name: get_generic_name(&self),
             id: self.id,
             name: self.name,
             icon: match self.icon {
@@ -115,4 +116,20 @@ fn get_is_terminal(app: &DesktopEntryData) -> bool {
     }
 
     false
+}
+
+fn get_generic_name(app: &DesktopEntryData) -> Option<String> {
+    if let Some(path) = &app.path {
+        let locale = [std::env::var("LANG")
+            .ok()
+            .and_then(|l| l.split(".").next().map(str::to_string))
+            .unwrap_or_else(|| "en_US".to_string())];
+        let desktop_entry = DesktopEntry::from_path(path, Some(locale.as_slice()));
+
+        if let Ok(entry) = desktop_entry {
+            return entry.generic_name(&locale).map(|name| name.into_owned());
+        }
+    }
+
+    None
 }

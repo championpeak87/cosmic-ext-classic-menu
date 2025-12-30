@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-ext-classic-menu-applet"
-version = "0.0.10"
+version = "0.0.11"
 edition = "2021"
 authors = ["Kamil Lihan <k.lihan@outlook.com>"]
 license = "GPL-3.0-only"
@@ -26,6 +26,8 @@ which = "8.0.0"
 simple_logger = "5.1.0"
 log = "0.4.28"
 cosmic-settings-config = { git = "https://github.com/pop-os/cosmic-settings-daemon" }
+unicode-normalization = "0.1.25"
+cached = "0.56.0"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
