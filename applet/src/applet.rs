@@ -408,13 +408,13 @@ impl Applet {
     }
 
     fn close_popup(&mut self, id: Id) -> Task<Message> {
-        self.search_field.clear();
-        self.selected_category = Some(ApplicationCategory::ALL);
-        self.available_applications = load_apps();
-        self.selected_item_index = None;
-        
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
+
+            self.search_field.clear();
+            self.selected_category = Some(ApplicationCategory::ALL);
+            self.available_applications = load_apps();
+            self.selected_item_index = None;
         }
 
         Task::none()
