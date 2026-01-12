@@ -33,7 +33,7 @@ pub fn load_apps() -> Vec<Arc<ApplicationEntry>> {
             .map(Into::into)
             .map(Arc::new)
             .collect();
-    all_entries.sort_by(|a, b| a.name.cmp(&b.name));
+    all_entries.sort_by_cached_key(|a| a.name.to_lowercase());
 
     log::info!("Applications fetched");
     all_entries
