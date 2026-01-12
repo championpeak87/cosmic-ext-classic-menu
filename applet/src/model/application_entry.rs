@@ -1,5 +1,5 @@
 use cosmic::{
-    desktop::{DesktopEntryData, fde::DesktopEntry},
+    desktop::{DesktopEntryData, fde::{DesktopEntry, IconSource}},
     widget::{Id, icon::Named, image::Handle},
 };
 
@@ -39,23 +39,18 @@ impl From<DesktopEntryData> for ApplicationEntry {
             id: app.id,
             name: app.name,
             icon: match app.icon {
-                cosmic::desktop::fde::IconSource::Name(name) => Some(
-                    IconHandle::SvgHandle(
-                        cosmic::widget::icon::from_name(name.as_str())
-                            .size(64)
-                            .fallback(Some(cosmic::widget::icon::IconFallback::Names(vec![
-                                "application-default".into(),
-                                "application-x-executable".into(),
-                            ])))
-                            .prefer_svg(true)
-                            .handle()
-                            .icon()
-                            .into_svg_handle()
-                            .unwrap(),
-                    ),
+                IconSource::Name(name) => Some(
+                    cosmic::widget::icon::from_name(name.as_str())
+                        .size(64)
+                        .fallback(Some(cosmic::widget::icon::IconFallback::Names(vec![
+                            "application-default".into(),
+                            "application-x-executable".into(),
+                        ])))
+                        .prefer_svg(true)
+                        .into(),
                 ),
-                cosmic::desktop::fde::IconSource::Path(path) => {
-                    Some(IconHandle::RasterHandle(Handle::from_path(path.clone())))
+                IconSource::Path(path) => {
+                    Some(cosmic::widget::icon(cosmic::widget::icon::from_path(path.clone())).into())
                 }
             },
             exec: app.exec,

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use cosmic::cosmic_theme::Spacing;
+use cosmic::iced::window::Id;
 use cosmic::iced::{
     Alignment, Length,
     widget::{column, row},
@@ -240,8 +241,10 @@ impl AppletMenu {
                 }
                 let context_menu = Some(menu::items(&HashMap::new(), context_menu_buttons));
 
-                let widget =
-                    cosmic::widget::context_menu(button, context_menu).close_on_escape(false);
+                let widget = cosmic::widget::context_menu(button, context_menu)
+                    .close_on_escape(true)
+                    .on_surface_action(Message::ContextMenuAction)
+                    .window_id(applet.popup.unwrap_or_else(|| Id::NONE));
 
                 list.add(widget)
             },

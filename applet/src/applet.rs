@@ -8,6 +8,7 @@ use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner
 };
 use cosmic::iced::event::listen_raw;
 use cosmic::iced::keyboard::key::Named;
+use cosmic::surface::Action;
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::{
     Alignment,
@@ -17,7 +18,6 @@ use cosmic::iced::{
 };
 use cosmic::iced::{Subscription, keyboard};
 use cosmic::iced_widget::scrollable::RelativeOffset;
-use cosmic::surface::Action;
 use cosmic::{Application, Element};
 use cosmic_app_list_config::AppListConfig;
 use std::process;
@@ -27,7 +27,7 @@ use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
 use crate::config::{AppletButtonStyle, AppletConfig, RecentApplication};
 use crate::fl;
-use crate::logic::apps::{Event, desktop_files};
+use crate::logic::apps::{Event, desktop_files, load_apps};
 use crate::model::application_category::ApplicationCategory;
 use crate::model::application_entry::{ApplicationEntry, DesktopAction};
 use crate::model::popup_type::PopupType;
@@ -89,11 +89,11 @@ pub enum Message {
     SelectNextApp,
     LaunchSelectedApplication,
     SuperKeyPressed,
-    Surface(Action),
     LaunchApplicationWithAction(Arc<ApplicationEntry>, DesktopAction),
     PinToAppTray(Arc<ApplicationEntry>),
     UnPinFromAppTray(Arc<ApplicationEntry>),
     AppListConfigUpdated(AppListConfig),
+    ContextMenuAction(Action)
 }
 
 /// Implement the `Application` trait for your application.
@@ -128,10 +128,7 @@ impl Application for Applet {
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
         let window = Applet {
             core,
-            popup: None,
             search_field: "".to_owned(),
-            available_applications: vec![],
-            available_categories: vec![],
             popup_type: PopupType::MainMenu,
             selected_category: Some(ApplicationCategory::ALL),
             config: AppletConfig::config(),
@@ -139,6 +136,9 @@ impl Application for Applet {
             selected_item_index: None,
             scrollable_id: cosmic::widget::Id::unique(),
             app_list_config: Default::default(),
+            available_applications: Vec::new(),
+            available_categories: Vec::new(),
+            popup: None,
         };
 
         // fetch current user asynchronously
@@ -163,7 +163,6 @@ impl Application for Applet {
                 fetch_current_user_task,
                 fetch_all_apps_task,
                 fetch_available_categories_task,
-                // register_dbus_service_task,
             ]),
         )
     }
@@ -274,11 +273,6 @@ impl Application for Applet {
                 Task::none()
             }
             Message::SuperKeyPressed => self.toggle_popup(PopupType::MainMenu),
-            Message::Surface(action) => {
-                return cosmic::task::message(cosmic::Action::Cosmic(
-                    cosmic::app::Action::Surface(action),
-                ));
-            }
             Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
                 self.launch_application(application_entry, Some(desktop_action))
             }
@@ -307,6 +301,11 @@ impl Application for Applet {
                 self.app_list_config = app_list_config;
 
                 Task::none()
+            }
+            Message::ContextMenuAction(action) => {
+                return cosmic::task::message(cosmic::Action::Cosmic(
+                    cosmic::app::Action::Surface(action),
+                ));
             }
         }
     }
@@ -411,22 +410,15 @@ impl Applet {
     fn close_popup(&mut self, id: Id) -> Task<Message> {
         self.search_field.clear();
         self.selected_category = Some(ApplicationCategory::ALL);
-        self.available_applications = Vec::new();
+        self.available_applications = load_apps();
         self.selected_item_index = None;
-
-        if self.popup.as_ref() == Some(&id) {
-            self.popup = None;
-        } else {
-            self.search_field.clear();
-            self.selected_category = Some(ApplicationCategory::ALL);
-            self.available_applications = Vec::new();
-        }
         
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
         }
 
         Task::none()
+
     }
 
     fn clear_search(&mut self) -> Task<Message> {
