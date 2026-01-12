@@ -13,11 +13,10 @@ Classic Menu is a customizable application launcher for the COSMIC™ desktop en
 - Power options (shutdown, restart, logout, etc.)
 - System tools (settings, system monitor, disk management)
 
-## ToDo
+## Known issues
 
-- Right click menu for applications
-- Favorites applications
-- Browsing app list with arrow keys
+- Context menu is misaligned when the list is scrolled
+- Popup is not in focus when opened, search field and arrow key navigation may not work properly unless the popup is in focus by clicking on it
 
 ## Installation 
 

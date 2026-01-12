@@ -166,6 +166,20 @@
     <category>Desktop</category>
   </categories>
   <releases>
+    <release version="0.0.12" date="2026-01-01">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Added context menu for applications</li>
+          <li>List is navigable with arrow keys</li>
+        </ul>
+        <h2>Known issues</h2>
+        <ul>
+          <li>Context menu is misaligned when the list is scrolled</li>
+          <li>Popup is not in focus when opened, search field and arrow key navigation may not work properly unless the popup is in focus by clicking on it</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.0.11" date="2025-12-27">
       <description>
         <h1>What's changed</h1>
