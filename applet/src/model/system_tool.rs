@@ -34,8 +34,8 @@ impl SystemTool {
 
         // Spawn the asynchronous execution
         tokio::spawn(async move {
-            let _ = cosmic::desktop::spawn_desktop_exec(
-                "cosmic-ext-classic-menu-settings",
+            cosmic::desktop::spawn_desktop_exec(
+                SystemTool::APPLET_SETTINGS.exec,
                 env_vars,
                 app_id.as_deref(),
                 false,

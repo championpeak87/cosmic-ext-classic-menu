@@ -1,42 +1,40 @@
 [package]
 name = "cosmic-ext-classic-menu-applet"
 version = "0.0.11"
-edition = "2021"
+edition = "2024"
 authors = ["Kamil Lihan <k.lihan@outlook.com>"]
 license = "GPL-3.0-only"
 description = "A launcher applet for COSMIC™ Desktop"
 repository = "https://github.com/championpeak87/cosmic-ext-classic-menu"
 
 [dependencies]
-i18n-embed-fl = "0.8"
-open = "5.1.3"
-rust-embed = "8.3.0"
+i18n-embed-fl = { workspace = true }
+open = { workspace = true }
+rust-embed = { workspace = true }
 fuzzy-matcher = "0.3.7"
 zbus = "5.7.1"
-tokio = { version = "1.31", features = ["full"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 freedesktop-desktop-entry = "0.7.13"
-serde = "1.0.210"
+serde = { workspace = true, features = ["derive"] }
 rustix = "1.0.5"
 logind-zbus = "5.3.2"
 once_cell = "1.21.3"
-users = "0.11.0"
+users = { workspace = true }
 accounts-zbus = { git = "https://github.com/pop-os/dbus-settings-bindings" }
 notify = "*"
-which = "8.0.0"
-simple_logger = "5.1.0"
-log = "0.4.28"
+simple_logger = { workspace = true }
+log = { workspace = true }
 cosmic-settings-config = { git = "https://github.com/pop-os/cosmic-settings-daemon" }
 unicode-normalization = "0.1.25"
 cached = "0.56.0"
+futures = "0.3"
+i18n-embed = { workspace = true, features = ["fluent-system", "desktop-requester"] }
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
 default-features = false
 features = ["applet", "tokio", "wayland", "desktop"]
 
-[dependencies.i18n-embed]
-version = "0.14"
-features = ["fluent-system", "desktop-requester"]
 
 # Uncomment to test a locally-cloned libcosmic
 # [patch.'https://github.com/pop-os/libcosmic']

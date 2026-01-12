@@ -1,6 +1,6 @@
 use cosmic::{
     desktop::DesktopEntryData,
-    widget::{icon::Named, image::Handle},
+    widget::{Id, icon::Named, image::Handle},
 };
 use freedesktop_desktop_entry::DesktopEntry;
 
@@ -15,6 +15,7 @@ pub struct ApplicationEntry {
     pub exec: Option<String>,
     pub category: Vec<String>,
     pub is_terminal: bool,
+    pub item_id: Id
 }
 
 #[derive(Clone, Debug)]
@@ -48,6 +49,7 @@ impl Into<ApplicationEntry> for DesktopEntryData {
             },
             exec: self.exec,
             category: self.categories,
+            item_id: Id::unique()
         }
     }
 }

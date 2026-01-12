@@ -4,6 +4,7 @@ pub mod config;
 pub mod logic;
 pub mod power_options;
 pub mod cosmic_session;
+pub mod dbus;
 pub mod session_manager;
 pub mod applet_button;
 pub mod applet_menu;

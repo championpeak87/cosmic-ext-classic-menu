@@ -1,3 +1,16 @@
 [workspace]
 resolver = "2"
 members = ['applet', 'settings']
+
+[workspace.dependencies]
+# Unified workspace dependency versions to avoid duplicate resolution
+i18n-embed = "0.16"
+i18n-embed-fl = "0.10"
+rust-embed = "8.9.0"
+open = "5.3.3"
+simple_logger = "5.1.0"
+log = "0.4.29"
+users = "0.11.0"
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = "1.49.0"
+futures = "0.3.31"

@@ -2,13 +2,13 @@ use std::path::PathBuf;
 
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::{
-    widget::{column, row},
     Alignment, Length,
+    widget::{column, row},
 };
 use cosmic::iced::{ContentFit, Font, Limits};
-use cosmic::widget::{container, ListColumn};
+use cosmic::widget::{ListColumn, container};
 use cosmic::widget::{scrollable, text};
-use cosmic::{theme, Element};
+use cosmic::{Element, theme};
 
 use crate::applet::{Applet, Message};
 use crate::config::{HorizontalPosition, VerticalPosition};
@@ -41,10 +41,10 @@ impl AppletMenu {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
 
-        let current_user = AppletMenu::create_logged_user_widget(&applet);
-        let search_field = AppletMenu::create_search_field(&applet);
-        let app_list = AppletMenu::create_app_list(&applet);
-        let categories_pane = AppletMenu::create_categories_pane(&applet);
+        let current_user = AppletMenu::create_logged_user_widget(applet);
+        let search_field = AppletMenu::create_search_field(applet);
+        let app_list = AppletMenu::create_app_list(applet);
+        let categories_pane = AppletMenu::create_categories_pane(applet);
         let vertical_spacer =
             cosmic::applet::padded_control(cosmic::widget::divider::vertical::default())
                 .align_x(Alignment::Center)
@@ -123,8 +123,8 @@ impl AppletMenu {
         cosmic::widget::search_input(fl!("search-placeholder"), &applet.search_field)
             .on_input(Message::SearchFieldInput)
             .on_clear(Message::SearchCleared)
-            .always_active()
             .width(Length::Fill)
+            .always_active()
             .padding([space_xxs, space_s])
             .into()
     }
@@ -134,9 +134,9 @@ impl AppletMenu {
             space_l, space_xl, ..
         } = theme::active().cosmic().spacing;
 
-        let app_list: ListColumn<Message> = applet.available_applications.iter().fold(
+        let app_list: ListColumn<Message> = applet.available_applications.iter().enumerate().fold(
             cosmic::widget::list_column().padding([0., 0.]),
-            |list, app| {
+            |list, (index, app)| {
                 let button = cosmic::widget::button::custom(
                     row![
                         match app.icon.clone().unwrap_or_default() {
@@ -165,7 +165,15 @@ impl AppletMenu {
                     .align_y(Alignment::Center),
                 )
                 .on_press(Message::ApplicationSelected(app.clone()))
-                .class(cosmic::theme::Button::MenuItem)
+                .class(
+                    if applet.selected_item_index.is_some()
+                        && index == applet.selected_item_index.unwrap()
+                    {
+                        cosmic::theme::Button::Suggested
+                    } else {
+                        cosmic::theme::Button::AppletMenu
+                    },
+                )
                 .width(Length::Fill)
                 .height(space_xl);
 
@@ -176,6 +184,7 @@ impl AppletMenu {
         scrollable(app_list)
             .height(Length::Fill)
             .width(Length::FillPortion(5))
+            .id(applet.scrollable_id.clone())
             .into()
     }
 

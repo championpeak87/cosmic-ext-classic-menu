@@ -12,6 +12,7 @@ mod session_manager;
 mod applet_button;
 mod applet_menu;
 mod model;
+mod dbus;
 
 fn main() -> cosmic::iced::Result {
     // Initialize logging
