@@ -26,3 +26,7 @@ no-apps=Aucune application trouvée
 
 # bouton de l'applet
 menu-label=Menu
+
+# menu contextuel des applications
+launch=Lancer
+pin-to-panel=Épingler au panneau

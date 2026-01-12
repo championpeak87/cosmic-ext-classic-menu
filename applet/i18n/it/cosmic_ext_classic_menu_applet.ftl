@@ -26,3 +26,7 @@ no-apps=Nessuna app trovata
 
 # pulsante applet
 menu-label=Menu
+
+# menu contestuale dell'applicazione
+launch=Avvia
+pin-to-panel=Fissa al pannello

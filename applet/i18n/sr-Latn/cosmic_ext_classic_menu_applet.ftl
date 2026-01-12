@@ -26,3 +26,7 @@ no-apps=Nisu pronađene aplikacije
 
 # dugme apleta
 menu-label=Meni
+
+# kontekstni meni aplikacije
+launch=Pokreni
+pin-to-panel=Zakači na panelu

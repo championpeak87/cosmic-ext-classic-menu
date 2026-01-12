@@ -26,3 +26,7 @@ no-apps=Inga appar hittades
 
 # applet-knapp
 menu-label=Meny
+
+# programmets snabbmeny
+launch=Starta
+pin-to-panel=Fäst på panelen

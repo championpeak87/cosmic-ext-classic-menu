@@ -24,3 +24,7 @@ no-apps=Nebyly nalezeny žádné aplikace
 
 # tlačítko appletu
 menu-label=Menu
+
+# místní nabídka aplikace
+launch=Spustit
+pin-to-panel=Připnout k panelu

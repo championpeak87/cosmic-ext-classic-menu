@@ -26,3 +26,7 @@ no-apps=Nincsenek alkalmazások
 
 # applet gomb
 menu-label=Menü
+
+# alkalmazás helyi menü
+launch=Indítás
+pin-to-panel=Rögzítés a panelhez

@@ -26,3 +26,7 @@ no-apps=앱을 찾을 수 없습니다
 
 # 애플릿 버튼
 menu-label=메뉴
+
+# 애플리케이션 컨텍스트 메뉴
+launch=실행
+pin-to-panel=패널에 고정

@@ -26,3 +26,7 @@ no-apps=未找到应用
 
 # 小程序按钮
 menu-label=菜单
+
+# 应用程序上下文菜单
+launch=启动
+pin-to-panel=固定到面板

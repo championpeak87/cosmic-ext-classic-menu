@@ -24,5 +24,9 @@ disks-label = Disky
 search-placeholder = Vyhľadávanie aplikácií
 no-apps = Nenašli sa žiadne aplikácie
 
-# applet button
+# tlačidlo appletu
 menu-label = Menu
+
+# kontextová ponuka aplikácie
+launch = Spustiť
+pin-to-panel = Pripnúť na panel

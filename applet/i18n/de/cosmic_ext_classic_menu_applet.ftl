@@ -26,3 +26,7 @@ no-apps=Keine Apps gefunden
 
 # Applet-Taste
 menu-label=Menü
+
+# Anwendungskontextmenü
+launch=Starten
+pin-to-panel=An Leiste anheften

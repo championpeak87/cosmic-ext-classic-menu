@@ -26,3 +26,7 @@ no-apps=找不到應用程式
 
 # 小工具按鈕
 menu-label=選單
+
+# 應用程式右鍵選單
+launch=啟動
+pin-to-panel=釘選到面板

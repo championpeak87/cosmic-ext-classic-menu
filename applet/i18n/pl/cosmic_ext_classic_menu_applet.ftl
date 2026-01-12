@@ -26,3 +26,7 @@ no-apps=Nie znaleziono aplikacji
 
 # przycisk appletu
 menu-label=Menu
+
+# menu kontekstowe aplikacji
+launch=Uruchom
+pin-to-panel=Przypnij do panelu

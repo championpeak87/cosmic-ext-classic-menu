@@ -26,3 +26,7 @@ no-apps=No se encontraron aplicaciones
 
 # botón del applet
 menu-label=Menú
+
+# menú contextual de aplicación
+launch=Iniciar
+pin-to-panel=Fijar al panel

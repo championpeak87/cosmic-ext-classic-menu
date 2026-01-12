@@ -26,3 +26,7 @@ no-apps=Hiçbir uygulama bulunamadı
 
 # applet düğmesi
 menu-label=Menü
+
+# uygulama bağlam menüsü
+launch=Başlat
+pin-to-panel=Panele Sabitle
