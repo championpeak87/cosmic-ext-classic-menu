@@ -68,8 +68,6 @@ pub struct Applet {
     pub context_menus: std::collections::HashMap<String, Vec<cosmic::widget::menu::Tree<Message>>>,
     /// Scroll offset for virtualization (pixels from top)
     pub scroll_offset: f32,
-    /// Item height (pixels)
-    pub item_height: f32,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -95,9 +93,6 @@ pub enum Message {
     SelectNextApp,
     LaunchSelectedApplication,
     SuperKeyPressed,
-    LaunchApplicationWithAction(Arc<ApplicationEntry>, DesktopAction),
-    PinToAppTray(Arc<ApplicationEntry>),
-    UnPinFromAppTray(Arc<ApplicationEntry>),
     AppListConfigUpdated(AppListConfig),
     ContextMenuAction(Action),
     LaunchApplicationAt(usize),
@@ -151,7 +146,6 @@ impl Application for Applet {
             popup: None,
             context_menus: std::collections::HashMap::new(),
             scroll_offset: 0.0,
-            item_height: 50.0,
         };
 
         // fetch current user asynchronously
@@ -338,9 +332,6 @@ impl Application for Applet {
                 Task::none()
             }
             Message::SuperKeyPressed => self.toggle_popup(PopupType::MainMenu),
-            Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
-                self.launch_application(application_entry, Some(desktop_action))
-            }
             Message::LaunchApplicationAt(index) => {
                 if let Some(app) = self.available_applications.get(index).cloned() {
                     return self.launch_application(app, None);
@@ -353,16 +344,6 @@ impl Application for Applet {
                     if let Some(action) = app.desktop_actions.get(action_index).cloned() {
                         return self.launch_application(app, Some(action));
                     }
-                }
-
-                Task::none()
-            }
-            Message::PinToAppTray(app) => {
-                let pinned_id = app.id.clone();
-                if let Some(app_list_helper) =
-                    Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
-                {
-                    self.app_list_config.add_pinned(pinned_id, &app_list_helper);
                 }
 
                 Task::none()
@@ -428,17 +409,6 @@ impl Application for Applet {
                         let trees = cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons);
                         self.context_menus.insert(app.id.clone(), trees);
                     }
-                }
-
-                Task::none()
-            }
-            Message::UnPinFromAppTray(app) => {
-                let pinned_id = app.id.clone();
-                if let Some(app_list_helper) =
-                    Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
-                {
-                    self.app_list_config
-                        .remove_pinned(&pinned_id, &app_list_helper);
                 }
 
                 Task::none()

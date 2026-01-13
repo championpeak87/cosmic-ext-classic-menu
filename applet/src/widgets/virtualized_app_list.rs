@@ -35,7 +35,8 @@ impl VirtualizedAppList {
             space_l, space_xl, ..
         } = theme::active().cosmic().spacing;
 
-        let item_height = applet.item_height;
+        // Use actual button height from theme spacing
+        let item_height = space_xl as f32;
         let scroll_offset = applet.scroll_offset;
         let total_items = applet.available_applications.len();
         
@@ -108,15 +109,23 @@ impl VirtualizedAppList {
         space_l: u16,
         space_xl: u16,
     ) -> Element<'a, Message> {
+        // Show comment only if item height is sufficient (at least 60 pixels)
+        let show_comment = space_xl >= 40;
+
         let button = cosmic::widget::button::custom(
             row![
                 Self::create_icon_widget(app, space_l),
                 cosmic::widget::Space::new(5, Length::Fill),
-                column![
-                    text(&app.name),
-                    text(app.comment.as_deref().unwrap_or_default()).size(8.0),
-                ]
-                .padding([0, 0]),
+                if show_comment {
+                    column![
+                        text(&app.name),
+                        text(app.comment.as_deref().unwrap_or_default()).size(8.0),
+                    ]
+                    .padding([0, 0])
+                } else {
+                    column![text(&app.name)]
+                        .padding([0, 0])
+                },
             ]
             .align_y(Alignment::Center),
         )
