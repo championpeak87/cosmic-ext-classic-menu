@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::{
@@ -14,7 +13,6 @@ use cosmic::{Element, theme};
 use crate::applet::{Applet, Message};
 use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
-use crate::model::application_entry::{ApplicationEntry, DesktopAction};
 use crate::model::power_action::PowerAction;
 use crate::widgets::VirtualizedAppList;
 

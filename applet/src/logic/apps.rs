@@ -7,6 +7,7 @@ use std::{collections::HashMap, string::String, sync::Arc};
 use cached::{proc_macro::cached, UnboundCache};
 use cosmic_app_list_config::AppListConfig;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 use cosmic::{
     iced::{stream, Subscription},
@@ -39,10 +40,14 @@ pub fn load_apps() -> Vec<Arc<ApplicationEntry>> {
     all_entries
 }
 
-pub fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
-    use unicode_normalization::UnicodeNormalization;
+/// Strip diacritics (accents) from a string using NFD decomposition
+fn strip_diacritics(s: &str) -> String {
+    s.nfd()
+        .filter(|c| !is_combining_mark(*c))
+        .collect()
+}
 
-    let filter = filter.trim().nfc().collect::<String>();
+pub fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
     let apps = load_apps();
 
     // If filter is empty, return all apps unsorted
@@ -51,25 +56,30 @@ pub fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
     }
 
     let matcher = SkimMatcherV2::default();
+    // Strip diacritics from filter to match accented characters
+    let normalized_filter = strip_diacritics(&filter);
 
     let mut scored: Vec<(i64, Arc<ApplicationEntry>)> = apps
         .into_iter()
         .filter_map(|app| {
-            // Match against the name
-            let name_score = matcher.fuzzy_match(&app.name, &filter);
+            // Strip diacritics from app fields for comparison
+            let name_normalized = strip_diacritics(&app.name);
+            let generic_name_normalized = app.generic_name.as_ref().map(|s| strip_diacritics(s));
+            let comment_normalized = app.comment.as_ref().map(|s| strip_diacritics(s));
 
-            // Match against the generic name
-            let generic_name_score = app
-                .generic_name
+            // Match against the normalized name
+            let name_score = matcher.fuzzy_match(&name_normalized, &normalized_filter);
+
+            // Match against the normalized generic name
+            let generic_name_score = generic_name_normalized
                 .as_ref()
-                .and_then(|d| matcher.fuzzy_match(d, &filter))
+                .and_then(|d| matcher.fuzzy_match(d, &normalized_filter))
                 .map(|x| x - 2); // penalize generic_name by 2
 
-            // Match against the comment
-            let comment_score = app
-                .comment
+            // Match against the normalized comment
+            let comment_score = comment_normalized
                 .as_ref()
-                .and_then(|d| matcher.fuzzy_match(d, &filter))
+                .and_then(|d| matcher.fuzzy_match(d, &normalized_filter))
                 .map(|x| x - 5); // penalize comment by 5
 
             // Take the best score from all fields
@@ -147,7 +157,7 @@ pub fn get_apps_of_category(category: ApplicationCategory) -> Vec<Arc<Applicatio
     } else {
         load_apps()
             .into_iter()
-            .filter(|app| app.category.contains(&category.mime_name.to_string()))
+            .filter(|app| app.category.iter().any(|c| c == category.mime_name))
             .collect()
     }
 }

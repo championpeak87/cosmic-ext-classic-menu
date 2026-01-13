@@ -100,7 +100,6 @@ pub enum Message {
     UnPinFromAppTray(Arc<ApplicationEntry>),
     AppListConfigUpdated(AppListConfig),
     ContextMenuAction(Action),
-    // Index-based actions for lightweight menu actions
     LaunchApplicationAt(usize),
     LaunchApplicationWithActionAt(usize, usize),
     PinToAppTrayIndex(usize, bool),
@@ -816,6 +815,11 @@ impl Applet {
     }
 
     fn select_next_app(&mut self) -> cosmic::Task<cosmic::Action<Message>> {
+        // Disable keyboard selection during active search to avoid re-render overhead
+        if !self.search_field.is_empty() {
+            return Task::none();
+        }
+        
         if self.selected_item_index.is_none() && !self.available_applications.is_empty() {
             self.selected_item_index = Some(0);
         } else if let Some(index) = self.selected_item_index {

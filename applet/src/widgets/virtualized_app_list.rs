@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::window::Id;
 use cosmic::iced::{Alignment, ContentFit, Length};
 use cosmic::iced::widget::{column, row};
-use cosmic::widget::{container, menu, ListColumn, scrollable};
+use cosmic::widget::{container, ListColumn, scrollable};
 use cosmic::widget::text;
 use cosmic::{Element, theme};
 
 use crate::applet::{Applet, Message};
-use crate::applet_menu::ContextMenuAction;
 use crate::model::application_entry::ApplicationEntry;
 
 /// A virtualized app list widget that only renders visible items for performance.
