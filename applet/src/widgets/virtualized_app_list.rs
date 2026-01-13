@@ -189,40 +189,10 @@ impl VirtualizedAppList {
         applet: &'a Applet,
         app: &'a Arc<ApplicationEntry>,
     ) -> Option<Vec<cosmic::widget::menu::Tree<Message>>> {
-        let is_app_in_favorites =
-            crate::logic::apps::is_app_in_favorites(app, &applet.app_list_config);
-
-        let mut context_menu_buttons: Vec<menu::Item<ContextMenuAction<'a>, _>> = vec![
-            menu::Item::Button(
-                crate::fl!("launch"),
-                None,
-                ContextMenuAction::LaunchApplication(app),
-            ),
-            menu::Item::CheckBox(
-                crate::fl!("pin-to-panel"),
-                None,
-                is_app_in_favorites,
-                ContextMenuAction::PinToPanel(app, is_app_in_favorites),
-            ),
-        ];
-
-        let additional_options_buttons: Vec<menu::Item<ContextMenuAction<'a>, _>> = app
-            .desktop_actions
-            .iter()
-            .map(|action| {
-                menu::Item::Button(
-                    action.name.to_string(),
-                    None,
-                    ContextMenuAction::LaunchApplicationWithAction(app, action),
-                )
-            })
-            .collect();
-
-        if !additional_options_buttons.is_empty() {
-            context_menu_buttons.push(menu::Item::Divider);
-            context_menu_buttons.extend(additional_options_buttons);
-        }
-
-        Some(menu::items(&HashMap::new(), context_menu_buttons))
+        // Use cached menu trees if available (built in Applet when apps are updated)
+        applet
+            .context_menus
+            .get(&app.id)
+            .cloned()
     }
 }

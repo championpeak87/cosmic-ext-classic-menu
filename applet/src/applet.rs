@@ -64,6 +64,8 @@ pub struct Applet {
     pub scrollable_id: cosmic::widget::Id,
     /// List of pinned apps
     pub app_list_config: AppListConfig,
+    /// Cached context menus for applications (built once when apps are loaded)
+    pub context_menus: std::collections::HashMap<String, Vec<cosmic::widget::menu::Tree<Message>>>,
     /// Scroll offset for virtualization (pixels from top)
     pub scroll_offset: f32,
     /// Item height (pixels)
@@ -98,6 +100,10 @@ pub enum Message {
     UnPinFromAppTray(Arc<ApplicationEntry>),
     AppListConfigUpdated(AppListConfig),
     ContextMenuAction(Action),
+    // Index-based actions for lightweight menu actions
+    LaunchApplicationAt(usize),
+    LaunchApplicationWithActionAt(usize, usize),
+    PinToAppTrayIndex(usize, bool),
     ScrollUpdated(Viewport),
 }
 
@@ -144,6 +150,7 @@ impl Application for Applet {
             available_applications: Vec::new(),
             available_categories: Vec::new(),
             popup: None,
+            context_menus: std::collections::HashMap::new(),
             scroll_offset: 0.0,
             item_height: 50.0,
         };
@@ -259,6 +266,58 @@ impl Application for Applet {
             Message::UpdateAvailableApplications(items) => {
                 self.available_applications = items;
 
+                // Build and cache context menus for each application once
+                self.context_menus.clear();
+                for (app_index, app) in self.available_applications.iter().enumerate() {
+                    let is_app_in_favorites =
+                        crate::logic::apps::is_app_in_favorites(app, &self.app_list_config);
+
+                    let mut context_menu_buttons: Vec<cosmic::widget::menu::Item<
+                        crate::applet_menu::ContextMenuAction,
+                        _,
+                    >> = vec![
+                        cosmic::widget::menu::Item::Button(
+                            crate::fl!("launch"),
+                            None,
+                            crate::applet_menu::ContextMenuAction::LaunchApplication(app_index),
+                        ),
+                        cosmic::widget::menu::Item::CheckBox(
+                            crate::fl!("pin-to-panel"),
+                            None,
+                            is_app_in_favorites,
+                            crate::applet_menu::ContextMenuAction::PinToPanel(
+                                app_index,
+                                is_app_in_favorites,
+                            ),
+                        ),
+                    ];
+
+                    let additional_options_buttons: Vec<cosmic::widget::menu::Item<
+                        crate::applet_menu::ContextMenuAction,
+                        _,
+                    >> = app
+                        .desktop_actions
+                        .iter()
+                        .enumerate()
+                        .map(|(action_index, action)| {
+                            cosmic::widget::menu::Item::Button(
+                                action.name.to_string(),
+                                None,
+                                crate::applet_menu::ContextMenuAction::
+                                    LaunchApplicationWithAction(app_index, action_index),
+                            )
+                        })
+                        .collect();
+
+                    if !additional_options_buttons.is_empty() {
+                        context_menu_buttons.push(cosmic::widget::menu::Item::Divider);
+                        context_menu_buttons.extend(additional_options_buttons);
+                    }
+
+                    let trees = cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons);
+                    self.context_menus.insert(app.id.clone(), trees);
+                }
+
                 Task::none()
             }
             Message::UpdateAvailableCategories(items) => {
@@ -283,12 +342,93 @@ impl Application for Applet {
             Message::LaunchApplicationWithAction(application_entry, desktop_action) => {
                 self.launch_application(application_entry, Some(desktop_action))
             }
+            Message::LaunchApplicationAt(index) => {
+                if let Some(app) = self.available_applications.get(index).cloned() {
+                    return self.launch_application(app, None);
+                }
+
+                Task::none()
+            }
+            Message::LaunchApplicationWithActionAt(app_index, action_index) => {
+                if let Some(app) = self.available_applications.get(app_index).cloned() {
+                    if let Some(action) = app.desktop_actions.get(action_index).cloned() {
+                        return self.launch_application(app, Some(action));
+                    }
+                }
+
+                Task::none()
+            }
             Message::PinToAppTray(app) => {
                 let pinned_id = app.id.clone();
                 if let Some(app_list_helper) =
                     Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
                 {
                     self.app_list_config.add_pinned(pinned_id, &app_list_helper);
+                }
+
+                Task::none()
+            }
+            Message::PinToAppTrayIndex(app_index, favorites) => {
+                if let Some(app) = self.available_applications.get(app_index).cloned() {
+                    let pinned_id = app.id.clone();
+                    if let Some(app_list_helper) =
+                        Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
+                    {
+                        if favorites {
+                            // currently favorites==true indicates it is pinned; request unpin
+                            self.app_list_config
+                                .remove_pinned(&pinned_id, &app_list_helper);
+                        } else {
+                            self.app_list_config.add_pinned(pinned_id, &app_list_helper);
+                        }
+                        
+                        // Rebuild the cached menu for this app to reflect the new pin state
+                        let new_is_favorites = !favorites;
+                        let mut context_menu_buttons: Vec<cosmic::widget::menu::Item<
+                            crate::applet_menu::ContextMenuAction,
+                            _,
+                        >> = vec![
+                            cosmic::widget::menu::Item::Button(
+                                crate::fl!("launch"),
+                                None,
+                                crate::applet_menu::ContextMenuAction::LaunchApplication(app_index),
+                            ),
+                            cosmic::widget::menu::Item::CheckBox(
+                                crate::fl!("pin-to-panel"),
+                                None,
+                                new_is_favorites,
+                                crate::applet_menu::ContextMenuAction::PinToPanel(
+                                    app_index,
+                                    new_is_favorites,
+                                ),
+                            ),
+                        ];
+
+                        let additional_options_buttons: Vec<cosmic::widget::menu::Item<
+                            crate::applet_menu::ContextMenuAction,
+                            _,
+                        >> = app
+                            .desktop_actions
+                            .iter()
+                            .enumerate()
+                            .map(|(action_index, action)| {
+                                cosmic::widget::menu::Item::Button(
+                                    action.name.to_string(),
+                                    None,
+                                    crate::applet_menu::ContextMenuAction::
+                                        LaunchApplicationWithAction(app_index, action_index),
+                                )
+                            })
+                            .collect();
+
+                        if !additional_options_buttons.is_empty() {
+                            context_menu_buttons.push(cosmic::widget::menu::Item::Divider);
+                            context_menu_buttons.extend(additional_options_buttons);
+                        }
+
+                        let trees = cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons);
+                        self.context_menus.insert(app.id.clone(), trees);
+                    }
                 }
 
                 Task::none()

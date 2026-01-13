@@ -19,27 +19,22 @@ use crate::model::power_action::PowerAction;
 use crate::widgets::VirtualizedAppList;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ContextMenuAction<'a> {
-    LaunchApplication(&'a Arc<ApplicationEntry>),
-    LaunchApplicationWithAction(&'a Arc<ApplicationEntry>, &'a DesktopAction),
-    PinToPanel(&'a Arc<ApplicationEntry>, bool),
+pub enum ContextMenuAction {
+    LaunchApplication(usize),
+    LaunchApplicationWithAction(usize, usize),
+    PinToPanel(usize, bool),
 }
 
-impl menu::Action for ContextMenuAction<'_> {
+impl menu::Action for ContextMenuAction {
     type Message = Message;
     fn message(&self) -> Self::Message {
         match self {
-            ContextMenuAction::LaunchApplication(app) => {
-                Message::ApplicationSelected((*app).clone())
+            ContextMenuAction::LaunchApplication(index) => Message::LaunchApplicationAt(*index),
+            ContextMenuAction::LaunchApplicationWithAction(app_index, action_index) => {
+                Message::LaunchApplicationWithActionAt(*app_index, *action_index)
             }
-            ContextMenuAction::LaunchApplicationWithAction(app, desktop_action) => {
-                Message::LaunchApplicationWithAction((*app).clone(), (*desktop_action).clone())
-            }
-            ContextMenuAction::PinToPanel(app, favorites) => {
-                match favorites {
-                    true => Message::UnPinFromAppTray((*app).clone()),
-                    false => Message::PinToAppTray((*app).clone()),
-                }
+            ContextMenuAction::PinToPanel(index, favorites) => {
+                Message::PinToAppTrayIndex(*index, *favorites)
             }
         }
     }
