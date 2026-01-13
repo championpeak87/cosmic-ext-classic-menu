@@ -155,10 +155,13 @@ impl VirtualizedAppList {
         app: &Arc<ApplicationEntry>,
         space_l: u16,
     ) -> Element<'_, Message> {
-        match app.icon.clone().unwrap_or_default() {
+        let default_icon = crate::model::application_entry::IconHandle::default();
+        let icon_handle = app.icon.as_ref().unwrap_or(&default_icon);
+        
+        match icon_handle {
             crate::model::application_entry::IconHandle::SvgHandle(handle) => {
                 container(
-                    cosmic::widget::svg(handle)
+                    cosmic::widget::svg(handle.clone())
                         .width(Length::Fixed(space_l.into()))
                         .height(Length::Fixed(space_l.into()))
                         .content_fit(ContentFit::Contain),
@@ -167,7 +170,7 @@ impl VirtualizedAppList {
             }
             crate::model::application_entry::IconHandle::RasterHandle(handle) => {
                 container(
-                    cosmic::widget::image(handle)
+                    cosmic::widget::image(handle.clone())
                         .width(Length::Fixed(space_l.into()))
                         .height(Length::Fixed(space_l.into()))
                         .content_fit(ContentFit::Contain),
