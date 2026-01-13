@@ -9,3 +9,4 @@ pub mod session_manager;
 pub mod applet_button;
 pub mod applet_menu;
 pub mod model;
+pub mod widgets;

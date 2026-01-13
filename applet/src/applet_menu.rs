@@ -1,16 +1,14 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use cosmic::cosmic_theme::Spacing;
-use cosmic::iced::window::Id;
 use cosmic::iced::{
     Alignment, Length,
     widget::{column, row},
 };
 use cosmic::iced::{ContentFit, Font, Limits};
-use cosmic::widget::{container, menu, ListColumn};
-use cosmic::widget::{scrollable, text};
+use cosmic::widget::{container, menu};
+use cosmic::widget::text;
 use cosmic::{Element, theme};
 
 use crate::applet::{Applet, Message};
@@ -18,6 +16,7 @@ use crate::config::{HorizontalPosition, VerticalPosition};
 use crate::fl;
 use crate::model::application_entry::{ApplicationEntry, DesktopAction};
 use crate::model::power_action::PowerAction;
+use crate::widgets::VirtualizedAppList;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ContextMenuAction<'a> {
@@ -161,100 +160,7 @@ impl AppletMenu {
     }
 
     fn create_app_list(applet: &Applet) -> Element<'_, Message> {
-        let Spacing {
-            space_l, space_xl, ..
-        } = theme::active().cosmic().spacing;
-
-        let app_list: ListColumn<Message> = applet.available_applications.iter().enumerate().fold(
-            cosmic::widget::list_column().padding([0., 0.]),
-            |list, (index, app)| {
-                let button = cosmic::widget::button::custom(
-                    row![
-                        match app.icon.clone().unwrap_or_default() {
-                            crate::model::application_entry::IconHandle::SvgHandle(handle) =>
-                                container(
-                                    cosmic::widget::svg(handle)
-                                        .width(Length::Fixed(space_l.into()))
-                                        .height(Length::Fixed(space_l.into()))
-                                        .content_fit(ContentFit::Contain)
-                                ),
-                            crate::model::application_entry::IconHandle::RasterHandle(handle) =>
-                                container(
-                                    cosmic::widget::image(handle)
-                                        .width(Length::Fixed(space_l.into()))
-                                        .height(Length::Fixed(space_l.into()))
-                                        .content_fit(ContentFit::Contain)
-                                ),
-                        },
-                        cosmic::widget::Space::new(5, Length::Fill),
-                        column![
-                            text(&app.name),
-                            text(app.comment.as_deref().unwrap_or_default()).size(8.0),
-                        ]
-                        .padding([0, 0]),
-                    ]
-                    .align_y(Alignment::Center),
-                )
-                .on_press(Message::ApplicationSelected(app.clone()))
-                .class(
-                    if applet.selected_item_index.is_some()
-                        && index == applet.selected_item_index.unwrap()
-                    {
-                        cosmic::theme::Button::Suggested
-                    } else {
-                        cosmic::theme::Button::AppletMenu
-                    },
-                )
-                .width(Length::Fill)
-                .height(space_xl);
-
-                let is_app_in_favorites = crate::logic::apps::is_app_in_favorites(app, &applet.app_list_config);
-                let mut context_menu_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> = vec![
-                    menu::Item::Button(
-                        fl!("launch"),
-                        None,
-                        ContextMenuAction::LaunchApplication(app),
-                    ),
-                    menu::Item::CheckBox(
-                        fl!("pin-to-panel"),
-                        None,
-                        is_app_in_favorites,
-                        ContextMenuAction::PinToPanel(app, is_app_in_favorites),
-                    ),
-                ];
-
-                let additional_options_buttons: Vec<menu::Item<ContextMenuAction<'_>, _>> = app
-                    .desktop_actions
-                    .iter()
-                    .map(|action| {
-                        menu::Item::Button(
-                            action.name.to_string(),
-                            None,
-                            ContextMenuAction::LaunchApplicationWithAction(app, action),
-                        )
-                    })
-                    .collect();
-
-                if !additional_options_buttons.is_empty() {
-                    context_menu_buttons.push(menu::Item::Divider);
-                    context_menu_buttons.extend(additional_options_buttons);
-                }
-                let context_menu = Some(menu::items(&HashMap::new(), context_menu_buttons));
-
-                let widget = cosmic::widget::context_menu(button, context_menu)
-                    .close_on_escape(true)
-                    .on_surface_action(Message::ContextMenuAction)
-                    .window_id(applet.popup.unwrap_or_else(|| Id::NONE));
-
-                list.add(widget)
-            },
-        );
-
-        scrollable(app_list)
-            .height(Length::Fill)
-            .width(Length::FillPortion(5))
-            .id(applet.scrollable_id.clone())
-            .into()
+        VirtualizedAppList::view(applet)
     }
 
     fn create_categories_pane(applet: &Applet) -> Element<'_, Message> {

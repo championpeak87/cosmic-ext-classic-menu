@@ -17,7 +17,7 @@ use cosmic::iced::{
     window::Id,
 };
 use cosmic::iced::{Subscription, keyboard};
-use cosmic::iced_widget::scrollable::RelativeOffset;
+use cosmic::iced_widget::scrollable::{RelativeOffset, Viewport};
 use cosmic::{Application, Element};
 use cosmic_app_list_config::AppListConfig;
 use std::process;
@@ -64,6 +64,10 @@ pub struct Applet {
     pub scrollable_id: cosmic::widget::Id,
     /// List of pinned apps
     pub app_list_config: AppListConfig,
+    /// Scroll offset for virtualization (pixels from top)
+    pub scroll_offset: f32,
+    /// Item height (pixels)
+    pub item_height: f32,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -93,7 +97,8 @@ pub enum Message {
     PinToAppTray(Arc<ApplicationEntry>),
     UnPinFromAppTray(Arc<ApplicationEntry>),
     AppListConfigUpdated(AppListConfig),
-    ContextMenuAction(Action)
+    ContextMenuAction(Action),
+    ScrollUpdated(Viewport),
 }
 
 /// Implement the `Application` trait for your application.
@@ -139,6 +144,8 @@ impl Application for Applet {
             available_applications: Vec::new(),
             available_categories: Vec::new(),
             popup: None,
+            scroll_offset: 0.0,
+            item_height: 50.0,
         };
 
         // fetch current user asynchronously
@@ -306,6 +313,10 @@ impl Application for Applet {
                 return cosmic::task::message(cosmic::Action::Cosmic(
                     cosmic::app::Action::Surface(action),
                 ));
+            }
+            Message::ScrollUpdated(viewport) => {
+                self.scroll_offset = viewport.absolute_offset().y;
+                Task::none()
             }
         }
     }
