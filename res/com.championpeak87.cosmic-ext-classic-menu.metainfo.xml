@@ -11,6 +11,7 @@
   <url type="help">https://github.com/championpeak87/cosmic-ext-classic-menu#readme</url>
   <url type="contact">mailto:k.lihan@outlook.com</url>
   <name>Classic Menu</name>
+  <name xml:lang="cs">Klasické menu</name>
   <summary>A launcher applet for the COSMIC™ Desktop</summary>
   <summary xml:lang="cs">Applet spouštěče pro plochu COSMIC™</summary>
   <summary xml:lang="de">Ein Starter-Applet für den COSMIC™ Desktop</summary>
@@ -23,7 +24,7 @@
   <summary xml:lang="sk">Spúšťací applet pre plochu COSMIC™</summary>
   <description>
     <p>Classic Menu is a launcher applet for the COSMIC™ Desktop environment, providing quick access to applications, system functions, and settings. Features include:</p>
-    <p xml:lang="cs">Classic Menu je spouštěcí applet pro prostředí COSMIC™ Desktop, který nabízí rychlý přístup k aplikacím, systémovým funkcím a nastavením. Umožňuje:</p>
+    <p xml:lang="cs">Klasické menu je applet spouštěče pro prostředí COSMIC™, který nabízí rychlý přístup k aplikacím, systémovým funkcím a nastavením. Umožňuje:</p>
     <p xml:lang="de">Classic Menu ist ein Starter-Applet für die COSMIC™ Desktop-Umgebung und bietet schnellen Zugriff auf Anwendungen, Systemfunktionen und Einstellungen. Funktionen:</p>
     <p xml:lang="fr">Classic Menu est un applet de lancement pour l'environnement COSMIC™ Desktop, offrant un accès rapide aux applications, fonctions système et paramètres. Fonctionnalités :</p>
     <p xml:lang="es">Classic Menu es un applet lanzador para el entorno COSMIC™ Desktop, que proporciona acceso rápido a aplicaciones, funciones del sistema y configuraciones. Características:</p>
@@ -142,17 +143,15 @@
       <image>
         https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/cosmic-ext-classic-menu-applet.png
       </image>
-      <caption>
-        Main menu screenshot
-      </caption>
+      <caption>Main menu screenshot</caption>
+      <caption xml:lang="cs">Hlavní menu</caption>
      </screenshot>
      <screenshot type="default">
       <image>
         https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/cosmic-ext-classic-menu-settings.png
       </image>
-      <caption>
-        Applet settings
-      </caption>
+      <caption>Applet settings</caption>
+      <caption xml:lang="cs">Nastavení appletu</caption>
      </screenshot>
   </screenshots>
   <provides>

@@ -1,7 +1,7 @@
 # kategorie
 all-applications=Všechny aplikace
 recently-used=Nedávno použité
-audio=Audio
+audio=Zvuk
 video=Video
 development=Vývoj
 games=Hry
@@ -10,12 +10,12 @@ network=Síť
 office=Kancelář
 science=Věda
 settings=Nastavení
-system=System
-utility=Utility
+system=Systém
+utility=Nástroje
 
 # kontextové menu
 system-monitor-label=Monitor systému
-settings-label=Konfigurace systému
+settings-label=Nastavení systému
 disks-label=Disky
 
 # hlavní menu
