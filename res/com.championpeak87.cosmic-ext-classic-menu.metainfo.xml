@@ -166,12 +166,13 @@
     <category>Desktop</category>
   </categories>
   <releases>
-    <release version="0.0.12" date="2026-01-01">
+    <release version="0.0.12" date="2026-02-26">
       <description>
         <h1>What's changed</h1>
         <ul>
           <li>Added context menu for applications</li>
           <li>List is navigable with arrow keys</li>
+          <li>Resolved issue with some of the applications icons not being displayed properly</li>
         </ul>
         <h2>Known issues</h2>
         <ul>
