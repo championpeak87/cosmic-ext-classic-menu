@@ -6,10 +6,9 @@ use cosmic::applet::cosmic_panel_config::PanelAnchor;
 use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner::{
     Anchor, Gravity,
 };
+use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::event::listen_raw;
 use cosmic::iced::keyboard::key::Named;
-use cosmic::surface::Action;
-use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::{
     Alignment,
     platform_specific::shell::commands::popup::{destroy_popup, get_popup},
@@ -18,6 +17,7 @@ use cosmic::iced::{
 };
 use cosmic::iced::{Subscription, keyboard};
 use cosmic::iced_widget::scrollable::{RelativeOffset, Viewport};
+use cosmic::surface::Action;
 use cosmic::{Application, Element};
 use cosmic_app_list_config::AppListConfig;
 use std::process;
@@ -265,10 +265,9 @@ impl Application for Applet {
                     let is_app_in_favorites =
                         crate::logic::apps::is_app_in_favorites(app, &self.app_list_config);
 
-                    let mut context_menu_buttons: Vec<cosmic::widget::menu::Item<
-                        crate::applet_menu::ContextMenuAction,
-                        _,
-                    >> = vec![
+                    let mut context_menu_buttons: Vec<
+                        cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
+                    > = vec![
                         cosmic::widget::menu::Item::Button(
                             crate::fl!("launch"),
                             None,
@@ -285,29 +284,31 @@ impl Application for Applet {
                         ),
                     ];
 
-                    let additional_options_buttons: Vec<cosmic::widget::menu::Item<
-                        crate::applet_menu::ContextMenuAction,
-                        _,
-                    >> = app
-                        .desktop_actions
-                        .iter()
-                        .enumerate()
-                        .map(|(action_index, action)| {
-                            cosmic::widget::menu::Item::Button(
+                    let additional_options_buttons: Vec<
+                        cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
+                    > =
+                        app.desktop_actions
+                            .iter()
+                            .enumerate()
+                            .map(|(action_index, action)| {
+                                cosmic::widget::menu::Item::Button(
                                 action.name.to_string(),
                                 None,
                                 crate::applet_menu::ContextMenuAction::
                                     LaunchApplicationWithAction(app_index, action_index),
                             )
-                        })
-                        .collect();
+                            })
+                            .collect();
 
                     if !additional_options_buttons.is_empty() {
                         context_menu_buttons.push(cosmic::widget::menu::Item::Divider);
                         context_menu_buttons.extend(additional_options_buttons);
                     }
 
-                    let trees = cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons);
+                    let trees = cosmic::widget::menu::items(
+                        &std::collections::HashMap::new(),
+                        context_menu_buttons,
+                    );
                     self.context_menus.insert(app.id.clone(), trees);
                 }
 
@@ -361,13 +362,12 @@ impl Application for Applet {
                         } else {
                             self.app_list_config.add_pinned(pinned_id, &app_list_helper);
                         }
-                        
+
                         // Rebuild the cached menu for this app to reflect the new pin state
                         let new_is_favorites = !favorites;
-                        let mut context_menu_buttons: Vec<cosmic::widget::menu::Item<
-                            crate::applet_menu::ContextMenuAction,
-                            _,
-                        >> = vec![
+                        let mut context_menu_buttons: Vec<
+                            cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
+                        > = vec![
                             cosmic::widget::menu::Item::Button(
                                 crate::fl!("launch"),
                                 None,
@@ -384,10 +384,9 @@ impl Application for Applet {
                             ),
                         ];
 
-                        let additional_options_buttons: Vec<cosmic::widget::menu::Item<
-                            crate::applet_menu::ContextMenuAction,
-                            _,
-                        >> = app
+                        let additional_options_buttons: Vec<
+                            cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
+                        > = app
                             .desktop_actions
                             .iter()
                             .enumerate()
@@ -406,7 +405,10 @@ impl Application for Applet {
                             context_menu_buttons.extend(additional_options_buttons);
                         }
 
-                        let trees = cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons);
+                        let trees = cosmic::widget::menu::items(
+                            &std::collections::HashMap::new(),
+                            context_menu_buttons,
+                        );
                         self.context_menus.insert(app.id.clone(), trees);
                     }
                 }
@@ -487,6 +489,12 @@ impl Applet {
     }
 
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
+        // reset popup state
+        self.search_field.clear();
+        self.selected_category = Some(ApplicationCategory::ALL);
+        self.available_applications = load_apps();
+        self.selected_item_index = None;
+
         let mut tasks = vec![];
         self.popup_type = popup_type;
         if self.popup_type == PopupType::MainMenu {
@@ -521,7 +529,7 @@ impl Applet {
             };
             popup_settings.positioner.anchor = anchor;
             popup_settings.positioner.gravity = gravity;
-            
+
             tasks.push(get_popup(popup_settings));
             Task::batch(tasks)
         }
@@ -530,15 +538,9 @@ impl Applet {
     fn close_popup(&mut self, id: Id) -> Task<Message> {
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
-
-            self.search_field.clear();
-            self.selected_category = Some(ApplicationCategory::ALL);
-            self.available_applications = load_apps();
-            self.selected_item_index = None;
         }
 
         Task::none()
-
     }
 
     fn clear_search(&mut self) -> Task<Message> {
@@ -613,19 +615,28 @@ impl Applet {
         Task::none()
     }
 
-    fn launch_application(&mut self, app: Arc<ApplicationEntry>, action: Option<DesktopAction>) -> Task<Message> {
+    fn launch_application(
+        &mut self,
+        app: Arc<ApplicationEntry>,
+        action: Option<DesktopAction>,
+    ) -> Task<Message> {
         let mut app_exec = if action.is_some() {
-            action.unwrap().exec.clone()
-            .split_whitespace()
-            .filter(|arg| !arg.starts_with('%'))
-            .collect::<Vec<_>>()
-            .join(" ")
+            action
+                .unwrap()
+                .exec
+                .clone()
+                .split_whitespace()
+                .filter(|arg| !arg.starts_with('%'))
+                .collect::<Vec<_>>()
+                .join(" ")
         } else {
-            app.exec.clone().unwrap()
-            .split_whitespace()
-            .filter(|arg| !arg.starts_with('%'))
-            .collect::<Vec<_>>()
-            .join(" ")
+            app.exec
+                .clone()
+                .unwrap()
+                .split_whitespace()
+                .filter(|arg| !arg.starts_with('%'))
+                .collect::<Vec<_>>()
+                .join(" ")
         };
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
@@ -789,7 +800,7 @@ impl Applet {
         if !self.search_field.is_empty() {
             return Task::none();
         }
-        
+
         if self.selected_item_index.is_none() && !self.available_applications.is_empty() {
             self.selected_item_index = Some(0);
         } else if let Some(index) = self.selected_item_index {
