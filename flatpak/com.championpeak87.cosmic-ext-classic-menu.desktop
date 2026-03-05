@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=Classic Menu
+Name[cs]=Klasické menu
 Exec=/app/launch-applet.sh
 Terminal=false
 Type=Application
