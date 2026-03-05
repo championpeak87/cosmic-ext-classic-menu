@@ -63,9 +63,11 @@ impl From<DesktopEntryData> for ApplicationEntry {
 
 impl From<cosmic::widget::Icon> for IconHandle {
     fn from(icon: cosmic::widget::Icon) -> IconHandle {
-        IconHandle::SvgHandle(cosmic::widget::svg::Handle::from(
-            icon.into_svg_handle().unwrap(),
-        ))
+        if let Some(icon_handle) = icon.into_svg_handle() {
+            IconHandle::SvgHandle(cosmic::widget::svg::Handle::from(icon_handle))
+        } else {
+            IconHandle::default()
+        }
     }
 }
 
