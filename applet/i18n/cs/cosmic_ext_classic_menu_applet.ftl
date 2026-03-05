@@ -19,7 +19,7 @@ settings-label=Nastavení systému
 disks-label=Disky
 
 # hlavní menu
-search-placeholder=Hledejte aplikace
+search-placeholder=Vyhledat aplikace
 no-apps=Nebyly nalezeny žádné aplikace
 
 # tlačítko appletu
@@ -27,4 +27,4 @@ menu-label=Menu
 
 # místní nabídka aplikace
 launch=Spustit
-pin-to-panel=Připnout k panelu
+pin-to-panel=Připnout na panel
