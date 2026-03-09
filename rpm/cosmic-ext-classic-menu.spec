@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu
-Version:        0.0.12
+Version:        0.0.13
 Release:        1%{?dist}
 Summary:        Classic Menu Applet
 
@@ -36,6 +36,9 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/com.championpeak87.cosmic-ext-classic-menu/applet-buttons/*
 
 %changelog
+* Mon Mar 09 2026 Kamil Lihan <k.lihan@outlook.com> 0.0.13-1
+- Patched issue with application icon loading
+
 * Mon Jan 01 2026 Kamil Lihan <k.lihan@outlook.com> 0.0.12-1
 - Added context menu for application (KNOWN ISSUE: misalignment when menu is scrolled)
 - Added support for navigating the menu with arrow keys (KNOWN ISSUE: popup initially out of focus when opened)
