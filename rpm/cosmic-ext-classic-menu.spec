@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu
-Version:        0.0.14
+Version:        0.0.15
 Release:        1%{?dist}
 Summary:        Classic Menu Applet
 

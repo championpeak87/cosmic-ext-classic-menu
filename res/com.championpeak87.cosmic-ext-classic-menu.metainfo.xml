@@ -166,6 +166,14 @@
     <category>Desktop</category>
   </categories>
   <releases>
+  <release version="0.0.15" date="2026-08-08">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Update libcosmic</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.0.14" date="2026-06-12">
       <description>
         <h1>What's changed</h1>
