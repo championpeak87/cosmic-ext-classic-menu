@@ -13,4 +13,3 @@ log = "0.4.29"
 users = "0.11.0"
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = "1.49.0"
-futures = "0.3.31"

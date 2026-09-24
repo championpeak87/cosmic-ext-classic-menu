@@ -796,7 +796,7 @@ impl Applet {
 
     fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
         self.search_field.clear();
-        self.selected_category = Some(category);
+        self.selected_category = Some(category.clone());
         self.selected_item_index = None;
         // Only needed, and so only copied, for the recently used category.
         let recent_applications = if category == ApplicationCategory::RECENTLY_USED {

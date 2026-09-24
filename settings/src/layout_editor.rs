@@ -20,7 +20,7 @@ use cosmic_ext_classic_menu_applet::config::{
     AppletConfig, HorizontalPosition, MenuLayout, Place, PowerMenuPosition, SidePanel,
     VerticalPosition,
 };
-use cosmic_ext_classic_menu_applet::model::application_category::ApplicationCategory;
+use cosmic_ext_classic_menu_applet::model::application_category::{ApplicationCategory, CategoryIcon};
 
 const PREVIEW_WIDTH: f32 = 320.0;
 const PREVIEW_HEIGHT: f32 = 360.0;
@@ -649,10 +649,7 @@ fn sketch(block: Block) -> Element<'static, Message> {
                     let selected = index == 0;
                     container(
                         cosmic::iced::widget::row![
-                            icon::from_svg_bytes(category.icon_svg_bytes)
-                                .symbolic(true)
-                                .icon()
-                                .size(10),
+                            category_icon(&category.icon).size(10),
                             text_line(Length::Fill, 5.0),
                         ]
                         .spacing(spacing.space_xxs)
@@ -1222,5 +1219,13 @@ fn ghost_style(theme: &Theme) -> container::Style {
             blur_radius: 6.0,
         },
         ..Default::default()
+    }
+}
+
+fn category_icon(category_icon: &CategoryIcon) -> icon::Icon {
+    match category_icon {
+        CategoryIcon::Bundled(bytes) => icon::from_svg_bytes(bytes.clone()).symbolic(true).icon(),
+        CategoryIcon::Named(name) => icon::from_name(name.as_str()).icon(),
+        CategoryIcon::Path(path) => icon::icon(icon::from_path(path.clone())),
     }
 }

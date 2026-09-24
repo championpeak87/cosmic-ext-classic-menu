@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use cosmic::{
     desktop::{DesktopEntryData, fde::{DesktopEntry, IconSource}},
     widget::{Id, icon::Named, image::Handle},
@@ -15,6 +17,9 @@ pub struct ApplicationEntry {
     pub name: String,
     pub generic_name: Option<String>,
     pub id: String,
+    /// Desktop file id as defined by the desktop entry specification,
+    /// e.g. `wine-Programs-Foo-Bar.desktop` for `applications/wine/Programs/Foo/Bar.desktop`.
+    pub desktop_file_id: String,
     pub icon: Option<IconHandle>,
     pub comment: Option<String>,
     pub exec: Option<String>,
@@ -48,6 +53,7 @@ impl From<DesktopEntryData> for ApplicationEntry {
             comment,
             is_terminal: get_is_terminal(&app),
             generic_name,
+            desktop_file_id: get_desktop_file_id(app.path.as_deref()),
             id: app.id,
             name: app.name,
             icon: match app.icon {
@@ -164,4 +170,46 @@ fn get_generic_name(app: &DesktopEntryData) -> Option<String> {
     }
 
     None
+}
+
+fn get_desktop_file_id(path: Option<&Path>) -> String {
+    let Some(path) = path else {
+        return String::new();
+    };
+
+    let components: Vec<_> = path
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect();
+
+    // the id is the path relative to the `applications` directory with `/` replaced by `-`
+    match components.iter().rposition(|c| c == "applications") {
+        Some(index) if index + 1 < components.len() => components[index + 1..].join("-"),
+        _ => components.last().map(|c| c.to_string()).unwrap_or_default(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn desktop_file_id_of_nested_entry() {
+        assert_eq!(
+            get_desktop_file_id(Some(Path::new(
+                "/home/user/.local/share/applications/wine/Programs/Foo/Bar.desktop"
+            ))),
+            "wine-Programs-Foo-Bar.desktop"
+        );
+    }
+
+    #[test]
+    fn desktop_file_id_of_top_level_entry() {
+        assert_eq!(
+            get_desktop_file_id(Some(Path::new(
+                "/usr/share/applications/com.cisco.secureclient.gui.desktop"
+            ))),
+            "com.cisco.secureclient.gui.desktop"
+        );
+    }
 }

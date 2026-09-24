@@ -30,6 +30,8 @@ dirs = "6.0.0"
 cached = "0.56.0"
 futures = "0.3"
 i18n-embed = { workspace = true, features = ["fluent-system", "desktop-requester"] }
+xdg = "3.0.0"
+roxmltree = "0.20"
 
 # Only for the accessibility tree type in custom widgets; same source and
 # revision as libcosmic's own copy.

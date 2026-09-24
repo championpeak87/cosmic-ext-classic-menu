@@ -14,6 +14,7 @@ use cosmic::{Element, theme};
 use crate::applet::{Applet, Message};
 use crate::config::{HorizontalPosition, MenuLayout, PowerMenuPosition, SidePanel, VerticalPosition};
 use crate::fl;
+use crate::model::application_category::CategoryIcon;
 use crate::model::place::Place;
 use crate::model::power_action::PowerAction;
 use crate::widgets::{VirtualizedAppGrid, VirtualizedAppList};
@@ -571,6 +572,20 @@ impl AppletMenu {
             .into()
     }
 
+    fn create_category_icon(category_icon: &CategoryIcon) -> Element<'_, Message> {
+        use cosmic::widget::icon;
+
+        match category_icon {
+            CategoryIcon::Bundled(bytes) => icon::from_svg_bytes(bytes.clone()).symbolic(true).icon(),
+            CategoryIcon::Named(name) => icon::from_name(name.as_str())
+                .size(16)
+                .fallback(Some(icon::IconFallback::Names(vec!["folder-symbolic".into()])))
+                .icon(),
+            CategoryIcon::Path(path) => icon::icon(icon::from_path(path.clone())).size(16),
+        }
+        .into()
+    }
+
     fn create_category_buttons(applet: &Applet) -> Vec<Element<'_, Message>> {
         let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
 
@@ -580,17 +595,13 @@ impl AppletMenu {
             .map(|category| {
                 cosmic::widget::button::custom(
                     row![
-                        container(
-                            cosmic::widget::icon::from_svg_bytes(category.icon_svg_bytes)
-                                .symbolic(true)
-                                .icon()
-                        )
-                        .padding([0, space_m]),
+                        container(AppletMenu::create_category_icon(&category.icon))
+                            .padding([0, space_m]),
                         text(category.get_display_name()),
                     ]
                     .align_y(Alignment::Center),
                 )
-                .on_press(Message::CategorySelected(*category))
+                .on_press(Message::CategorySelected(category.clone()))
                 .class(if applet.selected_category.as_ref() == Some(category) {
                     cosmic::theme::Button::Suggested
                 } else {

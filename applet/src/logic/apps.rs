@@ -1,5 +1,6 @@
 use crate::{
     config::RecentApplication,
+    logic::custom_categories,
     model::{application_category::ApplicationCategory, application_entry::ApplicationEntry},
 };
 use std::{string::String, sync::Arc};
@@ -93,11 +94,8 @@ pub fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
 }
 
 pub fn load_app_categories() -> Vec<ApplicationCategory> {
-    use std::collections::HashSet;
-
     log::info!("Loading app categories...");
     let all_apps = load_apps();
-    let used_categories: HashSet<&String> = all_apps.iter().flat_map(|app| &app.category).collect();
 
     // Define all app categories
     let apps_categories = [
@@ -116,16 +114,15 @@ pub fn load_app_categories() -> Vec<ApplicationCategory> {
         ApplicationCategory::UTILITY,
     ];
 
-    // Filter only available ones
-    let categories = apps_categories
-        .into_iter()
-        .filter(|x| {
-            x.permanent == true
-                || (!x.mime_name.is_empty() && used_categories.contains(&x.mime_name.to_string()))
-        })
-        .collect();
+    // Load custom categories created by applications like Wine or Citrix
+    let custom_categories = custom_categories::load_custom_categories();
 
-    categories
+    // Filter only available ones
+    apps_categories
+        .into_iter()
+        .chain(custom_categories)
+        .filter(|x| x.permanent || all_apps.iter().any(|app| x.matches(app)))
+        .collect()
 }
 
 /// Runs `f` on the loaded apps if they are cached, without loading them.
@@ -172,7 +169,7 @@ pub fn get_apps_of_category(
     } else {
         load_apps()
             .into_iter()
-            .filter(|app| app.category.iter().any(|c| c == category.mime_name))
+            .filter(|app| category.matches(app))
             .collect()
     }
 }
