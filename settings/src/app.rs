@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: {{ license }}
 
 use crate::fl;
+use crate::layout_editor::{self, LayoutEditor};
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::dialog::file_chooser::FileFilter;
@@ -8,10 +9,7 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
 use cosmic::{iced::Background, widget::text, Element};
-use cosmic_ext_classic_menu_applet::config::{
-    AppletButtonStyle, AppletConfig, HorizontalPosition, UserWidgetStyle,
-    VerticalPosition,
-};
+use cosmic_ext_classic_menu_applet::config::{AppletButtonStyle, AppletConfig, UserWidgetStyle};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -29,6 +27,8 @@ pub struct AppModel {
     key_binds: HashMap<menu::KeyBind, MenuAction>,
     // Configuration data that persists between application runs.
     config: AppletConfig,
+    /// Drag and drop state of the menu layout preview.
+    layout_editor: LayoutEditor,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -36,8 +36,7 @@ pub struct AppModel {
 pub enum Message {
     UpdateConfig(AppletConfig),
     LaunchUrl(String),
-    AppPositionChanged(HorizontalPosition),
-    SearchFieldPositionChanged(VerticalPosition),
+    LayoutEditor(layout_editor::Message),
     AppletButtonStyleChanged(usize),
     UserWidgetChanged(usize),
     ButtonLabelChanged(String),
@@ -101,6 +100,7 @@ impl cosmic::Application for AppModel {
             key_binds: HashMap::new(),
             // Optional configuration file for an application.
             config: AppletConfig::config(),
+            layout_editor: LayoutEditor::default(),
         };
 
         (app, Task::none())
@@ -133,103 +133,77 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&'_ self) -> Element<'_, Self::Message> {
-        let app_menu_position = cosmic::iced::widget::row![
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("left")),
-                HorizontalPosition::Left,
-                Some(self.config.app_menu_position),
-                Message::AppPositionChanged
-            ),
-            cosmic::widget::Space::new().width(5).height(Length::Shrink),
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("right")),
-                HorizontalPosition::Right,
-                Some(self.config.app_menu_position),
-                Message::AppPositionChanged
-            )
-        ];
-        let search_field_position = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("top")),
-                VerticalPosition::Top,
-                Some(self.config.search_field_position),
-                Message::SearchFieldPositionChanged
-            ),
-            cosmic::widget::Space::new().width(5).height(Length::Shrink),
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("bottom")),
-                VerticalPosition::Bottom,
-                Some(self.config.search_field_position),
-                Message::SearchFieldPositionChanged
-            )
-        ];
-        let applet_button_style = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::dropdown(
-                vec![
-                    fl!("icon-only"),
-                    fl!("label-only"),
-                    fl!("icon-and-label"),
-                    fl!("auto")
-                ],
-                Some(self.config.applet_button_style as usize),
-                Message::AppletButtonStyleChanged
-            )
-        ];
-        let user_widget = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::dropdown(
-                vec![
-                    fl!("username-prefered"),
-                    fl!("realname-prefered"),
-                    fl!("none")
-                ],
-                Some(self.config.user_widget as usize),
-                Message::UserWidgetChanged
-            )
-        ];
-        let button_label = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
+        let layout_editor = self
+            .layout_editor
+            .view(&self.config)
+            .map(Message::LayoutEditor);
+        let applet_button_style = cosmic::widget::dropdown(
+            vec![
+                fl!("icon-only"),
+                fl!("label-only"),
+                fl!("icon-and-label"),
+                fl!("auto"),
+            ],
+            Some(self.config.applet_button_style as usize),
+            Message::AppletButtonStyleChanged,
+        );
+        let user_widget = cosmic::widget::dropdown(
+            vec![
+                fl!("username-prefered"),
+                fl!("realname-prefered"),
+                fl!("none"),
+            ],
+            Some(self.config.user_widget as usize),
+            Message::UserWidgetChanged,
+        );
+        let button_label =
             cosmic::widget::text_input(fl!("button-label-placeholder"), &self.config.button_label)
                 .on_input(Message::ButtonLabelChanged)
-        ];
-        let button_icon = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::button::text(fl!("button-icon-placeholder"))
-                .on_press(Message::OpenIconPicker) // 4. Open picker on click
-        ];
+                .width(Length::Fixed(200.0));
+        let button_icon = cosmic::widget::button::text(fl!("button-icon-placeholder"))
+            .on_press(Message::OpenIconPicker);
 
         let settings_container =
-            cosmic::widget::settings::view_column(vec![cosmic::widget::settings::section()
-                .title(fl!("general"))
-                .add(cosmic::widget::settings::item(
-                    fl!("app-menu-position"),
-                    app_menu_position,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("search-field-position"),
-                    search_field_position,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("applet-button-style"),
-                    applet_button_style,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("user-widget"),
-                    user_widget,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("button-label"),
-                    button_label,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("button-icon"),
-                    button_icon,
-                ))
-                .into()]);
+            cosmic::widget::settings::view_column(vec![
+                cosmic::widget::settings::section()
+                    .title(fl!("layout"))
+                    .add(layout_editor)
+                    .into(),
+                cosmic::widget::settings::section()
+                    .title(fl!("general"))
+                    .add(Self::setting_item(fl!("applet-button-style"), applet_button_style))
+                    .add(Self::setting_item(fl!("user-widget"), user_widget))
+                    .add(Self::setting_item(fl!("button-label"), button_label))
+                    .add(Self::setting_item(fl!("button-icon"), button_icon))
+                    .into(),
+            ]);
 
-        settings_container.padding([5, 10]).into()
+        // The window has a fixed height, so let the sections scroll if needed.
+        // The extra right padding keeps the scrollbar off the sections.
+        cosmic::widget::scrollable(settings_container.padding(cosmic::iced::Padding {
+            top: 5.0,
+            bottom: 5.0,
+            left: 10.0,
+            right: 20.0,
+        }))
+        .into()
+    }
+
+    /// Listens for the mouse button release ending a layout drag, which may
+    /// happen outside of the layout preview.
+    fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
+        if !self.layout_editor.is_dragging() {
+            return cosmic::iced::Subscription::none();
+        }
+
+        cosmic::iced::event::listen_with(|event, _status, _window| match event {
+            cosmic::iced::Event::Mouse(cosmic::iced::mouse::Event::ButtonReleased(
+                cosmic::iced::mouse::Button::Left,
+            )) => {
+                Some(Message::LayoutEditor(layout_editor::Message::DragEnd))
+            }
+            _ => None,
+        })
     }
 
     /// Display a context drawer if the context page is requested.
@@ -277,23 +251,28 @@ impl cosmic::Application for AppModel {
                 }
                 Task::none()
             }
-            Message::AppPositionChanged(horizontal_position) => {
-                log::info!("App position changed to: {:?}", horizontal_position);
-                self.config.app_menu_position = horizontal_position;
+            Message::LayoutEditor(message) => {
+                let change = self.layout_editor.update(message, &self.config);
+
+                match change {
+                    Some(layout_editor::Change::AppMenuPosition(horizontal_position)) => {
+                        log::info!("App position changed to: {:?}", horizontal_position);
+                        self.config.app_menu_position = horizontal_position;
+                    }
+                    Some(layout_editor::Change::SearchFieldPosition(vertical_position)) => {
+                        log::info!("Search field position changed to: {:?}", vertical_position);
+                        self.config.search_field_position = vertical_position;
+                    }
+                    Some(layout_editor::Change::PowerMenuPosition(power_menu_position)) => {
+                        log::info!("Power menu position changed to: {:?}", power_menu_position);
+                        self.config.power_menu_position = power_menu_position;
+                    }
+                    None => return Task::none(),
+                }
 
                 self.config
                     .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write recent applications config");
-
-                Task::none()
-            }
-            Message::SearchFieldPositionChanged(vertical_position) => {
-                log::info!("Search field position changed to: {:?}", vertical_position);
-                self.config.search_field_position = vertical_position;
-
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write search field position config");
+                    .expect("Failed to write layout config");
 
                 Task::none()
             }
@@ -389,6 +368,25 @@ impl cosmic::Application for AppModel {
 }
 
 impl AppModel {
+    /// A settings row whose title is cut off with an ellipsis, rather than
+    /// squeezing the control, when the window is too narrow for both.
+    fn setting_item<'a>(
+        title: String,
+        control: impl Into<Element<'a, Message>>,
+    ) -> Element<'a, Message> {
+        cosmic::widget::settings::item_row(vec![
+            text::body(title)
+                .wrapping(cosmic::iced::core::text::Wrapping::None)
+                .ellipsize(cosmic::iced::core::text::Ellipsize::End(
+                    cosmic::iced::core::text::EllipsizeHeightLimit::Lines(1),
+                ))
+                .width(Length::Fill)
+                .into(),
+            control.into(),
+        ])
+        .into()
+    }
+
     /// Helper to find available system icons in standard locations.
     fn system_icon_names() -> Vec<String> {
         // Prefer runtime discovery using XDG_DATA_DIRS so the app works correctly

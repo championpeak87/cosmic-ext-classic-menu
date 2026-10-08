@@ -6,6 +6,13 @@ repository = 儲存庫
 support = 支援
 
 general = 一般
+layout = 版面配置
+layout-hint = 拖曳區塊以重新排列選單
+layout-user = 使用者
+layout-search-field = 搜尋
+layout-app-list = 應用程式
+layout-categories = 類別
+layout-power = 電源
 app-menu-position = 應用程式選單位置
 search-field-position = 搜尋欄位置
 applet-button-style = 小程式按鈕樣式

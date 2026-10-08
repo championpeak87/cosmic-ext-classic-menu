@@ -6,6 +6,13 @@ repository = Repository
 support = Supporto
 
 general = Generale
+layout = Disposizione
+layout-hint = Trascina i blocchi per riorganizzare il menu
+layout-user = Utente
+layout-search-field = Cerca
+layout-app-list = Applicazioni
+layout-categories = Categorie
+layout-power = Alimentazione
 app-menu-position = Posizione del menu dell'app
 search-field-position = Posizione del campo di ricerca
 applet-button-style = Stile del pulsante dell'applet

@@ -6,6 +6,13 @@ repository = ರೆಪೊಸಿಟರಿ
 support = ಬೆಂಬಲ
 
 general = ಸಾಮಾನ್ಯ
+layout = ವಿನ್ಯಾಸ
+layout-hint = ಮೆನುವನ್ನು ಮರುಜೋಡಿಸಲು ಬ್ಲಾಕ್‌ಗಳನ್ನು ಎಳೆಯಿರಿ
+layout-user = ಬಳಕೆದಾರ
+layout-search-field = ಹುಡುಕಾಟ
+layout-app-list = ಅಪ್ಲಿಕೇಶನ್‌ಗಳು
+layout-categories = ವರ್ಗಗಳು
+layout-power = ಪವರ್
 app-menu-position = ಅಪ್ಲಿಕೇಶನ್ ಮೆನು ಸ್ಥಾನ
 search-field-position = ಹುಡುಕಾಟ ಕ್ಷೇತ್ರದ ಸ್ಥಾನ
 applet-button-style = ಅಪ್ಲೆಟ್ ಬಟನ್ ಶೈಲಿ

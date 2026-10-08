@@ -6,6 +6,13 @@ repository = 仓库
 support = 支持
 
 general = 常规
+layout = 布局
+layout-hint = 拖动方块以重新排列菜单
+layout-user = 用户
+layout-search-field = 搜索
+layout-app-list = 应用程序
+layout-categories = 类别
+layout-power = 电源
 app-menu-position = 应用菜单位置
 search-field-position = 搜索栏位置
 applet-button-style = 小程序按钮样式

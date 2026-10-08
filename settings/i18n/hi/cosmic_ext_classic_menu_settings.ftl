@@ -6,6 +6,13 @@ repository = रिपॉजिटरी
 support = सहायता
 
 general = सामान्य
+layout = लेआउट
+layout-hint = मेनू को पुनर्व्यवस्थित करने के लिए ब्लॉक खींचें
+layout-user = उपयोगकर्ता
+layout-search-field = खोज
+layout-app-list = एप्लिकेशन
+layout-categories = श्रेणियाँ
+layout-power = पावर
 app-menu-position = ऐप मेनू स्थिति
 search-field-position = खोज क्षेत्र स्थिति
 applet-button-style = एप्लेट बटन शैली

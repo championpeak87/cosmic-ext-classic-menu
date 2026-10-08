@@ -6,6 +6,13 @@ repository = Repozitář
 support = Podpora
 
 general = Obecné
+layout = Rozložení
+layout-hint = Přetažením bloků změníte uspořádání menu
+layout-user = Uživatel
+layout-search-field = Hledat
+layout-app-list = Aplikace
+layout-categories = Kategorie
+layout-power = Napájení
 app-menu-position = Pozice menu aplikace
 search-field-position = Pozice vyhledávacího pole
 applet-button-style = Styl tlačítka appletu

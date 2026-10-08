@@ -6,6 +6,13 @@ repository = Depo
 support = Destek
 
 general = Genel
+layout = Düzen
+layout-hint = Menüyü yeniden düzenlemek için blokları sürükleyin
+layout-user = Kullanıcı
+layout-search-field = Ara
+layout-app-list = Uygulamalar
+layout-categories = Kategoriler
+layout-power = Güç
 app-menu-position = Uygulama menüsü konumu
 search-field-position = Arama alanı konumu
 applet-button-style = Uygulama düğmesi stili

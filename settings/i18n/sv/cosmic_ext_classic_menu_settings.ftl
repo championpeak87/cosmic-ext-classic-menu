@@ -7,6 +7,13 @@ repository = Repository
 support = Support
 
 general = Allmänt
+layout = Layout
+layout-hint = Dra blocken för att ordna om menyn
+layout-user = Användare
+layout-search-field = Sök
+layout-app-list = Program
+layout-categories = Kategorier
+layout-power = Ström
 app-menu-position = Menyposition
 search-field-position = Sökfältets position
 applet-button-style = Appletknappens stil

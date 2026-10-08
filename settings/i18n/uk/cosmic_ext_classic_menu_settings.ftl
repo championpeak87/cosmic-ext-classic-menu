@@ -6,6 +6,13 @@ repository = Репозиторій
 support = Підтримка
 
 general = Загальні
+layout = Компонування
+layout-hint = Перетягніть блоки, щоб змінити розташування меню
+layout-user = Користувач
+layout-search-field = Пошук
+layout-app-list = Додатки
+layout-categories = Категорії
+layout-power = Живлення
 app-menu-position = Позиція меню додатків
 search-field-position = Позиція поля пошуку
 applet-button-style = Стиль кнопки аплету

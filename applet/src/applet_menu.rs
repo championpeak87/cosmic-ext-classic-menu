@@ -11,7 +11,7 @@ use cosmic::widget::{container, menu};
 use cosmic::{Element, theme};
 
 use crate::applet::{Applet, Message};
-use crate::config::{HorizontalPosition, VerticalPosition};
+use crate::config::{HorizontalPosition, PowerMenuPosition, VerticalPosition};
 use crate::fl;
 use crate::model::power_action::PowerAction;
 use crate::widgets::VirtualizedAppList;
@@ -64,7 +64,19 @@ impl AppletMenu {
             space_xxs, space_s, ..
         } = theme::active().cosmic().spacing;
 
+        let power_menu_position = applet.config.power_menu_position;
         let current_user = AppletMenu::create_logged_user_widget(applet);
+        let header: Element<'_, Message> = if power_menu_position == PowerMenuPosition::Header {
+            row![
+                current_user,
+                cosmic::widget::Space::new().width(Length::Fill),
+                AppletMenu::create_power_menu(applet, true),
+            ]
+            .align_y(Alignment::Center)
+            .into()
+        } else {
+            current_user
+        };
         let search_field = AppletMenu::create_search_field(applet);
         let app_list = AppletMenu::create_app_list(applet);
         let categories_pane = AppletMenu::create_categories_pane(applet);
@@ -84,13 +96,15 @@ impl AppletMenu {
             }
         };
         let menu_layout = match applet.config.search_field_position {
-            VerticalPosition::Top => {
-                column![current_user, search_field, dual_pane].padding([space_xxs, space_s])
-            }
-            VerticalPosition::Bottom => {
-                column![current_user, dual_pane, search_field].padding([space_xxs, space_s])
-            }
+            VerticalPosition::Top => column![header, search_field, dual_pane],
+            VerticalPosition::Bottom => column![header, dual_pane, search_field],
         };
+        let menu_layout = if power_menu_position == PowerMenuPosition::Footer {
+            menu_layout.push(AppletMenu::create_power_menu(applet, false))
+        } else {
+            menu_layout
+        }
+        .padding([space_xxs, space_s]);
 
         applet
             .core
@@ -110,8 +124,10 @@ impl AppletMenu {
             .into()
     }
 
-    fn create_power_menu(_applet: &Applet) -> Element<'_, Message> {
-        container(
+    /// Power controls. `compact` drops the surrounding padding so they fit
+    /// in the header row.
+    fn create_power_menu(_applet: &Applet, compact: bool) -> Element<'_, Message> {
+        let power_menu = container(
             row![
                 cosmic::widget::button::icon(cosmic::widget::icon::from_svg_bytes(
                     AppletMenu::SYSTEM_LOGOUT_SYMBOLIC_ICON,
@@ -135,11 +151,17 @@ impl AppletMenu {
                 .on_press(Message::PowerOptionSelected(PowerAction::Shutdown)),
             ]
             .align_y(Alignment::Center),
-        )
-        .width(Length::Fill)
-        .padding([20, 0])
-        .align_x(Alignment::Center)
-        .into()
+        );
+
+        if compact {
+            power_menu.into()
+        } else {
+            power_menu
+                .width(Length::Fill)
+                .padding([20, 0])
+                .align_x(Alignment::Center)
+                .into()
+        }
     }
 
     fn create_search_field(applet: &Applet) -> Element<'_, Message> {
@@ -157,7 +179,16 @@ impl AppletMenu {
     }
 
     fn create_app_list(applet: &Applet) -> Element<'_, Message> {
-        VirtualizedAppList::view(applet)
+        let app_list = VirtualizedAppList::view(applet);
+
+        if applet.config.power_menu_position == PowerMenuPosition::AppList {
+            column![app_list, AppletMenu::create_power_menu(applet, false)]
+                .height(Length::Fill)
+                .width(Length::FillPortion(5))
+                .into()
+        } else {
+            app_list
+        }
     }
 
     fn create_categories_pane(applet: &Applet) -> Element<'_, Message> {
@@ -201,13 +232,15 @@ impl AppletMenu {
         }
 
         // add power menu to the bottom of the categories pane
-        categories_pane.push(
-            cosmic::widget::Space::new()
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into(),
-        );
-        categories_pane.push(AppletMenu::create_power_menu(&applet));
+        if applet.config.power_menu_position == PowerMenuPosition::Categories {
+            categories_pane.push(
+                cosmic::widget::Space::new()
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into(),
+            );
+            categories_pane.push(AppletMenu::create_power_menu(&applet, false));
+        }
 
         cosmic::widget::column::with_children(categories_pane)
             .height(Length::Fill)

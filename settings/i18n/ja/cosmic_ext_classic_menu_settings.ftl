@@ -6,6 +6,13 @@ repository = リポジトリ
 support = サポート
 
 general = 全般
+layout = レイアウト
+layout-hint = ブロックをドラッグしてメニューを並べ替えます
+layout-user = ユーザー
+layout-search-field = 検索
+layout-app-list = アプリケーション
+layout-categories = カテゴリ
+layout-power = 電源
 app-menu-position = アプリメニューの位置
 search-field-position = 検索フィールドの位置
 applet-button-style = アプレットボタンのスタイル

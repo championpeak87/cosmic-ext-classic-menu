@@ -6,6 +6,13 @@ repository = Tároló
 support = Támogatás
 
 general = Általános
+layout = Elrendezés
+layout-hint = Húzza a blokkokat a menü átrendezéséhez
+layout-user = Felhasználó
+layout-search-field = Keresés
+layout-app-list = Alkalmazások
+layout-categories = Kategóriák
+layout-power = Energia
 app-menu-position = Alkalmazásmenü pozíciója
 search-field-position = Keresőmező pozíciója
 applet-button-style = Applet gomb stílusa

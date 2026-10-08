@@ -6,6 +6,13 @@ repository = المستودع
 support = الدعم
 
 general = عام
+layout = التخطيط
+layout-hint = اسحب الكتل لإعادة ترتيب القائمة
+layout-user = المستخدم
+layout-search-field = البحث
+layout-app-list = التطبيقات
+layout-categories = الفئات
+layout-power = الطاقة
 app-menu-position = موضع قائمة التطبيق
 search-field-position = موضع حقل البحث
 applet-button-style = نمط زر التطبيق

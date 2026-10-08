@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct AppletConfig {
     pub app_menu_position: HorizontalPosition,
     pub search_field_position: VerticalPosition,
+    pub power_menu_position: PowerMenuPosition,
     pub applet_button_style: AppletButtonStyle,
     pub user_widget: UserWidgetStyle,
     pub button_label: String,
@@ -25,6 +26,7 @@ impl Default for AppletConfig {
         AppletConfig {
             app_menu_position: HorizontalPosition::default(),
             search_field_position: VerticalPosition::default(),
+            power_menu_position: PowerMenuPosition::default(),
             applet_button_style: AppletButtonStyle::default(),
             user_widget: UserWidgetStyle::default(),
             button_label: fl!("menu-label").to_owned(),
@@ -99,6 +101,25 @@ pub enum VerticalPosition {
 impl Default for VerticalPosition {
     fn default() -> Self {
         VerticalPosition::Top
+    }
+}
+
+/// Where the power controls are placed in the menu.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum PowerMenuPosition {
+    /// Next to the user widget, above the panes.
+    Header,
+    /// Below the app list pane.
+    AppList,
+    /// Below the categories pane.
+    Categories,
+    /// Full-width row at the bottom of the menu.
+    Footer,
+}
+
+impl Default for PowerMenuPosition {
+    fn default() -> Self {
+        PowerMenuPosition::Categories
     }
 }
 

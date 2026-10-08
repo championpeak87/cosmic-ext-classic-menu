@@ -6,6 +6,13 @@ repository = Repozitorijum
 support = Podrška
 
 general = Opšte
+layout = Raspored
+layout-hint = Prevucite blokove da biste preuredili meni
+layout-user = Korisnik
+layout-search-field = Pretraga
+layout-app-list = Aplikacije
+layout-categories = Kategorije
+layout-power = Napajanje
 app-menu-position = Pozicija menija
 search-field-position = Pozicija polja za pretragu
 applet-button-style = Stil dugmeta apleta

@@ -6,6 +6,13 @@ repository = 저장소
 support = 지원
 
 general = 일반
+layout = 레이아웃
+layout-hint = 블록을 끌어 메뉴를 재배치하세요
+layout-user = 사용자
+layout-search-field = 검색
+layout-app-list = 애플리케이션
+layout-categories = 카테고리
+layout-power = 전원
 app-menu-position = 앱 메뉴 위치
 search-field-position = 검색 필드 위치
 applet-button-style = 애플릿 버튼 스타일

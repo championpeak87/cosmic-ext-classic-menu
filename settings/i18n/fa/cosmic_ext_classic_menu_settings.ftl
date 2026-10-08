@@ -6,6 +6,13 @@ repository = مخزن
 support = پشتیبانی
 
 general = عمومی
+layout = چیدمان
+layout-hint = برای تغییر چیدمان منو، بلوک‌ها را بکشید
+layout-user = کاربر
+layout-search-field = جستجو
+layout-app-list = برنامه‌ها
+layout-categories = دسته‌ها
+layout-power = نیرو
 app-menu-position = موقعیت منوی برنامه
 search-field-position = موقعیت فیلد جستجو
 applet-button-style = سبک دکمه اپلت

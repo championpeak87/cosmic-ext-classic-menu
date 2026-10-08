@@ -6,6 +6,13 @@ repository = Repository
 support = Support
 
 general = General
+layout = Layout
+layout-hint = Drag the blocks to rearrange the menu
+layout-user = User
+layout-search-field = Search
+layout-app-list = Applications
+layout-categories = Categories
+layout-power = Power
 app-menu-position = App menu position
 search-field-position = Search field position
 applet-button-style = Applet button style
