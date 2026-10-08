@@ -53,7 +53,7 @@ pub fn load_custom_categories() -> Vec<ApplicationCategory> {
             definition.directory_dirs = definition
                 .directory_dirs
                 .into_iter()
-                .map(|dir| base_dir.join(dir))
+                .map(|dir| host_path(&base_dir.join(dir)))
                 .collect();
 
             match definitions.iter_mut().find(|d| d.name == definition.name) {
@@ -258,7 +258,8 @@ fn parse_directory_entry(content: &str, locale: Option<&str>) -> (Option<String>
 fn find_directory_file(directory: &str, directory_dirs: &[PathBuf]) -> Option<PathBuf> {
     let path = Path::new(directory);
     if path.is_absolute() {
-        return path.is_file().then(|| path.to_path_buf());
+        let path = host_path(path);
+        return path.is_file().then_some(path);
     }
 
     // directories from the menu file take precedence over the default ones
@@ -302,7 +303,18 @@ fn merged_menu_files() -> Vec<PathBuf> {
 }
 
 /// `$XDG_CONFIG_HOME` followed by `$XDG_CONFIG_DIRS`.
+///
+/// Inside Flatpak these variables point into the sandbox, so the host's directories are used
+/// instead: the host `$XDG_CONFIG_HOME` (exported by Flatpak as `$HOST_XDG_CONFIG_HOME`) and the
+/// host `/etc/xdg`, which is mounted at `/run/host/etc/xdg`.
 fn config_dirs() -> Vec<PathBuf> {
+    if is_flatpak() {
+        return xdg_dirs("HOST_XDG_CONFIG_HOME", ".config", "HOST_XDG_CONFIG_DIRS", "/etc/xdg")
+            .into_iter()
+            .map(|dir| host_path(&dir))
+            .collect();
+    }
+
     xdg_dirs("XDG_CONFIG_HOME", ".config", "XDG_CONFIG_DIRS", "/etc/xdg")
 }
 
@@ -331,6 +343,23 @@ fn xdg_dirs(home_var: &str, home_default: &str, dirs_var: &str, dirs_default: &s
         .into_iter()
         .chain(dirs.split(':').filter(|dir| !dir.is_empty()).map(PathBuf::from))
         .collect()
+}
+
+fn is_flatpak() -> bool {
+    std::env::var_os("FLATPAK_ID").is_some()
+}
+
+/// Maps an absolute host system path (`/etc`, `/usr`) to the location where it is mounted
+/// inside the Flatpak sandbox. Other paths are returned unchanged.
+fn host_path(path: &Path) -> PathBuf {
+    if is_flatpak() && (path.starts_with("/etc") || path.starts_with("/usr")) {
+        let host = Path::new("/run/host").join(path.strip_prefix("/").unwrap_or(path));
+        if host.exists() {
+            return host;
+        }
+    }
+
+    path.to_path_buf()
 }
 
 fn directory_dirs_of(menu: roxmltree::Node) -> Vec<PathBuf> {

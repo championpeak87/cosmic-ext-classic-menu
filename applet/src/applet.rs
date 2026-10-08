@@ -13,12 +13,13 @@ use cosmic::iced::widget::operation::AbsoluteOffset;
 use cosmic::iced::widget::scrollable::{RelativeOffset, Viewport};
 use cosmic::iced::{
     Alignment,
-    platform_specific::shell::commands::popup::{destroy_popup, get_popup},
+    platform_specific::shell::commands::popup::destroy_popup,
     widget::{column, row},
     window::Id,
 };
 use cosmic::iced::{Subscription, keyboard};
 use cosmic::surface::Action;
+use cosmic::surface::action::{LiveSettings, app_popup};
 use cosmic::{Application, Element};
 use cosmic_app_list_config::AppListConfig;
 use std::process;
@@ -109,7 +110,7 @@ pub enum Message {
     LaunchSelectedApplication,
     SuperKeyPressed,
     AppListConfigUpdated(AppListConfig),
-    ContextMenuAction(Action),
+    ContextMenuAction(Action<Message>),
     LaunchApplicationAt(usize),
     LaunchApplicationWithActionAt(usize, usize),
     PinToAppTrayIndex(usize, bool),
@@ -380,9 +381,7 @@ impl Application for Applet {
                 Task::none()
             }
             Message::ContextMenuAction(action) => {
-                return cosmic::task::message(cosmic::Action::Cosmic(
-                    cosmic::app::Action::Surface(action),
-                ));
+                return cosmic::task::message(cosmic::Action::Surface(action));
             }
             Message::ContextMenuTarget(index) => {
                 self.context_menu_target = Some(index);
@@ -499,23 +498,32 @@ impl Applet {
         {
             let new_id = Id::unique();
             self.popup.replace(new_id);
-            let mut popup_settings = self.core.applet.get_popup_settings(
-                self.core.main_window_id().unwrap(),
-                new_id,
-                None,
-                None,
+            // Open the popup as a libcosmic surface (rather than a raw iced
+            // popup) so libcosmic tracks it and applies the frosted glass blur.
+            let popup = app_popup::<Applet>(
+                |_| LiveSettings::default(),
+                move |state: &mut Applet| {
+                    let mut popup_settings = state.core.applet.get_popup_settings(
+                        state.core.main_window_id().unwrap(),
+                        new_id,
+                        None,
+                        None,
+                        None,
+                    );
+                    let (anchor, gravity) = match state.core.applet.anchor {
+                        PanelAnchor::Left => (Anchor::TopRight, Gravity::BottomRight),
+                        PanelAnchor::Right => (Anchor::TopLeft, Gravity::BottomLeft),
+                        PanelAnchor::Top => (Anchor::BottomLeft, Gravity::BottomRight),
+                        PanelAnchor::Bottom => (Anchor::TopLeft, Gravity::TopRight),
+                    };
+                    popup_settings.positioner.anchor = anchor;
+                    popup_settings.positioner.gravity = gravity;
+                    popup_settings
+                },
                 None,
             );
-            let (anchor, gravity) = match self.core.applet.anchor {
-                PanelAnchor::Left => (Anchor::TopRight, Gravity::BottomRight),
-                PanelAnchor::Right => (Anchor::TopLeft, Gravity::BottomLeft),
-                PanelAnchor::Top => (Anchor::BottomLeft, Gravity::BottomRight),
-                PanelAnchor::Bottom => (Anchor::TopLeft, Gravity::TopRight),
-            };
-            popup_settings.positioner.anchor = anchor;
-            popup_settings.positioner.gravity = gravity;
 
-            tasks.push(get_popup(popup_settings));
+            tasks.push(cosmic::task::message(cosmic::Action::Surface(popup)));
             Task::batch(tasks)
         }
     }
