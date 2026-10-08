@@ -93,8 +93,11 @@ impl From<Named> for IconHandle {
     fn from(named: Named) -> IconHandle {
         if let Some(handle) = named.clone().icon().into_svg_handle() {
             IconHandle::SvgHandle(handle)
+        } else if let Some(path) = named.path() {
+            // PNG based icon themes, e.g. ubuntu-mono-light
+            IconHandle::RasterHandle(Handle::from_path(path))
         } else {
-            IconHandle::RasterHandle(Handle::from_path(named.path().unwrap()))
+            IconHandle::bundled_fallback()
         }
     }
 }
@@ -110,14 +113,19 @@ impl From<cosmic::desktop::DesktopAction> for DesktopAction {
 
 impl Default for IconHandle {
     fn default() -> Self {
-        IconHandle::SvgHandle(
-            cosmic::widget::icon::from_name("application-x-executable")
-                .size(32)
-                .handle()
-                .icon()
-                .into_svg_handle()
-                .unwrap(),
-        )
+        cosmic::widget::icon::from_name("application-x-executable")
+            .size(32)
+            .into()
+    }
+}
+
+impl IconHandle {
+    /// Used when the icon theme provides no icon at all, so it must not
+    /// depend on the theme.
+    fn bundled_fallback() -> Self {
+        IconHandle::SvgHandle(cosmic::widget::svg::Handle::from_memory(
+            &include_bytes!("../../../res/icons/bundled/applications-system-symbolic.svg")[..],
+        ))
     }
 }
 
