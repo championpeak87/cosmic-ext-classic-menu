@@ -30,3 +30,19 @@ menu-label=Meny
 # programmets snabbmeny
 launch=Starta
 pin-to-panel=Fäst på panelen
+add-to-favorites=Lägg till i favoriter
+
+# places
+place-home=Hem
+place-documents=Dokument
+place-downloads=Hämtningar
+place-pictures=Bilder
+place-music=Musik
+place-videos=Videoklipp
+place-computer=Dator
+place-settings=Inställningar
+place-terminal=Terminal
+place-store=Programbutik
+place-system-monitor=Systemövervakare
+place-disks=Diskar
+place-separator=Avgränsare

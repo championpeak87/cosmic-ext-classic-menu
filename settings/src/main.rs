@@ -14,6 +14,8 @@ fn main() -> cosmic::iced::Result {
 
     // Enable localizations to be applied.
     i18n::init(&requested_languages);
+    // Place names come from the applet's translations.
+    cosmic_ext_classic_menu_applet::i18n::init(&requested_languages);
 
     // Settings for configuring the application window and iced runtime.
     let size = cosmic::iced::Size::new(600.0, 720.0);

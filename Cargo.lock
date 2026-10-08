@@ -997,16 +997,18 @@ dependencies = [
 
 [[package]]
 name = "cosmic-ext-classic-menu-applet"
-version = "0.0.14"
+version = "1.0.0"
 dependencies = [
  "accounts-zbus",
  "cached",
  "cosmic-app-list-config",
  "cosmic-settings-config",
+ "dirs",
  "futures",
  "fuzzy-matcher",
  "i18n-embed",
  "i18n-embed-fl",
+ "iced_accessibility",
  "libcosmic",
  "log",
  "logind-zbus",
@@ -1025,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-ext-classic-menu-settings"
-version = "0.0.14"
+version = "1.0.0"
 dependencies = [
  "cosmic-ext-classic-menu-applet",
  "futures-util",

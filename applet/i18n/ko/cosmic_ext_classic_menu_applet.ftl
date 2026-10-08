@@ -30,3 +30,19 @@ menu-label=메뉴
 # 애플리케이션 컨텍스트 메뉴
 launch=실행
 pin-to-panel=패널에 고정
+add-to-favorites=즐겨찾기에 추가
+
+# places
+place-home=홈
+place-documents=문서
+place-downloads=다운로드
+place-pictures=사진
+place-music=음악
+place-videos=비디오
+place-computer=컴퓨터
+place-settings=설정
+place-terminal=터미널
+place-store=앱 스토어
+place-system-monitor=시스템 모니터
+place-disks=디스크
+place-separator=구분선

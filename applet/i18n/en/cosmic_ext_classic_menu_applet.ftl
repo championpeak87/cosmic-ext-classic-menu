@@ -28,3 +28,20 @@ menu-label=Menu
 # application context menu
 launch=Launch
 pin-to-panel=Pin to panel
+add-to-favorites=Add to favorites
+
+
+# places
+place-home=Home
+place-documents=Documents
+place-downloads=Downloads
+place-pictures=Pictures
+place-music=Music
+place-videos=Videos
+place-computer=Computer
+place-settings=Settings
+place-terminal=Terminal
+place-store=App Store
+place-system-monitor=System Monitor
+place-disks=Disks
+place-separator=Separator

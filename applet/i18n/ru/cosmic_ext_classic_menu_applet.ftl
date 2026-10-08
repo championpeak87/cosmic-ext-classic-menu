@@ -30,3 +30,19 @@ menu-label=Меню
 # контекстное меню приложения
 launch=Запустить
 pin-to-panel=Закрепить на панели
+add-to-favorites=Добавить в избранное
+
+# places
+place-home=Домашняя папка
+place-documents=Документы
+place-downloads=Загрузки
+place-pictures=Изображения
+place-music=Музыка
+place-videos=Видео
+place-computer=Компьютер
+place-settings=Настройки
+place-terminal=Терминал
+place-store=Магазин приложений
+place-system-monitor=Системный монитор
+place-disks=Диски
+place-separator=Разделитель

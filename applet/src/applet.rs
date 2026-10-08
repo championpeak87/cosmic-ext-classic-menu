@@ -65,12 +65,23 @@ pub struct Applet {
     pub scrollable_id: cosmic::widget::Id,
     /// List of pinned apps
     pub app_list_config: AppListConfig,
-    /// Cached context menus for applications (built once when apps are loaded)
-    pub context_menus: std::collections::HashMap<String, Vec<cosmic::widget::menu::Tree<Message>>>,
+    /// Context menu of `context_menu_target`, built when it is right clicked.
+    pub context_menu: Option<Vec<cosmic::widget::menu::Tree<Message>>>,
     /// Scroll offset for virtualization (pixels from top)
     pub scroll_offset: f32,
     /// Viewport height for virtualization and selection scroll behavior.
     pub scroll_viewport_height: f32,
+    /// Favorite apps, shown in the sidebar of some layouts. Falls back to
+    /// the most used apps when there are no favorites.
+    pub favorite_applications: Vec<Arc<ApplicationEntry>>,
+    /// Most used apps, shown as recommendations in some layouts.
+    pub recent_applications: Vec<Arc<ApplicationEntry>>,
+    /// Index of the app in `available_applications` whose context menu is
+    /// shown on right click.
+    pub context_menu_target: Option<usize>,
+    /// Whether an app claimed the current right click, see
+    /// [`Message::ContextMenuRightPress`].
+    context_menu_target_claimed: bool,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -91,7 +102,8 @@ pub enum Message {
     FileEvent(Event),
     UpdateConfig(AppletConfig),
     UpdateAvailableApplications(Vec<Arc<ApplicationEntry>>),
-    UpdateAvailableCategories(Vec<ApplicationCategory>),
+    /// All apps and their categories, loaded in the background.
+    ApplicationsLoaded(Vec<Arc<ApplicationEntry>>, Vec<ApplicationCategory>),
     SelectPreviousApp,
     SelectNextApp,
     LaunchSelectedApplication,
@@ -102,6 +114,13 @@ pub enum Message {
     LaunchApplicationWithActionAt(usize, usize),
     PinToAppTrayIndex(usize, bool),
     ScrollUpdated(Viewport),
+    /// Right press on an app, sent before [`Message::ContextMenuRightPress`].
+    ContextMenuTarget(usize),
+    /// Adds or removes the app at this index from the favorites.
+    ToggleFavoriteAt(usize),
+    OpenPlace(crate::model::place::Place),
+    /// Right press anywhere in the app view.
+    ContextMenuRightPress,
 }
 
 /// Implement the `Application` trait for your application.
@@ -147,9 +166,13 @@ impl Application for Applet {
             available_applications: Vec::new(),
             available_categories: Vec::new(),
             popup: None,
-            context_menus: std::collections::HashMap::new(),
+            context_menu: None,
             scroll_offset: 0.0,
             scroll_viewport_height: 0.0,
+            favorite_applications: Vec::new(),
+            recent_applications: Vec::new(),
+            context_menu_target: None,
+            context_menu_target_claimed: false,
         };
 
         // fetch current user asynchronously
@@ -158,23 +181,9 @@ impl Application for Applet {
                 cosmic::Action::App(Message::UpdateLoggedUser(result))
             });
 
-        let fetch_all_apps_task = Task::perform(
-            tokio::task::spawn_blocking(|| crate::logic::apps::load_apps()),
-            |res| cosmic::Action::App(Message::UpdateAvailableApplications(res.unwrap())),
-        );
-
-        let fetch_available_categories_task = Task::perform(
-            tokio::task::spawn_blocking(|| crate::logic::apps::load_app_categories()),
-            |res| cosmic::Action::App(Message::UpdateAvailableCategories(res.unwrap())),
-        );
-
         (
             window,
-            Task::batch(vec![
-                fetch_current_user_task,
-                fetch_all_apps_task,
-                fetch_available_categories_task,
-            ]),
+            Task::batch(vec![fetch_current_user_task, Applet::load_applications()]),
         )
     }
 
@@ -257,76 +266,38 @@ impl Application for Applet {
             Message::FileEvent(event) => self.handle_event(event),
             Message::UpdateConfig(config) => {
                 self.config = config;
+                // Layout and favorites decide what the sidebar and the
+                // context menu show.
+                self.update_featured_applications();
+                self.update_context_menu();
 
                 Task::none()
             }
             Message::UpdateAvailableApplications(items) => {
                 self.available_applications = items;
-
-                // Build and cache context menus for each application once
-                self.context_menus.clear();
-                for (app_index, app) in self.available_applications.iter().enumerate() {
-                    let is_app_in_favorites =
-                        crate::logic::apps::is_app_in_favorites(app, &self.app_list_config);
-
-                    let mut context_menu_buttons: Vec<
-                        cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
-                    > = vec![
-                        cosmic::widget::menu::Item::Button(
-                            crate::fl!("launch"),
-                            None,
-                            crate::applet_menu::ContextMenuAction::LaunchApplication(app_index),
-                        ),
-                        cosmic::widget::menu::Item::CheckBox(
-                            crate::fl!("pin-to-panel"),
-                            None,
-                            is_app_in_favorites,
-                            crate::applet_menu::ContextMenuAction::PinToPanel(
-                                app_index,
-                                is_app_in_favorites,
-                            ),
-                        ),
-                    ];
-
-                    let additional_options_buttons: Vec<
-                        cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
-                    > =
-                        app.desktop_actions
-                            .iter()
-                            .enumerate()
-                            .map(|(action_index, action)| {
-                                cosmic::widget::menu::Item::Button(
-                                action.name.to_string(),
-                                None,
-                                crate::applet_menu::ContextMenuAction::
-                                    LaunchApplicationWithAction(app_index, action_index),
-                            )
-                            })
-                            .collect();
-
-                    if !additional_options_buttons.is_empty() {
-                        context_menu_buttons.push(cosmic::widget::menu::Item::Divider);
-                        context_menu_buttons.extend(additional_options_buttons);
-                    }
-
-                    let trees = cosmic::widget::menu::items(
-                        &std::collections::HashMap::new(),
-                        context_menu_buttons,
-                    );
-                    self.context_menus.insert(app.id.clone(), trees);
-                }
+                // Indices into the old list no longer apply.
+                self.context_menu_target = None;
+                self.context_menu = None;
 
                 Task::none()
             }
-            Message::UpdateAvailableCategories(items) => {
-                self.available_categories = items;
+            Message::ApplicationsLoaded(applications, categories) => {
+                self.available_categories = categories;
+                // Leave search results and other categories in place.
+                if self.search_field.is_empty()
+                    && self.selected_category == Some(ApplicationCategory::ALL)
+                {
+                    self.available_applications = applications;
+                    self.context_menu_target = None;
+                    self.context_menu = None;
+                }
+                self.update_featured_applications();
 
                 Task::none()
             }
             Message::SelectPreviousApp => self.select_previous_app(),
             Message::SelectNextApp => self.select_next_app(),
             Message::LaunchSelectedApplication => {
-                dbg!(self.selected_item_index);
                 if let Some(index) = self.selected_item_index {
                     let selected_application =
                         self.available_applications.get(index).unwrap().clone();
@@ -355,72 +326,56 @@ impl Application for Applet {
             }
             Message::PinToAppTrayIndex(app_index, favorites) => {
                 if let Some(app) = self.available_applications.get(app_index).cloned() {
-                    let pinned_id = app.id.clone();
                     if let Some(app_list_helper) =
                         Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
                     {
                         if favorites {
                             // currently favorites==true indicates it is pinned; request unpin
-                            self.app_list_config
-                                .remove_pinned(&pinned_id, &app_list_helper);
+                            self.app_list_config.remove_pinned(&app.id, &app_list_helper);
                         } else {
-                            self.app_list_config.add_pinned(pinned_id, &app_list_helper);
+                            self.app_list_config.add_pinned(app.id.clone(), &app_list_helper);
                         }
 
-                        // Rebuild the cached menu for this app to reflect the new pin state
-                        let new_is_favorites = !favorites;
-                        let mut context_menu_buttons: Vec<
-                            cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
-                        > = vec![
-                            cosmic::widget::menu::Item::Button(
-                                crate::fl!("launch"),
-                                None,
-                                crate::applet_menu::ContextMenuAction::LaunchApplication(app_index),
-                            ),
-                            cosmic::widget::menu::Item::CheckBox(
-                                crate::fl!("pin-to-panel"),
-                                None,
-                                new_is_favorites,
-                                crate::applet_menu::ContextMenuAction::PinToPanel(
-                                    app_index,
-                                    new_is_favorites,
-                                ),
-                            ),
-                        ];
-
-                        let additional_options_buttons: Vec<
-                            cosmic::widget::menu::Item<crate::applet_menu::ContextMenuAction, _>,
-                        > = app
-                            .desktop_actions
-                            .iter()
-                            .enumerate()
-                            .map(|(action_index, action)| {
-                                cosmic::widget::menu::Item::Button(
-                                    action.name.to_string(),
-                                    None,
-                                    crate::applet_menu::ContextMenuAction::
-                                        LaunchApplicationWithAction(app_index, action_index),
-                                )
-                            })
-                            .collect();
-
-                        if !additional_options_buttons.is_empty() {
-                            context_menu_buttons.push(cosmic::widget::menu::Item::Divider);
-                            context_menu_buttons.extend(additional_options_buttons);
-                        }
-
-                        let trees = cosmic::widget::menu::items(
-                            &std::collections::HashMap::new(),
-                            context_menu_buttons,
-                        );
-                        self.context_menus.insert(app.id.clone(), trees);
+                        // Reflect the new pin state
+                        self.update_context_menu();
                     }
                 }
 
                 Task::none()
             }
+            Message::ToggleFavoriteAt(app_index) => {
+                if let Some(app) = self.available_applications.get(app_index).cloned() {
+                    let mut favorites = self.config.favorite_applications.clone();
+                    if let Some(position) = favorites.iter().position(|id| *id == app.id) {
+                        favorites.remove(position);
+                    } else {
+                        favorites.push(app.id.clone());
+                    }
+
+                    // Write only this key, see `update_recent_applications`.
+                    if let Err(err) = self.config.set_favorite_applications(
+                        AppletConfig::config_handler().as_ref().unwrap(),
+                        favorites,
+                    ) {
+                        log::error!("Failed to write favorite applications: {err}");
+                    }
+                    self.update_featured_applications();
+                    self.update_context_menu();
+                }
+
+                Task::none()
+            }
+            Message::OpenPlace(place) => {
+                place.open();
+                if let Some(p) = self.popup.take() {
+                    return destroy_popup(p);
+                }
+                Task::none()
+            }
             Message::AppListConfigUpdated(app_list_config) => {
                 self.app_list_config = app_list_config;
+                // The pin state shown in the context menu may have changed.
+                self.update_context_menu();
 
                 Task::none()
             }
@@ -428,6 +383,20 @@ impl Application for Applet {
                 return cosmic::task::message(cosmic::Action::Cosmic(
                     cosmic::app::Action::Surface(action),
                 ));
+            }
+            Message::ContextMenuTarget(index) => {
+                self.context_menu_target = Some(index);
+                self.context_menu_target_claimed = true;
+                self.update_context_menu();
+                Task::none()
+            }
+            Message::ContextMenuRightPress => {
+                if !self.context_menu_target_claimed {
+                    self.context_menu_target = None;
+                    self.context_menu = None;
+                }
+                self.context_menu_target_claimed = false;
+                Task::none()
             }
             Message::ScrollUpdated(viewport) => {
                 self.scroll_offset = viewport.absolute_offset().y;
@@ -462,9 +431,21 @@ impl Application for Applet {
                 };
             }),
             // Watch for application configuration changes.
-            self.core
-                .watch_config::<AppletConfig>(Self::APP_ID)
-                .map(|update| Message::UpdateConfig(update.config)),
+            // Watch the config files directly rather than through
+            // `Core::watch_config`, which relies on cosmic-settings-daemon
+            // and never delivers changes when the daemon is unavailable.
+            cosmic::cosmic_config::config_subscription::<_, AppletConfig>(
+                std::any::TypeId::of::<AppletConfig>(),
+                Self::APP_ID.into(),
+                AppletConfig::VERSION,
+            )
+                .map(|update| {
+                    for error in &update.errors {
+                        log::warn!("Failed to read applet config: {error:?}");
+                    }
+                    log::debug!("Applet config keys changed: {:?}", update.keys);
+                    Message::UpdateConfig(update.config)
+                }),
             // DBUS subscription
             crate::dbus::dbus_service_subscription().map(|msg| msg),
             self.core
@@ -480,39 +461,42 @@ impl Applet {
     pub fn handle_event(&mut self, event: Event) -> Task<Message> {
         match event {
             Event::Changed => {
-                // Invalidate the cache
+                // Invalidate the cache and reload it right away in the
+                // background, so opening the menu does not have to.
                 log::debug!("App list has been updated, invalidating cache and loading new list!");
                 crate::logic::apps::APPS_CACHE.lock().unwrap().cache_reset();
 
-                Task::none()
+                Applet::load_applications()
             }
         }
     }
 
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
-        // reset popup state
-        self.search_field.clear();
-        self.selected_category = Some(ApplicationCategory::ALL);
-        self.available_applications = load_apps();
-        self.selected_item_index = None;
+        if let Some(p) = self.popup.take() {
+            return destroy_popup(p);
+        }
 
         let mut tasks = vec![];
         self.popup_type = popup_type;
         if self.popup_type == PopupType::MainMenu {
-            tasks.push(Task::perform(
-                tokio::task::spawn_blocking(|| crate::logic::apps::load_apps()),
-                |res| cosmic::action::app(Message::UpdateAvailableApplications(res.unwrap())),
-            ));
-            tasks.push(Task::perform(
-                tokio::task::spawn_blocking(|| crate::logic::apps::load_app_categories()),
-                |res| cosmic::action::app(Message::UpdateAvailableCategories(res.unwrap())),
-            ));
+            // Reset the menu. The apps come from the cache, which is kept
+            // warm in the background, so the menu opens without waiting.
+            self.search_field.clear();
+            self.selected_category = Some(ApplicationCategory::ALL);
+            self.selected_item_index = None;
+            self.scroll_offset = 0.0;
+            self.context_menu_target = None;
+            self.context_menu = None;
+            match crate::logic::apps::with_cached_apps(<[_]>::to_vec) {
+                Some(applications) => {
+                    self.available_applications = applications;
+                    self.update_featured_applications();
+                }
+                None => tasks.push(Applet::load_applications()),
+            }
         }
 
-        if let Some(p) = self.popup.take() {
-            tasks.push(destroy_popup(p));
-            Task::batch(tasks)
-        } else {
+        {
             let new_id = Id::unique();
             self.popup.replace(new_id);
             let mut popup_settings = self.core.applet.get_popup_settings(
@@ -536,6 +520,134 @@ impl Applet {
         }
     }
 
+    /// Loads all apps and their categories in the background.
+    fn load_applications() -> Task<Message> {
+        Task::perform(
+            tokio::task::spawn_blocking(|| {
+                let applications = load_apps();
+                let categories = crate::logic::apps::load_app_categories();
+                (applications, categories)
+            }),
+            |res| match res {
+                Ok((applications, categories)) => {
+                    cosmic::action::app(Message::ApplicationsLoaded(applications, categories))
+                }
+                Err(err) => {
+                    log::error!("Failed to load applications: {err}");
+                    cosmic::action::none()
+                }
+            },
+        )
+    }
+
+    /// Updates the recent and favorite apps, if the layout shows them.
+    fn update_featured_applications(&mut self) {
+        let layout = self.config.menu_layout;
+        let show_favorites = layout.has_favorites();
+        // Recent apps also stand in for missing favorites.
+        let show_recent = layout == crate::config::MenuLayout::Modern || show_favorites;
+
+        let config = &self.config;
+        let featured = crate::logic::apps::with_cached_apps(|apps| {
+            let recent = if show_recent {
+                crate::logic::apps::get_recent_applications(&config.recent_applications, apps)
+            } else {
+                Vec::new()
+            };
+            let favorites = if show_favorites {
+                crate::logic::apps::get_favorite_applications(&config.favorite_applications, apps)
+            } else {
+                Vec::new()
+            };
+            (recent, favorites)
+        });
+
+        // Without cached apps, they are updated once the apps are loaded.
+        if let Some((recent, favorites)) = featured {
+            // Keep the favorites bar useful until the user adds favorites.
+            self.favorite_applications = if show_favorites && favorites.is_empty() {
+                recent.iter().take(6).cloned().collect()
+            } else {
+                favorites
+            };
+            self.recent_applications = recent;
+        }
+    }
+
+    /// Builds the menu for the right clicked app, the only one needed.
+    fn update_context_menu(&mut self) {
+        self.context_menu = self.context_menu_target.and_then(|app_index| {
+            self.available_applications
+                .get(app_index)
+                .map(|app| self.build_context_menu(app_index, app))
+        });
+    }
+
+    /// Context menu of the app at `app_index` in `available_applications`.
+    fn build_context_menu(
+        &self,
+        app_index: usize,
+        app: &ApplicationEntry,
+    ) -> Vec<cosmic::widget::menu::Tree<Message>> {
+        use crate::applet_menu::ContextMenuAction;
+        use cosmic::widget::menu::Item;
+
+        let is_app_in_favorites =
+            crate::logic::apps::is_app_in_favorites(app, &self.app_list_config);
+
+        let mut context_menu_buttons = vec![
+            Item::Button(
+                crate::fl!("launch"),
+                None,
+                ContextMenuAction::LaunchApplication(app_index),
+            ),
+            Item::CheckBox(
+                crate::fl!("pin-to-panel"),
+                None,
+                is_app_in_favorites,
+                ContextMenuAction::PinToPanel(app_index, is_app_in_favorites),
+            ),
+        ];
+
+        // Only offered where the layout shows the favorites.
+        if self.config.menu_layout.has_favorites() {
+            context_menu_buttons.push(Item::CheckBox(
+                crate::fl!("add-to-favorites"),
+                None,
+                self.config.favorite_applications.contains(&app.id),
+                ContextMenuAction::ToggleFavorite(app_index),
+            ));
+        }
+
+        if !app.desktop_actions.is_empty() {
+            context_menu_buttons.push(Item::Divider);
+            context_menu_buttons.extend(app.desktop_actions.iter().enumerate().map(
+                |(action_index, action)| {
+                    Item::Button(
+                        action.name.to_string(),
+                        None,
+                        ContextMenuAction::LaunchApplicationWithAction(app_index, action_index),
+                    )
+                },
+            ));
+        }
+
+        cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons)
+    }
+
+    /// Items per row and row height of the app view in the current layout,
+    /// used to move the selection and keep it scrolled into view.
+    fn app_view_metrics(&self) -> (usize, f32) {
+        if self.config.menu_layout == crate::config::MenuLayout::Modern {
+            (
+                crate::widgets::VirtualizedAppGrid::COLUMNS,
+                crate::widgets::VirtualizedAppGrid::ROW_HEIGHT,
+            )
+        } else {
+            (1, cosmic::theme::active().cosmic().spacing.space_xl as f32)
+        }
+    }
+
     fn close_popup(&mut self, id: Id) -> Task<Message> {
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
@@ -546,22 +658,22 @@ impl Applet {
 
     fn clear_search(&mut self) -> Task<Message> {
         self.selected_category = Some(ApplicationCategory::ALL);
-        self.search_field = "".to_string();
+        self.search_field.clear();
 
-        Task::perform(
-            tokio::task::spawn_blocking(|| crate::logic::apps::load_apps()),
-            |res| cosmic::action::app(Message::UpdateAvailableApplications(res.unwrap())),
-        )
+        match crate::logic::apps::with_cached_apps(<[_]>::to_vec) {
+            Some(applications) => self.update(Message::UpdateAvailableApplications(applications)),
+            None => Applet::load_applications(),
+        }
     }
 
     fn update_search_field(&mut self, input: String) -> Task<Message> {
         self.selected_category = None;
         self.selected_item_index = None;
 
-        self.search_field = input.clone();
-        if self.search_field.is_empty() {
+        if input.is_empty() {
             return self.clear_search();
         }
+        self.search_field.clone_from(&input);
 
         Task::batch([
             // reset scroll position
@@ -619,24 +731,16 @@ impl Applet {
         app: Arc<ApplicationEntry>,
         action: Option<DesktopAction>,
     ) -> Task<Message> {
-        let mut app_exec = if action.is_some() {
-            action
-                .unwrap()
-                .exec
-                .clone()
-                .split_whitespace()
-                .filter(|arg| !arg.starts_with('%'))
-                .collect::<Vec<_>>()
-                .join(" ")
-        } else {
-            app.exec
-                .clone()
-                .unwrap()
-                .split_whitespace()
-                .filter(|arg| !arg.starts_with('%'))
-                .collect::<Vec<_>>()
-                .join(" ")
+        let exec = match &action {
+            Some(action) => action.exec.as_str(),
+            None => app.exec.as_deref().unwrap_or_default(),
         };
+        // Drop field codes like %U, which only apply to opening files.
+        let mut app_exec = exec
+            .split_whitespace()
+            .filter(|arg| !arg.starts_with('%'))
+            .collect::<Vec<_>>()
+            .join(" ");
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
         let app_id = Some(app.id.clone());
         let mut is_terminal = app.is_terminal;
@@ -647,14 +751,7 @@ impl Applet {
             if is_terminal {
                 // For flatpaks handle terminal applications manually
                 // not through libcosmic implementation
-                let term = cosmic_settings_config::shortcuts::context()
-                    .ok()
-                    .and_then(|config| {
-                        cosmic_settings_config::shortcuts::system_actions(&config)
-                            .get(&cosmic_settings_config::shortcuts::action::System::Terminal)
-                            .cloned()
-                    })
-                    .unwrap_or_else(|| String::from("cosmic-term"));
+                let term = crate::model::place::terminal_command();
 
                 app_exec = format!("{term} -- {}", app_exec);
                 is_terminal = false;
@@ -677,31 +774,36 @@ impl Applet {
     }
 
     fn update_recent_applications(&mut self, app: Arc<ApplicationEntry>) {
-        let current_recent_application = self
-            .config
-            .recent_applications
-            .iter_mut()
-            .find(|x| x.app_id == app.id);
-        if let Some(recent_app) = current_recent_application {
-            if recent_app.launch_count < u32::MAX {
-                recent_app.launch_count += 1;
-            }
+        let mut recent_applications = self.config.recent_applications.clone();
+        if let Some(recent_app) = recent_applications.iter_mut().find(|x| x.app_id == app.id) {
+            recent_app.launch_count = recent_app.launch_count.saturating_add(1);
         } else {
-            self.config.recent_applications.push(RecentApplication {
+            recent_applications.push(RecentApplication {
                 app_id: app.id.clone(),
                 launch_count: 1,
             });
         }
 
+        // Write only this key, so settings changed meanwhile by the settings
+        // app are not overwritten with this applet's copy of the config.
         self.config
-            .write_entry(AppletConfig::config_handler().as_ref().unwrap())
+            .set_recent_applications(
+                AppletConfig::config_handler().as_ref().unwrap(),
+                recent_applications,
+            )
             .expect("Failed to write recent applications config");
     }
 
     fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
         self.search_field.clear();
-        self.selected_category = Some(category.clone());
+        self.selected_category = Some(category);
         self.selected_item_index = None;
+        // Only needed, and so only copied, for the recently used category.
+        let recent_applications = if category == ApplicationCategory::RECENTLY_USED {
+            self.config.recent_applications.clone()
+        } else {
+            Vec::new()
+        };
 
         Task::batch([
             // reset scroll position
@@ -711,7 +813,7 @@ impl Applet {
             ),
             Task::perform(
                 tokio::task::spawn_blocking(move || {
-                    crate::logic::apps::get_apps_of_category(category)
+                    crate::logic::apps::get_apps_of_category(category, &recent_applications)
                 }),
                 |res| cosmic::Action::App(Message::UpdateAvailableApplications(res.unwrap())),
             ),
@@ -774,20 +876,20 @@ impl Applet {
             return Task::none();
         }
 
+        let (columns, item_height) = self.app_view_metrics();
+
         if let Some(index) = self.selected_item_index {
-            if index > 0 {
-                self.selected_item_index = Some(index - 1);
+            if index >= columns {
+                self.selected_item_index = Some(index - columns);
             }
         }
 
         if let Some(index) = self.selected_item_index {
-            let spacing = cosmic::theme::active().cosmic().spacing;
-            let item_height = spacing.space_xl as f32;
             let viewport_height = self.scroll_viewport_height.max(item_height);
             let visible_top = self.scroll_offset;
             let visible_bottom = visible_top + viewport_height;
 
-            let selected_top = index as f32 * item_height;
+            let selected_top = (index / columns) as f32 * item_height;
             let selected_bottom = selected_top + item_height;
 
             if selected_top >= visible_top && selected_bottom <= visible_bottom {
@@ -810,22 +912,24 @@ impl Applet {
     }
 
     fn select_next_app(&mut self) -> cosmic::Task<cosmic::Action<Message>> {
+        let (columns, item_height) = self.app_view_metrics();
+
         if self.selected_item_index.is_none() && !self.available_applications.is_empty() {
             self.selected_item_index = Some(0);
         } else if let Some(index) = self.selected_item_index {
-            if index < self.available_applications.len() - 1 {
-                self.selected_item_index = Some(index + 1);
+            // In a grid, move down a row, stopping at the last app.
+            let last = self.available_applications.len().saturating_sub(1);
+            if index < last {
+                self.selected_item_index = Some((index + columns).min(last));
             }
         }
 
         if let Some(index) = self.selected_item_index {
-            let spacing = cosmic::theme::active().cosmic().spacing;
-            let item_height = spacing.space_xl as f32;
             let viewport_height = self.scroll_viewport_height.max(item_height);
             let visible_top = self.scroll_offset;
             let visible_bottom = visible_top + viewport_height;
 
-            let selected_top = index as f32 * item_height;
+            let selected_top = (index / columns) as f32 * item_height;
             let selected_bottom = selected_top + item_height;
 
             if selected_top >= visible_top && selected_bottom <= visible_bottom {
@@ -837,8 +941,6 @@ impl Applet {
             } else {
                 selected_bottom - viewport_height
             };
-
-            dbg!(target_offset);
 
             return Task::batch([cosmic::iced::widget::operation::scroll_to(
                 self.scrollable_id.clone(),

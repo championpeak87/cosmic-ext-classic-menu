@@ -22,6 +22,11 @@ pub struct ApplicationEntry {
     pub is_terminal: bool,
     pub item_id: Id,
     pub desktop_actions: Vec<DesktopAction>,
+    /// `name`, `generic_name` and `comment` without diacritics, computed once
+    /// at load so searching does not redo it on every keystroke.
+    pub search_name: String,
+    pub search_generic_name: Option<String>,
+    pub search_comment: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,10 +37,17 @@ pub enum IconHandle {
 
 impl From<DesktopEntryData> for ApplicationEntry {
     fn from(app: DesktopEntryData) -> ApplicationEntry {
+        use crate::logic::apps::strip_diacritics;
+
+        let comment = get_comment(&app);
+        let generic_name = get_generic_name(&app);
         ApplicationEntry {
-            comment: get_comment(&app),
+            search_name: strip_diacritics(&app.name),
+            search_generic_name: generic_name.as_deref().map(strip_diacritics),
+            search_comment: comment.as_deref().map(strip_diacritics),
+            comment,
             is_terminal: get_is_terminal(&app),
-            generic_name: get_generic_name(&app),
+            generic_name,
             id: app.id,
             name: app.name,
             icon: match app.icon {

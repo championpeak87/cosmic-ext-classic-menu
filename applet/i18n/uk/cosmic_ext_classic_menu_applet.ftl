@@ -30,3 +30,19 @@ menu-label=Меню
 # контекстне меню програми
 launch=Запустити
 pin-to-panel=Закріпити на панелі
+add-to-favorites=Додати до улюблених
+
+# places
+place-home=Домівка
+place-documents=Документи
+place-downloads=Завантаження
+place-pictures=Зображення
+place-music=Музика
+place-videos=Відео
+place-computer=Комп'ютер
+place-settings=Налаштування
+place-terminal=Термінал
+place-store=Магазин застосунків
+place-system-monitor=Системний монітор
+place-disks=Диски
+place-separator=Роздільник

@@ -6,16 +6,26 @@ Classic Menu is a customizable application launcher for the COSMIC™ desktop en
 
 ## Features
 
-- Classic-style application menu
+- Classic-style application menu with five layouts:
+  - **Classic**: user on top, application list and categories side by side
+  - **Retro**: colored header and footer bars around two panes
+  - **Compact**: user and search share the header, power controls in the footer
+  - **Sidebar**: favorite applications and power controls in a sidebar next to categories and applications
+  - **Modern**: grid of applications with recently used ones below
+- Drag and drop layout editor in the settings application: move the search field and power controls, swap and resize the panes
+- Places panel as an alternative to categories (home, documents, downloads, computer, settings, terminal, app store, ...), with customizable order and separators
+- Favorite applications, added from the application context menu
 - Search functionality with fuzzy matching and typo tolerance
 - Categorized application list
 - Recently used applications
+- Application context menu (launch, pin to panel, add to favorites, desktop actions)
 - Power options (shutdown, restart, logout, etc.)
 - System tools (settings, system monitor, disk management)
+- Customizable applet button (icon, label) and user widget
+- Settings changes are applied to the menu immediately
 
 ## Known issues
 
-- Context menu is misaligned when the list is scrolled
 - Popup is not in focus when opened, search field and arrow key navigation may not work properly unless the popup is in focus by clicking on it
 
 ## Installation 

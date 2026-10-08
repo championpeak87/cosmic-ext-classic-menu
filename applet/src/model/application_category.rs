@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::fl;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApplicationCategory {
     pub display_name: &'static str,
     pub icon_svg_bytes: &'static [u8],

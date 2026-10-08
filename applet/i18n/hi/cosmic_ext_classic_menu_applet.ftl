@@ -30,3 +30,19 @@ menu-label=मेन्यू
 # एप्लिकेशन संदर्भ मेनू
 launch=लॉन्च करें
 pin-to-panel=पैनल पर पिन करें
+add-to-favorites=पसंदीदा में जोड़ें
+
+# places
+place-home=होम
+place-documents=दस्तावेज़
+place-downloads=डाउनलोड
+place-pictures=चित्र
+place-music=संगीत
+place-videos=वीडियो
+place-computer=कंप्यूटर
+place-settings=सेटिंग्स
+place-terminal=टर्मिनल
+place-store=ऐप स्टोर
+place-system-monitor=सिस्टम मॉनिटर
+place-disks=डिस्क
+place-separator=विभाजक

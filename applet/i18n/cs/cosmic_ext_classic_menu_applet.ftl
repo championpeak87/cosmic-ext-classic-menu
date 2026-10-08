@@ -28,3 +28,19 @@ menu-label=Menu
 # místní nabídka aplikace
 launch=Spustit
 pin-to-panel=Připnout na panel
+add-to-favorites=Přidat do oblíbených
+
+# places
+place-home=Domů
+place-documents=Dokumenty
+place-downloads=Stažené
+place-pictures=Obrázky
+place-music=Hudba
+place-videos=Videa
+place-computer=Počítač
+place-settings=Nastavení
+place-terminal=Terminál
+place-store=Obchod s aplikacemi
+place-system-monitor=Sledování systému
+place-disks=Disky
+place-separator=Oddělovač
