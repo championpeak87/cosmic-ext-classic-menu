@@ -30,3 +30,19 @@ menu-label=Menu
 # menu contextual da aplicação
 launch=Iniciar
 pin-to-panel=Fixar ao painel
+add-to-favorites=Adicionar aos favoritos
+
+# places
+place-home=Pasta pessoal
+place-documents=Documentos
+place-downloads=Transferências
+place-pictures=Imagens
+place-music=Música
+place-videos=Vídeos
+place-computer=Computador
+place-settings=Definições
+place-terminal=Terminal
+place-store=Loja de aplicações
+place-system-monitor=Monitor do sistema
+place-disks=Discos
+place-separator=Separador

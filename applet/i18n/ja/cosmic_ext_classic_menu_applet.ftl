@@ -30,3 +30,19 @@ menu-label=メニュー
 # アプリケーションコンテキストメニュー
 launch=起動
 pin-to-panel=パネルに固定
+add-to-favorites=お気に入りに追加
+
+# places
+place-home=ホーム
+place-documents=ドキュメント
+place-downloads=ダウンロード
+place-pictures=ピクチャ
+place-music=ミュージック
+place-videos=ビデオ
+place-computer=コンピューター
+place-settings=設定
+place-terminal=端末
+place-store=アプリストア
+place-system-monitor=システムモニター
+place-disks=ディスク
+place-separator=区切り線

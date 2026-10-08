@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use log;
-
-mod applet;
-mod i18n;
-mod config;
-mod logic;
-mod power_options;
-mod cosmic_session;
-mod session_manager;
-mod applet_button;
-mod applet_menu;
-mod model;
-mod dbus;
-mod widgets;
+use cosmic_ext_classic_menu_applet::{applet, i18n};
 
 fn main() -> cosmic::iced::Result {
     // Initialize logging

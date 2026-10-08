@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: {{ license }}
 
 use crate::fl;
+use crate::layout_editor::{self, LayoutEditor};
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::dialog::file_chooser::FileFilter;
@@ -9,12 +10,17 @@ use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
 use cosmic::{iced::Background, widget::text, Element};
 use cosmic_ext_classic_menu_applet::config::{
-    AppletButtonStyle, AppletConfig, HorizontalPosition, UserWidgetStyle,
-    VerticalPosition,
+    AppletButtonStyle, AppletConfig, Place, SidePanel, UserWidgetStyle,
 };
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+
+/// Height of a row in the places list.
+const PLACE_ROW_HEIGHT: f32 = 44.0;
+const PLACE_DIVIDER_HEIGHT: f32 = 1.0;
+/// Distance between the tops of two rows in the places list.
+const PLACE_ROW_PITCH: f32 = PLACE_ROW_HEIGHT + PLACE_DIVIDER_HEIGHT;
 
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
@@ -29,6 +35,11 @@ pub struct AppModel {
     key_binds: HashMap<menu::KeyBind, MenuAction>,
     // Configuration data that persists between application runs.
     config: AppletConfig,
+    /// Drag and drop state of the menu layout preview.
+    layout_editor: LayoutEditor,
+    /// Index in the places list of the entry being reordered by dragging.
+    /// Separators may repeat, so the index tells them apart.
+    dragged_place: Option<usize>,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -36,10 +47,21 @@ pub struct AppModel {
 pub enum Message {
     UpdateConfig(AppletConfig),
     LaunchUrl(String),
-    AppPositionChanged(HorizontalPosition),
-    SearchFieldPositionChanged(VerticalPosition),
+    LayoutEditor(layout_editor::Message),
     AppletButtonStyleChanged(usize),
     UserWidgetChanged(usize),
+    SidePanelChanged(usize),
+    PlaceToggled(Place, bool),
+    /// The enabled place at this index was grabbed.
+    PlaceDragStart(usize),
+    /// Appends a separator to the enabled places.
+    AddSeparator,
+    /// Removes the separator at this index.
+    RemoveSeparator(usize),
+    /// The cursor moved to this height over the places list.
+    PlaceDragMove(f32),
+    /// Left mouse button released anywhere in the window.
+    PlaceDragEnd,
     ButtonLabelChanged(String),
     ToggleContextPage(ContextPage),
     OpenIconPicker,
@@ -101,6 +123,8 @@ impl cosmic::Application for AppModel {
             key_binds: HashMap::new(),
             // Optional configuration file for an application.
             config: AppletConfig::config(),
+            layout_editor: LayoutEditor::default(),
+            dragged_place: None,
         };
 
         (app, Task::none())
@@ -133,103 +157,85 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&'_ self) -> Element<'_, Self::Message> {
-        let app_menu_position = cosmic::iced::widget::row![
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("left")),
-                HorizontalPosition::Left,
-                Some(self.config.app_menu_position),
-                Message::AppPositionChanged
-            ),
-            cosmic::widget::Space::new().width(5).height(Length::Shrink),
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("right")),
-                HorizontalPosition::Right,
-                Some(self.config.app_menu_position),
-                Message::AppPositionChanged
-            )
-        ];
-        let search_field_position = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("top")),
-                VerticalPosition::Top,
-                Some(self.config.search_field_position),
-                Message::SearchFieldPositionChanged
-            ),
-            cosmic::widget::Space::new().width(5).height(Length::Shrink),
-            cosmic::widget::Radio::new(
-                cosmic::widget::text::heading(fl!("bottom")),
-                VerticalPosition::Bottom,
-                Some(self.config.search_field_position),
-                Message::SearchFieldPositionChanged
-            )
-        ];
-        let applet_button_style = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::dropdown(
-                vec![
-                    fl!("icon-only"),
-                    fl!("label-only"),
-                    fl!("icon-and-label"),
-                    fl!("auto")
-                ],
-                Some(self.config.applet_button_style as usize),
-                Message::AppletButtonStyleChanged
-            )
-        ];
-        let user_widget = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::dropdown(
-                vec![
-                    fl!("username-prefered"),
-                    fl!("realname-prefered"),
-                    fl!("none")
-                ],
-                Some(self.config.user_widget as usize),
-                Message::UserWidgetChanged
-            )
-        ];
-        let button_label = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
+        let layout_editor = self
+            .layout_editor
+            .view(&self.config)
+            .map(Message::LayoutEditor);
+        let applet_button_style = cosmic::widget::dropdown(
+            vec![
+                fl!("icon-only"),
+                fl!("label-only"),
+                fl!("icon-and-label"),
+                fl!("auto"),
+            ],
+            Some(self.config.applet_button_style as usize),
+            Message::AppletButtonStyleChanged,
+        );
+        let user_widget = cosmic::widget::dropdown(
+            vec![
+                fl!("username-prefered"),
+                fl!("realname-prefered"),
+                fl!("none"),
+            ],
+            Some(self.config.user_widget as usize),
+            Message::UserWidgetChanged,
+        );
+        let button_label =
             cosmic::widget::text_input(fl!("button-label-placeholder"), &self.config.button_label)
                 .on_input(Message::ButtonLabelChanged)
-        ];
-        let button_icon = cosmic::iced::widget::row![
-            cosmic::widget::Space::new().width(Length::Fill).height(5),
-            cosmic::widget::button::text(fl!("button-icon-placeholder"))
-                .on_press(Message::OpenIconPicker) // 4. Open picker on click
-        ];
+                .width(Length::Fixed(200.0));
+        let button_icon = cosmic::widget::button::text(fl!("button-icon-placeholder"))
+            .on_press(Message::OpenIconPicker);
 
         let settings_container =
-            cosmic::widget::settings::view_column(vec![cosmic::widget::settings::section()
-                .title(fl!("general"))
-                .add(cosmic::widget::settings::item(
-                    fl!("app-menu-position"),
-                    app_menu_position,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("search-field-position"),
-                    search_field_position,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("applet-button-style"),
-                    applet_button_style,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("user-widget"),
-                    user_widget,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("button-label"),
-                    button_label,
-                ))
-                .add(cosmic::widget::settings::item(
-                    fl!("button-icon"),
-                    button_icon,
-                ))
-                .into()]);
+            cosmic::widget::settings::view_column(vec![
+                cosmic::widget::settings::section()
+                    .title(fl!("layout"))
+                    .add(layout_editor)
+                    .into(),
+            ]
+            .into_iter()
+            .chain(self.side_panel_section())
+            .chain([cosmic::widget::settings::section()
+                    .title(fl!("general"))
+                    .add(Self::setting_item(fl!("applet-button-style"), applet_button_style))
+                    .add(Self::setting_item(fl!("user-widget"), user_widget))
+                    .add(Self::setting_item(fl!("button-label"), button_label))
+                    .add(Self::setting_item(fl!("button-icon"), button_icon))
+                    .into()])
+            .collect());
 
-        settings_container.padding([5, 10]).into()
+        // The window has a fixed height, so let the sections scroll if needed.
+        // The extra right padding keeps the scrollbar off the sections.
+        cosmic::widget::scrollable(settings_container.padding(cosmic::iced::Padding {
+            top: 5.0,
+            bottom: 5.0,
+            left: 10.0,
+            right: 20.0,
+        }))
+        .into()
+    }
+
+    /// Listens for the mouse button release ending a drag, which may happen
+    /// outside of the dragged widget.
+    fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
+        if self.layout_editor.is_dragging() {
+            cosmic::iced::event::listen_with(|event, _status, _window| match event {
+                cosmic::iced::Event::Mouse(cosmic::iced::mouse::Event::ButtonReleased(
+                    cosmic::iced::mouse::Button::Left,
+                )) => Some(Message::LayoutEditor(layout_editor::Message::DragEnd)),
+                _ => None,
+            })
+        } else if self.dragged_place.is_some() {
+            cosmic::iced::event::listen_with(|event, _status, _window| match event {
+                cosmic::iced::Event::Mouse(cosmic::iced::mouse::Event::ButtonReleased(
+                    cosmic::iced::mouse::Button::Left,
+                )) => Some(Message::PlaceDragEnd),
+                _ => None,
+            })
+        } else {
+            cosmic::iced::Subscription::none()
+        }
     }
 
     /// Display a context drawer if the context page is requested.
@@ -262,9 +268,7 @@ impl cosmic::Application for AppModel {
             Message::UpdateConfig(config) => {
                 self.config = config;
 
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write recent applications config");
+                self.save_config();
 
                 Task::none()
             }
@@ -277,23 +281,34 @@ impl cosmic::Application for AppModel {
                 }
                 Task::none()
             }
-            Message::AppPositionChanged(horizontal_position) => {
-                log::info!("App position changed to: {:?}", horizontal_position);
-                self.config.app_menu_position = horizontal_position;
+            Message::LayoutEditor(message) => {
+                let change = self.layout_editor.update(message, &self.config);
 
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write recent applications config");
+                match change {
+                    Some(layout_editor::Change::MenuLayout(menu_layout)) => {
+                        log::info!("Menu layout changed to: {:?}", menu_layout);
+                        self.config.apply_layout(menu_layout);
+                    }
+                    Some(layout_editor::Change::AppMenuPosition(horizontal_position)) => {
+                        log::info!("App position changed to: {:?}", horizontal_position);
+                        self.config.app_menu_position = horizontal_position;
+                    }
+                    Some(layout_editor::Change::SearchFieldPosition(vertical_position)) => {
+                        log::info!("Search field position changed to: {:?}", vertical_position);
+                        self.config.search_field_position = vertical_position;
+                    }
+                    Some(layout_editor::Change::SidePanelWidth(width)) => {
+                        log::info!("Side panel width changed to: {width}%");
+                        self.config.side_panel_width = width;
+                    }
+                    Some(layout_editor::Change::PowerMenuPosition(power_menu_position)) => {
+                        log::info!("Power menu position changed to: {:?}", power_menu_position);
+                        self.config.power_menu_position = power_menu_position;
+                    }
+                    None => return Task::none(),
+                }
 
-                Task::none()
-            }
-            Message::SearchFieldPositionChanged(vertical_position) => {
-                log::info!("Search field position changed to: {:?}", vertical_position);
-                self.config.search_field_position = vertical_position;
-
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write search field position config");
+                self.save_config();
 
                 Task::none()
             }
@@ -307,10 +322,67 @@ impl cosmic::Application for AppModel {
                     _ => AppletButtonStyle::Auto,
                 };
 
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write applet button style config");
+                self.save_config();
 
+                Task::none()
+            }
+            Message::SidePanelChanged(index) => {
+                self.config.side_panel = if index == 1 {
+                    SidePanel::Places
+                } else {
+                    SidePanel::Categories
+                };
+                log::info!("Side panel changed to: {:?}", self.config.side_panel);
+                self.save_config();
+
+                Task::none()
+            }
+            Message::PlaceToggled(place, enabled) => {
+                self.config.places.retain(|p| *p != place);
+                if enabled {
+                    self.config.places.push(place);
+                }
+                self.save_config();
+
+                Task::none()
+            }
+            Message::PlaceDragStart(index) => {
+                self.dragged_place = Some(index);
+                Task::none()
+            }
+            Message::AddSeparator => {
+                self.config.places.push(Place::Separator);
+                self.save_config();
+                Task::none()
+            }
+            Message::RemoveSeparator(index) => {
+                if self.config.places.get(index) == Some(&Place::Separator) {
+                    self.config.places.remove(index);
+                    self.save_config();
+                }
+                Task::none()
+            }
+            Message::PlaceDragMove(y) => {
+                // Reorder live, so the list shows where the place will end up.
+                // Enabled places come first, so the row under the cursor is
+                // also the index in `places`; beyond the ends it clamps.
+                let places = &mut self.config.places;
+                if let Some(from) = self.dragged_place
+                    && from < places.len()
+                {
+                    let to = ((y / PLACE_ROW_PITCH).max(0.0) as usize).min(places.len() - 1);
+                    if to != from {
+                        let place = places.remove(from);
+                        places.insert(to, place);
+                        self.dragged_place = Some(to);
+                    }
+                }
+                Task::none()
+            }
+            Message::PlaceDragEnd => {
+                if self.dragged_place.take().is_some() {
+                    self.save_config();
+                }
                 Task::none()
             }
             Message::UserWidgetChanged(user_widget_style) => {
@@ -322,9 +394,7 @@ impl cosmic::Application for AppModel {
                     _ => UserWidgetStyle::None,
                 };
 
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write user widget style config");
+                self.save_config();
 
                 Task::none()
             }
@@ -338,9 +408,7 @@ impl cosmic::Application for AppModel {
                 log::info!("Button label changed to: {:?}", new_label);
                 self.config.button_label = new_label;
 
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write button label config");
+                self.save_config();
 
                 Task::none()
             }
@@ -351,9 +419,7 @@ impl cosmic::Application for AppModel {
                 );
                 self.config.button_icon = new_icon.to_string_lossy().into_owned();
 
-                self.config
-                    .write_entry(AppletConfig::config_handler().as_ref().unwrap())
-                    .expect("Failed to write button icon config");
+                self.save_config();
 
                 Task::none()
             }
@@ -389,6 +455,182 @@ impl cosmic::Application for AppModel {
 }
 
 impl AppModel {
+    /// Choice between categories and places, for layouts with a side panel.
+    fn side_panel_section(&self) -> Option<Element<'_, Message>> {
+        if !self.config.menu_layout.has_side_panel() {
+            return None;
+        }
+
+        let content = cosmic::widget::dropdown(
+            vec![fl!("layout-categories"), fl!("layout-places")],
+            Some(match self.config.side_panel {
+                SidePanel::Categories => 0,
+                SidePanel::Places => 1,
+            }),
+            Message::SidePanelChanged,
+        );
+
+        let mut section = cosmic::widget::settings::section()
+            .title(fl!("side-panel"))
+            .add(Self::setting_item(fl!("side-panel-content"), content));
+
+        if self.config.side_panel == SidePanel::Places {
+            let add_separator = cosmic::widget::button::standard(fl!("add-separator"))
+                .leading_icon(icon::from_name("list-add-symbolic"))
+                .on_press(Message::AddSeparator);
+            section = section.add(self.places_list()).add(
+                cosmic::iced::widget::row![
+                    cosmic::widget::Space::new().width(Length::Fill),
+                    add_separator
+                ],
+            );
+        }
+
+        Some(section.into())
+    }
+
+    /// Places with toggles; enabled ones first, in order, reordered by
+    /// dragging their rows.
+    fn places_list(&self) -> Element<'_, Message> {
+        let enabled = &self.config.places;
+        let disabled = Place::ALL.into_iter().filter(|p| !enabled.contains(p));
+
+        // Enabled entries know their index in `places`; disabled ones have none.
+        let entries = enabled
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, place)| (place, Some(index)))
+            .chain(disabled.map(|place| (place, None)));
+
+        let mut list = cosmic::iced::widget::column![];
+        for (row, (place, index)) in entries.enumerate() {
+            if row > 0 {
+                list = list.push(
+                    cosmic::widget::container(cosmic::widget::divider::horizontal::default())
+                        .height(Length::Fixed(PLACE_DIVIDER_HEIGHT)),
+                );
+            }
+            list = list.push(self.place_item(place, index));
+        }
+
+        // The whole list tracks the cursor, so a place can be dragged past
+        // the first and last rows.
+        let mut area = cosmic::widget::mouse_area(list);
+        if self.dragged_place.is_some() {
+            area = area
+                .on_move(|point| Message::PlaceDragMove(point.y))
+                .interaction(cosmic::iced::mouse::Interaction::Grabbing);
+        }
+        area.into()
+    }
+
+    /// Row toggling a place, or removing a separator. Enabled entries, which
+    /// have an `index` in the places list, can be grabbed anywhere but on
+    /// their toggle or button, which handle their own clicks.
+    fn place_item(&self, place: Place, index: Option<usize>) -> Element<'_, Message> {
+        let enabled = index.is_some();
+        let dragged = index.is_some() && self.dragged_place == index;
+
+        // Disabled places keep an empty spot, keeping the rows aligned.
+        let handle: Element<'_, Message> = if enabled {
+            icon::from_name("open-menu-symbolic").size(16).into()
+        } else {
+            cosmic::widget::Space::new().width(16).into()
+        };
+
+        let row = match (place, index) {
+            (Place::Separator, Some(index)) => cosmic::widget::settings::item_row(vec![
+                handle,
+                cosmic::widget::container(cosmic::widget::divider::horizontal::heavy())
+                    .center_y(Length::Fill)
+                    .width(Length::Fill)
+                    .into(),
+                cosmic::widget::tooltip(
+                    cosmic::widget::button::icon(icon::from_name("edit-delete-symbolic"))
+                        .on_press(Message::RemoveSeparator(index)),
+                    text::caption(fl!("remove-separator")),
+                    cosmic::widget::tooltip::Position::Left,
+                )
+                .into(),
+            ]),
+            _ => cosmic::widget::settings::item_row(vec![
+                handle,
+                icon::from_name(place.icon_name()).size(16).into(),
+                text::body(place.display_name())
+                    .wrapping(cosmic::iced::core::text::Wrapping::None)
+                    .ellipsize(cosmic::iced::core::text::Ellipsize::End(
+                        cosmic::iced::core::text::EllipsizeHeightLimit::Lines(1),
+                    ))
+                    .width(Length::Fill)
+                    .into(),
+                cosmic::widget::toggler(enabled)
+                    .on_toggle(move |enabled| Message::PlaceToggled(place, enabled))
+                    .into(),
+            ]),
+        };
+
+        // Highlight the row being dragged.
+        let row = cosmic::widget::container(row)
+            .center_y(Length::Fixed(PLACE_ROW_HEIGHT))
+            .padding([0, cosmic::theme::active().cosmic().space_xxs()])
+            .class(cosmic::theme::Container::custom(move |theme| {
+                let cosmic = theme.cosmic();
+                let mut style = cosmic::widget::container::Style::default();
+                if dragged {
+                    let mut accent: cosmic::iced::Color = cosmic.accent_color().into();
+                    accent.a = 0.2;
+                    style.background = Some(Background::Color(accent));
+                    style.border.radius = cosmic.radius_s().into();
+                }
+                style
+            }));
+
+        if let Some(index) = index {
+            cosmic::widget::mouse_area(row)
+                .on_press(Message::PlaceDragStart(index))
+                .interaction(if self.dragged_place.is_some() {
+                    cosmic::iced::mouse::Interaction::Grabbing
+                } else {
+                    cosmic::iced::mouse::Interaction::Grab
+                })
+                .into()
+        } else {
+            row.into()
+        }
+    }
+
+    /// Writes the configuration, keeping the recently used and favorite apps
+    /// the applet recorded since this app loaded its copy of the config.
+    fn save_config(&mut self) {
+        // Keys the applet writes itself.
+        let applet_config = AppletConfig::config();
+        self.config.recent_applications = applet_config.recent_applications;
+        self.config.favorite_applications = applet_config.favorite_applications;
+        self.config
+            .write_entry(AppletConfig::config_handler().as_ref().unwrap())
+            .expect("Failed to write applet config");
+    }
+
+    /// A settings row whose title is cut off with an ellipsis, rather than
+    /// squeezing the control, when the window is too narrow for both.
+    fn setting_item<'a>(
+        title: String,
+        control: impl Into<Element<'a, Message>>,
+    ) -> Element<'a, Message> {
+        cosmic::widget::settings::item_row(vec![
+            text::body(title)
+                .wrapping(cosmic::iced::core::text::Wrapping::None)
+                .ellipsize(cosmic::iced::core::text::Ellipsize::End(
+                    cosmic::iced::core::text::EllipsizeHeightLimit::Lines(1),
+                ))
+                .width(Length::Fill)
+                .into(),
+            control.into(),
+        ])
+        .into()
+    }
+
     /// Helper to find available system icons in standard locations.
     fn system_icon_names() -> Vec<String> {
         // Prefer runtime discovery using XDG_DATA_DIRS so the app works correctly

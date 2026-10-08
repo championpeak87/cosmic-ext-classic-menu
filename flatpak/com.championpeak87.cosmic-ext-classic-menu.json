@@ -26,6 +26,8 @@
     "--env=XDG_DATA_DIRS=/run/host/usr/share:/var/lib/flatpak/exports/share:/app/share:${HOME}/.local/share/flatpak/exports/share:${HOME}/.local/share",
     "--filesystem=host:ro",
     "--filesystem=host-os:ro",
+    "--filesystem=host-etc:ro",
+    "--filesystem=xdg-config/menus:ro",
     "--filesystem=/var/lib/flatpak/exports/share/applications:ro",
     "--filesystem=/var/lib/flatpak/app:ro",
     "--filesystem=/var/lib/flatpak/exports/share/icons:ro",

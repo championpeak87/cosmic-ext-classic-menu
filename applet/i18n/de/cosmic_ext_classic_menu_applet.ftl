@@ -30,3 +30,19 @@ menu-label=Menü
 # Anwendungskontextmenü
 launch=Starten
 pin-to-panel=An Leiste anheften
+add-to-favorites=Zu Favoriten hinzufügen
+
+# places
+place-home=Persönlicher Ordner
+place-documents=Dokumente
+place-downloads=Downloads
+place-pictures=Bilder
+place-music=Musik
+place-videos=Videos
+place-computer=Computer
+place-settings=Einstellungen
+place-terminal=Terminal
+place-store=App Store
+place-system-monitor=Systemmonitor
+place-disks=Laufwerke
+place-separator=Trennlinie

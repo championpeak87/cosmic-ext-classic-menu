@@ -18,6 +18,9 @@ impl SystemTool {
     pub const DISK_MANAGEMENT: SystemTool = Self {
         exec: "gnome-disks",
     };
+    pub const APP_STORE: SystemTool = Self {
+        exec: "cosmic-store",
+    };
 
     pub fn perform(&self) {
         if self == &SystemTool::APPLET_SETTINGS {

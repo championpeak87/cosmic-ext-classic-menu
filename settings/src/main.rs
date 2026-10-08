@@ -2,6 +2,7 @@
 
 mod app;
 mod i18n;
+mod layout_editor;
 
 fn main() -> cosmic::iced::Result {
     // Initialize logging
@@ -13,10 +14,14 @@ fn main() -> cosmic::iced::Result {
 
     // Enable localizations to be applied.
     i18n::init(&requested_languages);
+    // Place names come from the applet's translations.
+    cosmic_ext_classic_menu_applet::i18n::init(&requested_languages);
 
     // Settings for configuring the application window and iced runtime.
+    let size = cosmic::iced::Size::new(600.0, 720.0);
     let settings = cosmic::app::Settings::default()
-        .size_limits(cosmic::iced::Limits::NONE.height(600.0).width(720.0))
+        .size(size)
+        .size_limits(cosmic::iced::Limits::new(size, size))
         .resizable(Some(0.0));
 
     // Starts the application's event loop with `()` as the application's flags.

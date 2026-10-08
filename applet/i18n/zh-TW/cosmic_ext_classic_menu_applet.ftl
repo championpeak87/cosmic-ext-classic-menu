@@ -30,3 +30,19 @@ menu-label=選單
 # 應用程式右鍵選單
 launch=啟動
 pin-to-panel=釘選到面板
+add-to-favorites=加入我的最愛
+
+# places
+place-home=家目錄
+place-documents=文件
+place-downloads=下載
+place-pictures=圖片
+place-music=音樂
+place-videos=影片
+place-computer=電腦
+place-settings=設定
+place-terminal=終端機
+place-store=應用程式商店
+place-system-monitor=系統監控
+place-disks=磁碟
+place-separator=分隔線

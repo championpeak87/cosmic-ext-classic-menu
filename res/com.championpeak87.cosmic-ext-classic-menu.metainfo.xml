@@ -166,6 +166,20 @@
     <category>Desktop</category>
   </categories>
   <releases>
+    <release version="1.0.0" date="2026-10-08">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Five menu layouts to choose from: Classic, Retro, Compact, Sidebar and Modern</li>
+          <li>Drag and drop layout editor in the settings: move the search field and power controls, swap and resize the panes</li>
+          <li>Places panel as an alternative to categories, with customizable order and separators</li>
+          <li>Favorite applications in the Sidebar layout, added from the application context menu</li>
+          <li>Menu opens faster and uses less memory</li>
+          <li>Settings changes are applied to the menu immediately</li>
+          <li>Fixed context menu position when the application list is scrolled</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.0.14" date="2026-06-12">
       <description>
         <h1>What's changed</h1>

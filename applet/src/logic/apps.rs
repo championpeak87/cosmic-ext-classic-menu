@@ -1,10 +1,11 @@
 use crate::{
-    config::{AppletConfig, RecentApplication},
+    config::RecentApplication,
+    logic::custom_categories,
     model::{application_category::ApplicationCategory, application_entry::ApplicationEntry},
 };
-use std::{collections::HashMap, string::String, sync::Arc};
+use std::{string::String, sync::Arc};
 
-use cached::{proc_macro::cached, UnboundCache};
+use cached::{proc_macro::cached, Cached, UnboundCache};
 use cosmic_app_list_config::AppListConfig;
 use futures::channel::mpsc::Sender;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
@@ -41,7 +42,7 @@ pub fn load_apps() -> Vec<Arc<ApplicationEntry>> {
 }
 
 /// Strip diacritics (accents) from a string using NFD decomposition
-fn strip_diacritics(s: &str) -> String {
+pub fn strip_diacritics(s: &str) -> String {
     s.nfd()
         .filter(|c| !is_combining_mark(*c))
         .collect()
@@ -62,22 +63,19 @@ pub fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
     let mut scored: Vec<(i64, Arc<ApplicationEntry>)> = apps
         .into_iter()
         .filter_map(|app| {
-            // Strip diacritics from app fields for comparison
-            let name_normalized = strip_diacritics(&app.name);
-            let generic_name_normalized = app.generic_name.as_ref().map(|s| strip_diacritics(s));
-            let comment_normalized = app.comment.as_ref().map(|s| strip_diacritics(s));
-
             // Match against the normalized name
-            let name_score = matcher.fuzzy_match(&name_normalized, &normalized_filter);
+            let name_score = matcher.fuzzy_match(&app.search_name, &normalized_filter);
 
             // Match against the normalized generic name
-            let generic_name_score = generic_name_normalized
+            let generic_name_score = app
+                .search_generic_name
                 .as_ref()
                 .and_then(|d| matcher.fuzzy_match(d, &normalized_filter))
                 .map(|x| x - 2); // penalize generic_name by 2
 
             // Match against the normalized comment
-            let comment_score = comment_normalized
+            let comment_score = app
+                .search_comment
                 .as_ref()
                 .and_then(|d| matcher.fuzzy_match(d, &normalized_filter))
                 .map(|x| x - 5); // penalize comment by 5
@@ -96,11 +94,8 @@ pub fn load_filtered_apps(filter: String) -> Vec<Arc<ApplicationEntry>> {
 }
 
 pub fn load_app_categories() -> Vec<ApplicationCategory> {
-    use std::collections::HashSet;
-
     log::info!("Loading app categories...");
     let all_apps = load_apps();
-    let used_categories: HashSet<&String> = all_apps.iter().flat_map(|app| &app.category).collect();
 
     // Define all app categories
     let apps_categories = [
@@ -119,45 +114,62 @@ pub fn load_app_categories() -> Vec<ApplicationCategory> {
         ApplicationCategory::UTILITY,
     ];
 
+    // Load custom categories created by applications like Wine or Citrix
+    let custom_categories = custom_categories::load_custom_categories();
+
     // Filter only available ones
-    let categories = apps_categories
+    apps_categories
         .into_iter()
-        .filter(|x| {
-            x.permanent == true
-                || (!x.mime_name.is_empty() && used_categories.contains(&x.mime_name.to_string()))
-        })
-        .collect();
-
-    categories
-}
-
-pub fn get_recent_applications() -> Vec<Arc<ApplicationEntry>> {
-    log::info!("Loading recent applications...");
-    let mut recent_applications: Vec<RecentApplication> =
-        AppletConfig::config().recent_applications;
-    let all_applications_entries: HashMap<String, Arc<ApplicationEntry>> = load_apps()
-        .into_iter()
-        .map(|app| (app.id.clone(), app))
-        .collect();
-
-    recent_applications.sort_by(|a, b| b.launch_count.cmp(&a.launch_count));
-    recent_applications
-        .iter()
-        .take(15) // take only first 15 recent entries, not to clutter the list
-        .filter_map(|app| all_applications_entries.get(&app.app_id).cloned())
+        .chain(custom_categories)
+        .filter(|x| x.permanent || all_apps.iter().any(|app| x.matches(app)))
         .collect()
 }
 
-pub fn get_apps_of_category(category: ApplicationCategory) -> Vec<Arc<ApplicationEntry>> {
+/// Runs `f` on the loaded apps if they are cached, without loading them.
+/// Cheap enough for the UI thread, unlike [`load_apps`] on a cache miss.
+pub fn with_cached_apps<R>(f: impl FnOnce(&[Arc<ApplicationEntry>]) -> R) -> Option<R> {
+    APPS_CACHE.lock().unwrap().cache_get(&()).map(|apps| f(apps))
+}
+
+/// Most launched apps first, skipping uninstalled ones.
+pub fn get_recent_applications(
+    recent_applications: &[RecentApplication],
+    apps: &[Arc<ApplicationEntry>],
+) -> Vec<Arc<ApplicationEntry>> {
+    let mut recent_applications: Vec<&RecentApplication> = recent_applications.iter().collect();
+    recent_applications.sort_unstable_by(|a, b| b.launch_count.cmp(&a.launch_count));
+
+    recent_applications
+        .into_iter()
+        .filter_map(|recent| apps.iter().find(|app| app.id == recent.app_id).cloned())
+        .take(15) // take only first 15 recent entries, not to clutter the list
+        .collect()
+}
+
+/// Apps with the given ids, in that order, skipping uninstalled ones.
+pub fn get_favorite_applications(
+    app_ids: &[String],
+    apps: &[Arc<ApplicationEntry>],
+) -> Vec<Arc<ApplicationEntry>> {
+    app_ids
+        .iter()
+        .filter_map(|app_id| apps.iter().find(|app| app.id == *app_id).cloned())
+        .collect()
+}
+
+pub fn get_apps_of_category(
+    category: ApplicationCategory,
+    recent_applications: &[RecentApplication],
+) -> Vec<Arc<ApplicationEntry>> {
     log::info!("Getting apps of category: {}", category.mime_name);
     if category == ApplicationCategory::ALL {
         load_apps()
     } else if category == ApplicationCategory::RECENTLY_USED {
-        get_recent_applications()
+        get_recent_applications(recent_applications, &load_apps())
     } else {
         load_apps()
             .into_iter()
-            .filter(|app| app.category.iter().any(|c| c == category.mime_name))
+            .filter(|app| category.matches(app))
             .collect()
     }
 }

@@ -11,6 +11,7 @@ use cosmic::widget::{ListColumn, container, scrollable};
 use cosmic::{Element, theme};
 
 use crate::applet::{Applet, Message};
+use crate::widgets::right_release_guard::RightReleaseGuard;
 use crate::model::application_entry::ApplicationEntry;
 
 /// A virtualized app list widget that only renders visible items for performance.
@@ -88,12 +89,13 @@ impl VirtualizedAppList {
             |list, item| list.add(item),
         );
 
-        scrollable(container(app_list))
+        let app_list = scrollable(container(app_list))
             .height(Length::Fill)
-            .width(Length::FillPortion(5))
+            .width(Length::Fill)
             .id(applet.scrollable_id.clone())
-            .on_scroll(|viewport| Message::ScrollUpdated(viewport))
-            .into()
+            .on_scroll(|viewport| Message::ScrollUpdated(viewport));
+
+        Self::with_context_menu(applet, app_list)
     }
 
     /// Creates an individual app button with context menu
@@ -149,14 +151,11 @@ impl VirtualizedAppList {
         .width(Length::Fill)
         .height(space_xl);
 
-        let context_menu = Self::create_context_menu(applet, app);
-
-        let widget = cosmic::widget::context_menu(button, context_menu)
-            .close_on_escape(true)
-            .on_surface_action(Message::ContextMenuAction)
-            .window_id(applet.popup.unwrap_or_else(|| Id::NONE));
-
-        widget.into()
+        // The context menu itself wraps the whole scrollable, see
+        // `with_context_menu`; this only marks which app it is for.
+        cosmic::widget::mouse_area(button)
+            .on_right_press(Message::ContextMenuTarget(index))
+            .into()
     }
 
     /// Creates the icon widget for an application
@@ -167,7 +166,7 @@ impl VirtualizedAppList {
     ///
     /// # Returns
     /// A container element with the app icon
-    fn create_icon_widget(app: &Arc<ApplicationEntry>, space_l: u16) -> Element<'_, Message> {
+    pub(crate) fn create_icon_widget(app: &Arc<ApplicationEntry>, space_l: u16) -> Element<'_, Message> {
         let default_icon = crate::model::application_entry::IconHandle::default();
         let icon_handle = app.icon.as_ref().unwrap_or(&default_icon);
 
@@ -189,19 +188,32 @@ impl VirtualizedAppList {
         }
     }
 
-    /// Creates the context menu for an application
+    /// Wraps a scrollable app view in the context menu of the app that was
+    /// last right clicked in it.
     ///
-    /// # Arguments
-    /// * `applet` - Reference to the applet
-    /// * `app` - The application entry
-    ///
-    /// # Returns
-    /// An optional context menu with app actions
-    fn create_context_menu<'a>(
+    /// The context menu must sit outside the scrollable: inside, it would get
+    /// the cursor position shifted by the scroll offset and open its popup
+    /// that far below the pointer.
+    pub(crate) fn with_context_menu<'a>(
         applet: &'a Applet,
-        app: &'a Arc<ApplicationEntry>,
-    ) -> Option<Vec<cosmic::widget::menu::Tree<Message>>> {
-        // Use cached menu trees if available (built in Applet when apps are updated)
-        applet.context_menus.get(&app.id).cloned()
+        content: impl Into<Element<'a, Message>>,
+    ) -> Element<'a, Message> {
+        // Built by the applet when an app is right clicked.
+        let context_menu = applet.context_menu.clone();
+        let has_target = context_menu.is_some();
+
+        // Reports right clicks that no app claimed, so empty space shows no
+        // menu. Item handlers run before this one for the same click.
+        let content =
+            cosmic::widget::mouse_area(content).on_right_press(Message::ContextMenuRightPress);
+
+        // The context menu panics without a menu, so it always gets one, and
+        // the guard keeps it from opening when no app was right clicked.
+        let context_menu = cosmic::widget::context_menu(content, Some(context_menu.unwrap_or_default()))
+            .close_on_escape(true)
+            .on_surface_action(Message::ContextMenuAction)
+            .window_id(applet.popup.unwrap_or(Id::NONE));
+
+        RightReleaseGuard::new(context_menu, !has_target).into()
     }
 }

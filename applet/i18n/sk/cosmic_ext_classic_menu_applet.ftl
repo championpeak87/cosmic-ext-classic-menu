@@ -30,3 +30,19 @@ menu-label = Menu
 # kontextová ponuka aplikácie
 launch = Spustiť
 pin-to-panel = Pripnúť na panel
+add-to-favorites=Pridať medzi obľúbené
+
+# places
+place-home=Domov
+place-documents=Dokumenty
+place-downloads=Stiahnuté
+place-pictures=Obrázky
+place-music=Hudba
+place-videos=Videá
+place-computer=Počítač
+place-settings=Nastavenia
+place-terminal=Terminál
+place-store=Obchod s aplikáciami
+place-system-monitor=Monitor systému
+place-disks=Disky
+place-separator=Oddeľovač

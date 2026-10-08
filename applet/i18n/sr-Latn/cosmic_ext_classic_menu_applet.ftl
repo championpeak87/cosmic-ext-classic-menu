@@ -30,3 +30,19 @@ menu-label=Meni
 # kontekstni meni aplikacije
 launch=Pokreni
 pin-to-panel=Zakači na panelu
+add-to-favorites=Dodaj u omiljene
+
+# places
+place-home=Lična fascikla
+place-documents=Dokumenti
+place-downloads=Preuzimanja
+place-pictures=Slike
+place-music=Muzika
+place-videos=Video zapisi
+place-computer=Računar
+place-settings=Podešavanja
+place-terminal=Terminal
+place-store=Prodavnica aplikacija
+place-system-monitor=Nadgledanje sistema
+place-disks=Diskovi
+place-separator=Razdvajač

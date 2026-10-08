@@ -30,3 +30,19 @@ menu-label=منو
 # منوی زمینه برنامه
 launch=راه‌اندازی
 pin-to-panel=سنجاق کردن به نوار
+add-to-favorites=افزودن به علاقه‌مندی‌ها
+
+# places
+place-home=خانه
+place-documents=اسناد
+place-downloads=بارگیری‌ها
+place-pictures=تصاویر
+place-music=موسیقی
+place-videos=ویدیوها
+place-computer=رایانه
+place-settings=تنظیمات
+place-terminal=ترمینال
+place-store=فروشگاه برنامه
+place-system-monitor=پایشگر سیستم
+place-disks=دیسک‌ها
+place-separator=جداکننده

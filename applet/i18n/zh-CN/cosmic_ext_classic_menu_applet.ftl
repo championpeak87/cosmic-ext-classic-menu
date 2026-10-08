@@ -30,3 +30,19 @@ menu-label=菜单
 # 应用程序上下文菜单
 launch=启动
 pin-to-panel=固定到面板
+add-to-favorites=添加到收藏夹
+
+# places
+place-home=主文件夹
+place-documents=文档
+place-downloads=下载
+place-pictures=图片
+place-music=音乐
+place-videos=视频
+place-computer=计算机
+place-settings=设置
+place-terminal=终端
+place-store=应用商店
+place-system-monitor=系统监视器
+place-disks=磁盘
+place-separator=分隔线

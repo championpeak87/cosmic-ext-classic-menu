@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu
-Version:        0.0.14
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Classic Menu Applet
 
@@ -36,6 +36,15 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/com.championpeak87.cosmic-ext-classic-menu/applet-buttons/*
 
 %changelog
+* Thu Oct 08 2026 Kamil Lihan <k.lihan@outlook.com> 1.0.0-1
+- Five menu layouts to choose from: Classic, Retro, Compact, Sidebar and Modern
+- Drag and drop layout editor in the settings: move the search field and power controls, swap and resize the panes
+- Places panel as an alternative to categories, with customizable order and separators
+- Favorite applications in the Sidebar layout, added from the application context menu
+- Menu opens faster and uses less memory
+- Settings changes are applied to the menu immediately
+- Fixed context menu position when the application list is scrolled
+
 * Mon Jun 12 2026 Kamil Lihan <k.lihan@outlook.com> 0.0.14-1
 - Patched issue with applet crashing
 - Fixed scrolling of the app list when using arrow keys

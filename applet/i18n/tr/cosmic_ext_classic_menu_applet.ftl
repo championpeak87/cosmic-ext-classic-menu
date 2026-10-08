@@ -30,3 +30,19 @@ menu-label=Menü
 # uygulama bağlam menüsü
 launch=Başlat
 pin-to-panel=Panele Sabitle
+add-to-favorites=Sık kullanılanlara ekle
+
+# places
+place-home=Ev
+place-documents=Belgeler
+place-downloads=İndirilenler
+place-pictures=Resimler
+place-music=Müzik
+place-videos=Videolar
+place-computer=Bilgisayar
+place-settings=Ayarlar
+place-terminal=Uçbirim
+place-store=Uygulama mağazası
+place-system-monitor=Sistem izleyici
+place-disks=Diskler
+place-separator=Ayırıcı

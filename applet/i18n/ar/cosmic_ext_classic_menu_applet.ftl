@@ -30,3 +30,19 @@ menu-label=القائمة
 # قائمة السياق للتطبيق
 launch=تشغيل
 pin-to-panel=تثبيت على اللوحة
+add-to-favorites=إضافة إلى المفضلة
+
+# places
+place-home=المنزل
+place-documents=المستندات
+place-downloads=التنزيلات
+place-pictures=الصور
+place-music=الموسيقى
+place-videos=الفيديوهات
+place-computer=الحاسوب
+place-settings=الإعدادات
+place-terminal=الطرفية
+place-store=متجر التطبيقات
+place-system-monitor=مراقب النظام
+place-disks=الأقراص
+place-separator=فاصل

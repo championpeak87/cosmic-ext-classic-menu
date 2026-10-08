@@ -30,3 +30,19 @@ menu-label=Menü
 # alkalmazás helyi menü
 launch=Indítás
 pin-to-panel=Rögzítés a panelhez
+add-to-favorites=Hozzáadás a kedvencekhez
+
+# places
+place-home=Saját mappa
+place-documents=Dokumentumok
+place-downloads=Letöltések
+place-pictures=Képek
+place-music=Zene
+place-videos=Videók
+place-computer=Számítógép
+place-settings=Beállítások
+place-terminal=Terminál
+place-store=Alkalmazásbolt
+place-system-monitor=Rendszerfigyelő
+place-disks=Lemezek
+place-separator=Elválasztó
