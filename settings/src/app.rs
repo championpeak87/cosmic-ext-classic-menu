@@ -35,7 +35,11 @@ enum Page {
     PowerButtons,
     Favorites,
     Categories,
+    About,
 }
+
+/// Stripe Payment Link: a hosted payment page, no server needed.
+const DONATE_URL: &str = "https://donate.stripe.com/aFaeVe9Jjcxb9zA4Rh67S02";
 
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
@@ -142,7 +146,10 @@ impl cosmic::Application for AppModel {
             .name(fl!("app-title"))
             .icon(icon::from_name(Self::APP_ID))
             .version(env!("CARGO_PKG_VERSION"))
+            .author("Shagov Alexei")
+            .comments(fl!("about-comments"))
             .license("GPL-3.0-only")
+            .license_url("https://www.gnu.org/licenses/gpl-3.0.html")
             .developers([("Shagov Alexei", "shagov.alexei@gmail.com")])
             .links([
                 (
@@ -177,6 +184,10 @@ impl cosmic::Application for AppModel {
             .text(fl!("categories"))
             .icon(icon::from_name("view-list-symbolic"))
             .data(Page::Categories);
+        nav.insert()
+            .text(fl!("about"))
+            .icon(icon::from_name("help-about-symbolic"))
+            .data(Page::About);
 
         // Construct the app model with the runtime's core.
         let app = AppModel {
@@ -342,6 +353,7 @@ impl cosmic::Application for AppModel {
             ])
             .spacing(cosmic::theme::active().cosmic().space_s())
             .into(),
+            Some(Page::About) => self.about_page(),
             _ => general_section.into(),
         };
         let settings_container = cosmic::widget::settings::view_column(vec![page]);
@@ -356,9 +368,8 @@ impl cosmic::Application for AppModel {
         }
 
         Some(match self.context_page {
-            ContextPage::About => context_drawer::about(
-                &self.about,
-                |url| Message::LaunchUrl(url.to_string()),
+            ContextPage::About => context_drawer::context_drawer(
+                self.about_page(),
                 Message::ToggleContextPage(ContextPage::About),
             )
             .title(fl!("about")),
@@ -1062,4 +1073,30 @@ pub enum ContextPage {
     About,
     IconPicker, // 1. Add new variant
     CategoryIcon,
+}
+
+impl AppModel {
+    /// Donate block over the about info, shown both as a page and in the header menu's drawer.
+    fn about_page(&self) -> Element<'_, Message> {
+        cosmic::widget::column::with_children(vec![
+            donate(),
+            cosmic::widget::about(&self.about, |url| Message::LaunchUrl(url.to_string())),
+        ])
+        .spacing(24)
+        .into()
+    }
+}
+
+fn donate() -> Element<'static, Message> {
+    cosmic::widget::column::with_capacity(3)
+        .spacing(8)
+        .align_x(Alignment::Center)
+        .width(Length::Fill)
+        .push(text::heading(fl!("donate-title")))
+        .push(text::body(fl!("donate-text")))
+        .push(
+            button::suggested(fl!("donate-title"))
+                .on_press(Message::LaunchUrl(DONATE_URL.to_string())),
+        )
+        .into()
 }

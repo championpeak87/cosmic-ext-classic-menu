@@ -80,6 +80,11 @@
     <category>System</category>
   </categories>
   <releases>
+    <release version="0.1.2" date="2026-10-14">
+      <description>
+        <p>About page in the settings with a "Support the project" button.</p>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-09-30">
       <description>
         <p>New application icon.</p>
