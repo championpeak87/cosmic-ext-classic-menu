@@ -12,6 +12,9 @@ impl SystemTool {
     pub const SYSTEM_SETTINGS: SystemTool = Self {
         exec: "cosmic-settings",
     };
+    pub const USER_SETTINGS: SystemTool = Self {
+        exec: "cosmic-settings users",
+    };
     pub const SYSTEM_MONITOR: SystemTool = Self {
         exec: "gnome-system-monitor",
     };
@@ -55,8 +58,9 @@ impl SystemTool {
                 vec!["--host", "/bin/sh", "-l", "-c", self.exec],
             )
         } else {
-            // For native, use the direct executable name
-            (self.exec, vec![])
+            // For native, split the program from its arguments
+            let mut parts = self.exec.split_whitespace();
+            (parts.next().unwrap_or_default(), parts.collect())
         };
 
         // Execute the command and provide better error reporting

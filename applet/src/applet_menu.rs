@@ -17,6 +17,7 @@ use crate::model::appearance;
 use crate::model::application_category::{ApplicationCategory, CategoryIcon};
 use crate::model::application_entry::ApplicationEntry;
 use crate::model::power_action::PowerAction;
+use crate::model::system_tool::SystemTool;
 use crate::widgets::VirtualizedAppList;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,6 +82,8 @@ impl AppletMenu {
         include_bytes!("../../res/icons/bundled/system-hibernate-symbolic.svg");
     const USER_IDLE_SYMBOLIC: &[u8] =
         include_bytes!("../../res/icons/bundled/user-idle-symbolic.svg");
+    const SETTINGS_SYMBOLIC: &[u8] =
+        include_bytes!("../../res/icons/bundled/preferences-system-symbolic.svg");
 
     pub fn view_main_menu_list(applet: &Applet) -> Element<'_, Message> {
         let Spacing {
@@ -469,10 +472,32 @@ impl AppletMenu {
                 }
             };
 
+            let user_button = cosmic::widget::button::custom(
+                row![
+                    profile_picture_widget,
+                    cosmic::widget::Space::new().width(5).height(Length::Shrink),
+                    nametag_widget
+                ]
+                .align_y(Alignment::Center),
+            )
+            .class(cosmic::theme::Button::Text)
+            .on_press(Message::LaunchTool(SystemTool::USER_SETTINGS));
+
+            let settings_button = cosmic::widget::tooltip(
+                cosmic::widget::button::icon(
+                    cosmic::widget::icon::from_svg_bytes(AppletMenu::SETTINGS_SYMBOLIC)
+                        .symbolic(true),
+                )
+                .padding(8)
+                .on_press(Message::LaunchTool(SystemTool::APPLET_SETTINGS)),
+                text(fl!("settings")),
+                cosmic::widget::tooltip::Position::Bottom,
+            );
+
             row![
-                profile_picture_widget,
-                cosmic::widget::Space::new().width(5).height(Length::Shrink),
-                nametag_widget
+                user_button,
+                cosmic::widget::Space::new().width(Length::Fill),
+                settings_button
             ]
             .align_y(Alignment::Center)
             .padding([10., 0.])

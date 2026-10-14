@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu-plus
-Version:        0.1.2
+Version:        0.1.3
 Release:        1%{?dist}
 Summary:        Classic Menu Plus Applet
 
@@ -38,6 +38,9 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/io.github.shagovAlexei.cosmic-ext-classic-menu-plus/applet-buttons/*
 
 %changelog
+* Wed Oct 14 2026 Shagov Alexei <shagov.alexei@gmail.com> 0.1.3-1
+- Settings button in the menu header, the user name opens COSMIC user settings
+
 * Wed Oct 14 2026 Shagov Alexei <shagov.alexei@gmail.com> 0.1.2-1
 - About page in the settings with a "Support the project" button
 
