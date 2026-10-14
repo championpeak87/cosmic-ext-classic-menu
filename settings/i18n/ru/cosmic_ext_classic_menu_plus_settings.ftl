@@ -4,6 +4,9 @@ settings = Настройки
 default-settings = Сбросить по умолчанию
 repository = Репозиторий
 support = Поддержка
+about-comments = Классическое меню приложений для панели COSMIC
+donate-title = Поддержать проект
+donate-text = Classic Menu Plus бесплатный. Если он вам помогает, вы можете поддержать его развитие.
 
 general = Общие
 app-menu-position = Положение меню приложения

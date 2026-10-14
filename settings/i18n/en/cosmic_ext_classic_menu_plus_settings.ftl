@@ -4,6 +4,9 @@ settings = Settings
 default-settings = Reset to defaults
 repository = Repository
 support = Support
+about-comments = Classic-style application menu for the COSMIC panel
+donate-title = Support the project
+donate-text = Classic Menu Plus is free. If it helps you, you can support its development.
 
 general = General
 app-menu-position = App menu position
