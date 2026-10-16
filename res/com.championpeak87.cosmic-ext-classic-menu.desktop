@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=Classic Menu
 Name[cs]=Klasické menu
+Name[pt_BR]=Menu Clássico
 Exec=cosmic-ext-classic-menu-applet
 Terminal=false
 Type=Application

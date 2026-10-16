@@ -1,7 +1,7 @@
-app-title = Classic Menu
+app-title = Menu Clássico
 about = Sobre
 settings = Configurações
-default-settings = Restaurar para padrão
+default-settings = Restaurar padrões
 repository = Repositório
 support = Suporte
 

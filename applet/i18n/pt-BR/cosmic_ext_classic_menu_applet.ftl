@@ -1,36 +1,35 @@
-cosmic-applet-button = Botão Cósmico
-
-# categorias
-all-applications=Todas as aplicações
-recently-used=Recentemente usadas
+# categories
+all-applications=Todos os aplicativos
+recently-used=Recentemente usados
 audio=Áudio
 video=Vídeo
 development=Desenvolvimento
 games=Jogos
 graphics=Gráficos
-network=Rede
+network=Internet
 office=Escritório
 science=Ciência
 settings=Configurações
 system=Sistema
-utility=Utilitário
+utility=Utilitários
 
-# menu de contexto
-system-monitor-label=Monitor de sistema
-settings-label=Configuração do sistema
+# context menu
+system-monitor-label=Monitor do sistema
+settings-label=Configurações do sistema
 disks-label=Discos
 
-# menu principal
-search-placeholder=Digite para procurar apps
+# main menu
+search-placeholder=Pesquisar por aplicativos
 no-apps=Nenhum aplicativo encontrado
 
-# botão do applet
+# applet button
 menu-label=Menu
 
-# menu contextual da aplicação
+# application context menu
 launch=Iniciar
-pin-to-panel=Fixar ao painel
+pin-to-panel=Fixar no painel
 add-to-favorites=Adicionar aos favoritos
+
 
 # places
 place-home=Pasta pessoal
