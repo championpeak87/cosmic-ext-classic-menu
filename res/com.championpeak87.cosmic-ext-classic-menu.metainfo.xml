@@ -12,6 +12,7 @@
   <url type="contact">mailto:k.lihan@outlook.com</url>
   <name>Classic Menu</name>
   <name xml:lang="cs">Klasické menu</name>
+  <name xml:lang="pt-BR">Menu Clássico</name>
   <summary>A launcher applet for the COSMIC™ Desktop</summary>
   <summary xml:lang="cs">Applet spouštěče pro plochu COSMIC™</summary>
   <summary xml:lang="de">Ein Starter-Applet für den COSMIC™ Desktop</summary>
@@ -22,6 +23,7 @@
   <summary xml:lang="hu">Indító applet a COSMIC™ asztali környezethez</summary>
   <summary xml:lang="pl">Aplet uruchamiający dla pulpitu COSMIC™</summary>
   <summary xml:lang="sk">Spúšťací applet pre plochu COSMIC™</summary>
+  <summary xml:lang="pt-BR">Um lançador alternativo para o ambiente de desktop COSMIC™</summary>
   <description>
     <p>Classic Menu is a launcher applet for the COSMIC™ Desktop environment, providing quick access to applications, system functions, and settings. Features include:</p>
     <p xml:lang="cs">Klasické menu je applet spouštěče pro prostředí COSMIC™, který nabízí rychlý přístup k aplikacím, systémovým funkcím a nastavením. Umožňuje:</p>
@@ -33,6 +35,7 @@
     <p xml:lang="hu">A Classic Menu egy indító kisalkalmazás a COSMIC™ asztali környezethez, amely gyors hozzáférést biztosít az alkalmazásokhoz, rendszerfunkciókhoz és beállításokhoz. Jellemzők:</p>
     <p xml:lang="pl">Classic Menu to aplet uruchamiający dla środowiska COSMIC™ Desktop, zapewniający szybki dostęp do aplikacji, funkcji systemowych i ustawień. Funkcje:</p>
     <p xml:lang="sk">Classic Menu je spúšťací applet pre prostredie COSMIC™ Desktop, ktorý poskytuje rýchly prístup k aplikáciám, systémovým funkciám a nastaveniam. Funkcie:</p>
+    <p xml:lang="pt-BR">O Menu Clássico é um applet lançador para o ambiente de desktop COSMIC™ que oferece acesso rápido a aplicativos, funções do sistema e configurações. Entre os recursos, estão:</p>
     <ul>
       <li>Browse and launch installed applications via a clear menu</li>
       <li>Search for apps by name or category</li>
@@ -123,6 +126,15 @@
       <li xml:lang="sk">Podpora viacerých jazykov (lokalizácia)</li>
       <li xml:lang="sk">Moderný dizajn a kompatibilita s témami</li>
     </ul>
+    <ul xml:lang="pt-BR">
+      <li xml:lang="pt-BR">Navegar e abrir aplicativos instalados por meio de um menu intuitivo</li>
+      <li xml:lang="pt-BR">Pesquisar aplicativos por nome ou categoria</li>
+      <li xml:lang="pt-BR">Personalizar a aparência dos botões (ícone, descrição, combinação, estilo automático)</li>
+      <li xml:lang="pt-BR">Acesso rápido a aplicativos usados recentemente</li>
+      <li xml:lang="pt-BR">Alterar a posição do menu e do campo de pesquisa</li>
+      <li xml:lang="pt-BR">Suporte a vários idiomas</li>
+      <li xml:lang="pt-BR">Design moderno e compatibilidade com temas</li>
+    </ul>
     <p>Ideal for users who want fast app launching, menu customization, or an overview of frequently used programs. Perfect for COSMIC™ Desktop.</p>
     <p xml:lang="cs">Applet je vhodný pro uživatele, kteří chtějí rychle spouštět aplikace, upravovat vzhled menu, nebo mít přehled o svých nejčastěji používaných programech. Je ideální pro desktopové prostředí COSMIC.</p>
     <p xml:lang="de">Ideal für Nutzer, die Anwendungen schnell starten, das Menü anpassen oder einen Überblick über häufig genutzte Programme haben möchten. Perfekt für COSMIC Desktop.</p>
@@ -133,6 +145,7 @@
     <p xml:lang="hu">Ideális azoknak a felhasználóknak, akik gyors alkalmazásindítást, menü testreszabást vagy áttekintést szeretnének a gyakran használt programokról. Tökéletes a COSMIC™ Desktophoz.</p>
     <p xml:lang="pl">Idealny dla użytkowników, którzy chcą szybkiego uruchamiania aplikacji, dostosowania menu lub przeglądu często używanych programów. Doskonały dla COSMIC™ Desktop.</p>
     <p xml:lang="sk">Ideálny pre používateľov, ktorí chcú rýchle spúšťanie aplikácií, prispôsobenie menu alebo prehľad často používaných programov. Perfektný pre COSMIC™ Desktop.</p>
+    <p xml:lang="pt-BR">Ideal para usuários que desejam uma inicialização rápida de aplicativos, personalização de menus ou uma visão geral dos programas usados com frequência. Perfeito para o ambiente COSMIC™.</p>
   </description>
   <launchable type="desktop-id">
     com.championpeak87.cosmic-ext-classic-menu.desktop
