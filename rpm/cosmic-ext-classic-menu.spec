@@ -37,15 +37,20 @@ just rootdir=%{buildroot} install
 
 %changelog
 * Sat Oct 17 2026 Kamil Lihan <k.lihan@outlook.com> 1.1.0-1
-- Favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout
+- New Whistler layout: a start page with favorite and recently used applications, leading to all applications
+- Quick launcher type: favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout
+- Choose the category the menu opens on
+- Column or grid view of applications in any layout, with a choice of size and of showing application descriptions, on hover in the grid
 - Add applications to the favorites by dragging them onto the favorites
-- Column or grid view of applications in any layout, with a choice of size and of showing application descriptions
 - Drag applications from the menu into the dock to pin them
 - --toggle option to open or close the menu, e.g. from a keyboard shortcut
 - Applet description shown in COSMIC Settings
+- New settings translated into all languages
 - New screenshots of all layouts
 - Fixed icons given as a path to a PNG image, e.g. of Citrix applications, showing the default icon
 - Fixed applet crashing with PNG based icon themes
+- Fixed short application lists showing only their first four applications
+- Fixed the highlight of applications in the column view not reaching the edges of the list
 
 * Thu Oct 08 2026 Kamil Lihan <k.lihan@outlook.com> 1.0.0-1
 - Five menu layouts to choose from: Classic, Retro, Compact, Sidebar and Modern
