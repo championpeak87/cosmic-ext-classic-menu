@@ -143,7 +143,7 @@ impl AppletConfig {
                 self.power_menu_position = PowerMenuPosition::Categories;
                 self.side_panel = SidePanel::Categories;
             }
-            MenuLayout::Retro => {
+            MenuLayout::Retro | MenuLayout::Whistler => {
                 self.app_menu_position = HorizontalPosition::Left;
                 self.search_field_position = VerticalPosition::Bottom;
                 self.power_menu_position = PowerMenuPosition::Footer;
@@ -179,6 +179,9 @@ pub enum MenuLayout {
     /// App grid with recently used apps below and user and power controls
     /// in the footer.
     Modern,
+    /// Colored header and footer bars around a start page of favorite and
+    /// recently used apps, which leads to all apps, next to places.
+    Whistler,
 }
 
 impl Default for MenuLayout {
@@ -188,19 +191,20 @@ impl Default for MenuLayout {
 }
 
 impl MenuLayout {
-    pub const ALL: [MenuLayout; 5] = [
+    pub const ALL: [MenuLayout; 6] = [
         MenuLayout::Classic,
         MenuLayout::Retro,
         MenuLayout::Compact,
         MenuLayout::Cinnamon,
         MenuLayout::Modern,
+        MenuLayout::Whistler,
     ];
 
     /// Power controls positions this layout supports. The last one is the
     /// fallback when the configured position is not supported.
     pub fn power_menu_positions(self) -> &'static [PowerMenuPosition] {
         match self {
-            MenuLayout::Classic | MenuLayout::Retro => &[
+            MenuLayout::Classic | MenuLayout::Retro | MenuLayout::Whistler => &[
                 PowerMenuPosition::Header,
                 PowerMenuPosition::AppList,
                 PowerMenuPosition::Categories,
@@ -220,9 +224,16 @@ impl MenuLayout {
         self != MenuLayout::Modern
     }
 
-    /// Whether the layout shows the favorite apps.
+    /// Whether the layout shows the favorite apps itself, rather than in
+    /// a category.
     pub fn has_favorites(self) -> bool {
-        self == MenuLayout::Cinnamon
+        matches!(self, MenuLayout::Cinnamon | MenuLayout::Whistler)
+    }
+
+    /// Whether the app list starts with the favorite and recently used
+    /// apps, leading to all apps.
+    pub fn has_start_page(self) -> bool {
+        self == MenuLayout::Whistler
     }
 
     /// How the layout shows apps unless another view is chosen.

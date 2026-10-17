@@ -117,7 +117,7 @@ impl VirtualizedAppList {
     ///
     /// # Returns
     /// An element containing a button with context menu
-    fn create_app_button<'a>(
+    pub(crate) fn create_app_button<'a>(
         applet: &'a Applet,
         index: usize,
         app: &'a Arc<ApplicationEntry>

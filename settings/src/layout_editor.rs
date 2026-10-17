@@ -235,7 +235,8 @@ impl LayoutEditor {
 
         let menu = match config.menu_layout {
             MenuLayout::Classic => self.view_classic(config),
-            MenuLayout::Retro => self.view_retro(config),
+            // Arranged like Retro; the start page is not part of the sketch.
+            MenuLayout::Retro | MenuLayout::Whistler => self.view_retro(config),
             MenuLayout::Compact => self.view_compact(config),
             MenuLayout::Cinnamon => self.view_cinnamon(config),
             MenuLayout::Modern => self.view_modern(config),
@@ -978,6 +979,7 @@ fn layout_name(layout: MenuLayout) -> (String, String) {
         MenuLayout::Compact => (fl!("layout-compact"), fl!("layout-compact-description")),
         MenuLayout::Cinnamon => (fl!("layout-sidebar"), fl!("layout-sidebar-description")),
         MenuLayout::Modern => (fl!("layout-modern"), fl!("layout-modern-description")),
+        MenuLayout::Whistler => (fl!("layout-whistler"), fl!("layout-whistler-description")),
     }
 }
 
@@ -1012,6 +1014,51 @@ fn thumbnail(layout: MenuLayout) -> Element<'static, Message> {
         ]
         .spacing(2)
         .into(),
+        MenuLayout::Whistler => {
+            // Favorites, a gap, recently used apps and the button to all apps.
+            let item = || shape(Length::Fill, Length::Fixed(3.0), ShapeKind::Line);
+            let start_page = cosmic::iced::widget::column![
+                item(),
+                item(),
+                Space::new().height(Length::Fixed(2.0)),
+                item(),
+                item(),
+                item(),
+                Space::new().height(Length::Fill),
+                shape(Length::Fill, Length::Fixed(3.0), ShapeKind::Accent),
+            ]
+            .spacing(2)
+            .padding(2)
+            .width(Length::FillPortion(APP_LIST_PORTION))
+            .height(Length::Fill);
+            cosmic::iced::widget::column![
+                shape(Length::Fill, Length::Fixed(8.0), ShapeKind::Accent),
+                cosmic::iced::widget::row![
+                    container(start_page)
+                        .width(Length::FillPortion(APP_LIST_PORTION))
+                        .height(Length::Fill)
+                        // Like a `ShapeKind::Pane` shape.
+                        .class(cosmic::theme::Container::custom(|theme: &Theme| {
+                            container::Style {
+                                background: Some(Background::Color(
+                                    theme.cosmic().bg_component_color().into(),
+                                )),
+                                border: Border {
+                                    radius: 1.5.into(),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            }
+                        })),
+                    pane(CATEGORIES_PORTION, ShapeKind::Tinted),
+                ]
+                .spacing(2)
+                .height(Length::Fill),
+                shape(Length::Fill, Length::Fixed(6.0), ShapeKind::Accent),
+            ]
+            .spacing(2)
+            .into()
+        }
         MenuLayout::Compact => cosmic::iced::widget::column![
             cosmic::iced::widget::row![
                 shape(Length::Fixed(5.0), Length::Fixed(5.0), ShapeKind::Line),

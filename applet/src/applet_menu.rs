@@ -152,7 +152,8 @@ impl AppletMenu {
 
         let menu_layout = match applet.config.menu_layout {
             MenuLayout::Classic => AppletMenu::view_classic(applet),
-            MenuLayout::Retro => AppletMenu::view_retro(applet),
+            // The start page sets Whistler apart, see `create_app_view`.
+            MenuLayout::Retro | MenuLayout::Whistler => AppletMenu::view_retro(applet),
             MenuLayout::Compact => AppletMenu::view_compact(applet),
             MenuLayout::Cinnamon => AppletMenu::view_cinnamon(applet),
             MenuLayout::Modern => AppletMenu::view_modern(applet),
@@ -631,10 +632,104 @@ impl AppletMenu {
 
     /// The apps, in the configured view.
     fn create_app_view(applet: &Applet) -> Element<'_, Message> {
-        match applet.config.effective_app_view() {
+        if let Some(favorites) = applet.start_page_favorites {
+            return AppletMenu::create_start_page(applet, favorites);
+        }
+
+        let view = match applet.config.effective_app_view() {
             AppView::Column => VirtualizedAppList::view(applet),
             AppView::Grid => VirtualizedAppGrid::view(applet),
+        };
+        // Search results are left by clearing the search.
+        if applet.config.menu_layout.has_start_page() && applet.search_field.is_empty() {
+            column![
+                AppletMenu::page_button(fl!("back"), "go-previous-symbolic", true)
+                    .on_press(Message::ShowStartPage),
+                AppletMenu::horizontal_divider(),
+                view,
+            ]
+            .into()
+        } else {
+            view
         }
+    }
+
+    /// The favorites, then the recently used apps, which lead the
+    /// `available_applications` on the start page, and a button to all apps.
+    fn create_start_page(applet: &Applet, favorites: usize) -> Element<'_, Message> {
+        let mut rows = applet
+            .available_applications
+            .iter()
+            .enumerate()
+            .map(|(index, app)| VirtualizedAppList::create_app_button(applet, index, app));
+        let favorite_rows: Vec<Element<'_, Message>> = rows.by_ref().take(favorites).collect();
+        let recent_rows: Vec<Element<'_, Message>> = rows.collect();
+
+        // Apps dropped on the favorites are added to them.
+        let favorites: Element<'_, Message> = if favorite_rows.is_empty() {
+            container(text::caption(fl!("favorites-empty")))
+                .padding(theme::active().cosmic().space_xs())
+                .width(Length::Fill)
+                .into()
+        } else {
+            column(favorite_rows).into()
+        };
+        let favorites = container(favorites).width(Length::Fill).class(
+            cosmic::theme::Container::custom(AppletMenu::drop_target_style(
+                applet.favorites_drop_target == Some(FavoritesDropTarget::Add),
+            )),
+        );
+
+        let mut list = column![AppletMenu::favorites_drop_target(
+            favorites,
+            FavoritesDropTarget::Add
+        )];
+        if !recent_rows.is_empty() {
+            list = list
+                .push(AppletMenu::horizontal_divider())
+                .extend(recent_rows);
+        }
+
+        let list = cosmic::widget::scrollable(list)
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .id(applet.scrollable_id.clone())
+            .on_scroll(Message::ScrollUpdated);
+
+        column![
+            VirtualizedAppList::with_context_menu(applet, list),
+            AppletMenu::horizontal_divider(),
+            AppletMenu::page_button(fl!("all-applications"), "go-next-symbolic", false)
+                .on_press(Message::ShowAllApplications),
+        ]
+        .height(Length::Fill)
+        .into()
+    }
+
+    /// Full width button moving between the start page and all apps, with
+    /// an arrow before (`leading`) or after its label.
+    fn page_button(
+        label: String,
+        arrow: &'static str,
+        leading: bool,
+    ) -> cosmic::widget::Button<'static, Message> {
+        let Spacing { space_xs, .. } = theme::active().cosmic().spacing;
+        let arrow = cosmic::widget::icon::from_name(arrow).size(16).icon();
+        let label = text::body(label).font(Font {
+            weight: cosmic::iced::font::Weight::Bold,
+            ..Default::default()
+        });
+
+        let content = if leading {
+            row![arrow, label]
+        } else {
+            row![label, cosmic::widget::Space::new().width(Length::Fill), arrow]
+        };
+        cosmic::widget::button::custom(
+            content.spacing(space_xs).align_y(Alignment::Center),
+        )
+        .class(cosmic::theme::Button::AppletMenu)
+        .width(Length::Fill)
     }
 
     fn create_app_list(applet: &Applet) -> Element<'_, Message> {

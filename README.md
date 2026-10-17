@@ -7,17 +7,20 @@ Classic Menu is a customizable application launcher for the COSMIC™ desktop en
 | Retro | Compact | Sidebar |
 | :---: | :---: | :---: |
 | ![Retro layout](screenshots/layout-retro.png) | ![Compact layout](screenshots/layout-compact.png) | ![Sidebar layout](screenshots/layout-sidebar.png) |
-| **Modern** | **Grid view** | **Settings** |
-| ![Modern layout](screenshots/layout-modern.png) | ![Grid view](screenshots/grid-view.png) | ![Settings](screenshots/settings.png) |
+| **Modern** | **Whistler** | **Grid view** |
+| ![Modern layout](screenshots/layout-modern.png) | ![Whistler layout](screenshots/layout-whistler.png) | ![Grid view](screenshots/grid-view.png) |
+| **Settings** | | |
+| ![Settings](screenshots/settings.png) | | |
 
 ## Features
 
-- Classic-style application menu with five layouts:
+- Classic-style application menu with six layouts:
   - **Classic**: user on top, application list and categories side by side
   - **Retro**: colored header and footer bars around two panes
   - **Compact**: user and search share the header, power controls in the footer
   - **Sidebar**: favorite applications and power controls in a sidebar next to categories and applications
   - **Modern**: grid of applications with recently used or favorite ones below
+  - **Whistler**: start page of favorite and recently used applications leading to all applications, next to places
 - Drag and drop layout editor in the settings application: move the search field and power controls, swap and resize the panes
 - Places panel as an alternative to categories (home, documents, downloads, computer, settings, terminal, app store, ...), with customizable order and separators
 - Favorite applications, added from the application context menu or by dragging an application onto the favorites, and reordered by dragging them in the sidebar

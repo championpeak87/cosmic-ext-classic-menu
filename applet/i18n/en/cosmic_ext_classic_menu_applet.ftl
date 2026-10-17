@@ -1,5 +1,6 @@
 # categories
 all-applications=All applications
+back=Back
 recently-used=Recently used
 favorites=Favorites
 audio=Audio

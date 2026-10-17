@@ -88,6 +88,9 @@ pub struct Applet {
     context_menu_target_claimed: bool,
     /// Where an app dragged over the favorites would be dropped.
     pub favorites_drop_target: Option<FavoritesDropTarget>,
+    /// Number of favorites leading `available_applications` while it holds
+    /// the start page of layouts having one, `None` otherwise.
+    pub start_page_favorites: Option<usize>,
 }
 
 /// Where an app dropped on the favorites goes.
@@ -154,6 +157,10 @@ pub enum Message {
     FavoritesDragLeft(FavoritesDropTarget),
     /// Dragging an app out of the app view was finished or cancelled.
     AppDragEnded,
+    /// Leaves the start page for the list of all apps.
+    ShowAllApplications,
+    /// Returns to the start page.
+    ShowStartPage,
     OpenPlace(crate::model::place::Place),
     /// Right press anywhere in the app view.
     ContextMenuRightPress,
@@ -210,6 +217,7 @@ impl Application for Applet {
             context_menu_target: None,
             context_menu_target_claimed: false,
             favorites_drop_target: None,
+            start_page_favorites: None,
         };
 
         // fetch current user asynchronously
@@ -321,7 +329,8 @@ impl Application for Applet {
             Message::ApplicationsLoaded(applications, categories) => {
                 self.available_categories = categories;
                 // Leave search results and other categories in place.
-                if self.search_field.is_empty()
+                if self.start_page_favorites.is_none()
+                    && self.search_field.is_empty()
                     && self.selected_category == Some(ApplicationCategory::ALL)
                 {
                     self.available_applications = applications;
@@ -329,6 +338,9 @@ impl Application for Applet {
                     self.context_menu = None;
                 }
                 self.update_featured_applications();
+                if self.start_page_favorites.is_some() {
+                    self.show_start_page();
+                }
 
                 Task::none()
             }
@@ -427,6 +439,17 @@ impl Application for Applet {
             Message::AppDragEnded => {
                 self.favorites_drop_target = None;
                 Task::none()
+            }
+            Message::ShowAllApplications => {
+                self.start_page_favorites = None;
+                self.select_category(ApplicationCategory::ALL)
+            }
+            Message::ShowStartPage => {
+                self.show_start_page();
+                cosmic::iced::widget::operation::snap_to(
+                    self.scrollable_id.clone(),
+                    RelativeOffset { x: 0., y: 0. },
+                )
             }
             Message::OpenPlace(place) => {
                 place.open();
@@ -553,8 +576,14 @@ impl Applet {
                 Some(applications) => {
                     self.available_applications = applications;
                     self.update_featured_applications();
+                    self.show_start_page();
                 }
-                None => tasks.push(Applet::load_applications()),
+                None => {
+                    // Shown once the apps are loaded.
+                    self.start_page_favorites =
+                        self.config.menu_layout.has_start_page().then_some(0);
+                    tasks.push(Applet::load_applications());
+                }
             }
         }
 
@@ -622,7 +651,9 @@ impl Applet {
         }
         self.update_featured_applications();
 
-        if self.selected_category == Some(ApplicationCategory::FAVORITES) {
+        if self.start_page_favorites.is_some() {
+            self.show_start_page();
+        } else if self.selected_category == Some(ApplicationCategory::FAVORITES) {
             // The shown list changed, so indices into it no longer apply.
             self.available_applications = self.favorite_applications.clone();
             self.selected_item_index = None;
@@ -631,6 +662,33 @@ impl Applet {
         } else {
             self.update_context_menu();
         }
+    }
+
+    /// Recently used apps shown on the start page, below the favorites.
+    const START_PAGE_RECENT_APPLICATIONS: usize = 8;
+
+    /// Shows the start page of the favorites, then the recently used apps
+    /// that are not among them, in layouts having one. Returns whether it
+    /// is shown.
+    fn show_start_page(&mut self) -> bool {
+        if !self.config.menu_layout.has_start_page() {
+            self.start_page_favorites = None;
+            return false;
+        }
+
+        let favorites = &self.favorite_applications;
+        let recent = self
+            .recent_applications
+            .iter()
+            .filter(|app| !favorites.iter().any(|favorite| favorite.id == app.id))
+            .take(Self::START_PAGE_RECENT_APPLICATIONS);
+        self.available_applications = favorites.iter().chain(recent).cloned().collect();
+        self.start_page_favorites = Some(favorites.len());
+        // Indices into the old list no longer apply.
+        self.selected_item_index = None;
+        self.context_menu_target = None;
+        self.context_menu = None;
+        true
     }
 
     /// Updates the recent and favorite apps, if the layout shows them.
@@ -754,6 +812,9 @@ impl Applet {
     fn clear_search(&mut self) -> Task<Message> {
         self.selected_category = Some(ApplicationCategory::ALL);
         self.search_field.clear();
+        if self.show_start_page() {
+            return Task::none();
+        }
 
         match crate::logic::apps::with_cached_apps(<[_]>::to_vec) {
             Some(applications) => self.update(Message::UpdateAvailableApplications(applications)),
@@ -764,6 +825,7 @@ impl Applet {
     fn update_search_field(&mut self, input: String) -> Task<Message> {
         self.selected_category = None;
         self.selected_item_index = None;
+        self.start_page_favorites = None;
 
         if input.is_empty() {
             return self.clear_search();
@@ -891,6 +953,7 @@ impl Applet {
 
     fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
         self.search_field.clear();
+        self.start_page_favorites = None;
         self.selected_category = Some(category.clone());
         self.selected_item_index = None;
         // Only needed, and so only copied, for the recently used and
