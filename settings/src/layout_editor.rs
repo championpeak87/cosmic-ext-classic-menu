@@ -17,8 +17,8 @@ use cosmic::iced::{mouse, Alignment, Background, Border, Color, Length, Padding,
 use cosmic::widget::{container, icon, mouse_area, text, tooltip, Space};
 use cosmic::{Element, Theme};
 use cosmic_ext_classic_menu_applet::config::{
-    AppletConfig, FeaturedApplications, HorizontalPosition, MenuLayout, Place, PowerMenuPosition,
-    SidePanel, VerticalPosition,
+    AppView, AppletConfig, FeaturedApplications, HorizontalPosition, MenuLayout, Place,
+    PowerMenuPosition, SidePanel, VerticalPosition,
 };
 use cosmic_ext_classic_menu_applet::model::application_category::{ApplicationCategory, CategoryIcon};
 
@@ -375,7 +375,15 @@ impl LayoutEditor {
         cosmic::iced::widget::column![]
             .push_maybe(header)
             .push_maybe(self.search_slot(Slot::SearchTop, config))
-            .push(fixed_part(app_grid_sketch(), fl!("layout-app-list")))
+            .push(fixed_part(
+                cosmic::iced::widget::column![
+                    container(text_line(Length::Fixed(60.0), 5.0)).padding(space_xxs()),
+                    AppsSketch::of(config).sketch(MODERN_GRID_COLUMNS),
+                ]
+                .height(Length::Fill)
+                .into(),
+                fl!("layout-app-list"),
+            ))
             .push(fixed_part(
                 recent_sketch(),
                 match config.featured_applications {
@@ -419,6 +427,7 @@ impl LayoutEditor {
             (config.search_field_position == position).then_some(Block::SearchField),
             Length::Fill,
             Length::Fixed(BAR_HEIGHT),
+            AppsSketch::of(config),
         )
     }
 
@@ -509,7 +518,13 @@ impl LayoutEditor {
         };
 
         let pane = cosmic::iced::widget::column![]
-            .push_maybe(self.slot(slot, Some(block), Length::Fill, Length::Fill))
+            .push_maybe(self.slot(
+                slot,
+                Some(block),
+                Length::Fill,
+                Length::Fill,
+                AppsSketch::of(config),
+            ))
             .push_maybe(self.power_slot(power, config, Length::Fill))
             .spacing(space_xxs())
             .width(Length::FillPortion(portion))
@@ -544,6 +559,7 @@ impl LayoutEditor {
                 .then_some(Block::PowerMenu),
             width,
             Length::Fixed(BAR_HEIGHT),
+            AppsSketch::of(config),
         )
     }
 
@@ -557,6 +573,7 @@ impl LayoutEditor {
         block: Option<Block>,
         width: Length,
         height: Length,
+        apps: AppsSketch,
     ) -> Option<Element<'_, Message>> {
         let picked_up = block.is_some() && block == self.dragging;
         let drop_target = self.dragging.is_some_and(|dragging| dragging.accepts(slot));
@@ -566,7 +583,7 @@ impl LayoutEditor {
         }
 
         let content: Element<'_, Message> = match block {
-            Some(block) if !picked_up => sketch(block),
+            Some(block) if !picked_up => sketch(block, apps),
             _ => Space::new().into(),
         };
 
@@ -604,7 +621,7 @@ impl LayoutEditor {
 }
 
 /// A rough drawing of what the block looks like in the applet popup.
-fn sketch(block: Block) -> Element<'static, Message> {
+fn sketch(block: Block, apps: AppsSketch) -> Element<'static, Message> {
     let spacing = cosmic::theme::active().cosmic().spacing;
 
     match block {
@@ -625,27 +642,7 @@ fn sketch(block: Block) -> Element<'static, Message> {
         .padding(3)
         .into(),
 
-        Block::AppList => {
-            let rows = APP_NAME_WIDTHS.iter().enumerate().map(|(index, &width)| {
-                cosmic::iced::widget::row![
-                    app_tile(index),
-                    cosmic::iced::widget::column![
-                        text_line(Length::Fixed(width), 5.0),
-                        text_line(Length::Fixed(width * 1.4), 3.0),
-                    ]
-                    .spacing(3),
-                ]
-                .spacing(spacing.space_xxs)
-                .align_y(Alignment::Center)
-                .height(Length::Fixed(22.0))
-                .into()
-            });
-            let rows: Vec<Element<'static, Message>> = rows.collect();
-
-            cosmic::widget::column::with_children(rows)
-                .padding([spacing.space_xxs, spacing.space_xs])
-                .into()
-        }
+        Block::AppList => apps.sketch(APP_LIST_GRID_COLUMNS),
 
         Block::Categories => {
             let mut rows: Vec<Element<'static, Message>> = CATEGORIES
@@ -835,28 +832,88 @@ fn sidebar_sketch() -> Element<'static, Message> {
         .into()
 }
 
-/// A grid of app tiles with names below.
-fn app_grid_sketch() -> Element<'static, Message> {
-    let rows = (0..6).map(|row| -> Element<'static, Message> {
-        cosmic::widget::row::with_children((0..5).map(|column| {
-            cosmic::iced::widget::column![
-                app_tile(row * 5 + column),
-                text_line(Length::Fixed(28.0), 3.0),
-            ]
-            .spacing(3)
-            .align_x(Alignment::Center)
-            .width(Length::FillPortion(1))
-            .into()
-        }))
-        .into()
-    });
+/// Grid columns sketched in the app list pane, which is narrower than the
+/// app grid of the modern layout.
+const APP_LIST_GRID_COLUMNS: usize = 4;
+const MODERN_GRID_COLUMNS: usize = 5;
 
-    cosmic::iced::widget::column![text_line(Length::Fixed(60.0), 5.0)]
-        .extend(rows)
-        .spacing(8)
-        .padding(space_xxs())
-        .height(Length::Fill)
-        .into()
+/// How the apps are sketched, following the app view options.
+#[derive(Clone, Copy, Debug)]
+struct AppsSketch {
+    view: AppView,
+    show_description: bool,
+}
+
+impl AppsSketch {
+    fn of(config: &AppletConfig) -> Self {
+        let view = config.effective_app_view();
+        let show_description = match view {
+            AppView::Column => config.column_show_description,
+            AppView::Grid => config.grid_show_description,
+        };
+        AppsSketch {
+            view,
+            show_description,
+        }
+    }
+
+    /// Rows of apps, or a grid with `columns` apps per row.
+    fn sketch(self, columns: usize) -> Element<'static, Message> {
+        match self.view {
+            AppView::Column => self.column(),
+            AppView::Grid => self.grid(columns),
+        }
+    }
+
+    /// App rows with their names, and descriptions if shown.
+    fn column(self) -> Element<'static, Message> {
+        let spacing = cosmic::theme::active().cosmic().spacing;
+        let rows = APP_NAME_WIDTHS.iter().enumerate().map(|(index, &width)| {
+            let description = self
+                .show_description
+                .then(|| text_line(Length::Fixed(width * 1.4), 3.0));
+            cosmic::iced::widget::row![
+                app_tile(index),
+                cosmic::iced::widget::column![text_line(Length::Fixed(width), 5.0)]
+                    .push_maybe(description)
+                    .spacing(3),
+            ]
+            .spacing(spacing.space_xxs)
+            .align_y(Alignment::Center)
+            .height(Length::Fixed(22.0))
+            .into()
+        });
+        let rows: Vec<Element<'static, Message>> = rows.collect();
+
+        cosmic::widget::column::with_children(rows)
+            .padding([spacing.space_xxs, spacing.space_xs])
+            .into()
+    }
+
+    /// A grid of app tiles with names, and descriptions if shown, below.
+    fn grid(self, columns: usize) -> Element<'static, Message> {
+        let show_description = self.show_description;
+        let rows = (0..6).map(|row| -> Element<'static, Message> {
+            cosmic::widget::row::with_children((0..columns).map(|column| {
+                cosmic::iced::widget::column![
+                    app_tile(row * columns + column),
+                    text_line(Length::Fixed(28.0), 3.0),
+                ]
+                .push_maybe(show_description.then(|| text_line(Length::Fixed(20.0), 2.0)))
+                .spacing(3)
+                .align_x(Alignment::Center)
+                .width(Length::FillPortion(1))
+                .into()
+            }))
+            .into()
+        });
+
+        cosmic::widget::column::with_children(rows.collect::<Vec<_>>())
+            .spacing(8)
+            .padding(space_xxs())
+            .height(Length::Fill)
+            .into()
+    }
 }
 
 /// Recently used apps in two columns.
