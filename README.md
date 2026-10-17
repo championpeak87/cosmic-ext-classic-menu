@@ -14,7 +14,7 @@ Classic Menu is a customizable application launcher for the COSMIC™ desktop en
   - **Modern**: grid of applications with recently used or favorite ones below
 - Drag and drop layout editor in the settings application: move the search field and power controls, swap and resize the panes
 - Places panel as an alternative to categories (home, documents, downloads, computer, settings, terminal, app store, ...), with customizable order and separators
-- Favorite applications, added from the application context menu or by dragging an application onto the favorites
+- Favorite applications, added from the application context menu or by dragging an application onto the favorites, and reordered by dragging them in the sidebar
 - Search functionality with fuzzy matching and typo tolerance
 - Categorized application list
 - Recently used applications, or favorites shown in their place

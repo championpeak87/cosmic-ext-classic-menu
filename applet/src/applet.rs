@@ -84,8 +84,30 @@ pub struct Applet {
     /// Whether an app claimed the current right click, see
     /// [`Message::ContextMenuRightPress`].
     context_menu_target_claimed: bool,
-    /// Whether an app is dragged over a place showing the favorites.
-    pub favorites_drop_hovered: bool,
+    /// Where an app dragged over the favorites would be dropped.
+    pub favorites_drop_target: Option<FavoritesDropTarget>,
+}
+
+/// Where an app dropped on the favorites goes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FavoritesDropTarget {
+    /// At the end, unless it is a favorite already. Dropped on the
+    /// favorites category or the favorites row of the modern layout.
+    Add,
+    /// Before the favorite at this index in the sidebar, or at the end for
+    /// the space below them.
+    Before(usize),
+}
+
+impl FavoritesDropTarget {
+    /// Drag id of the drop target, which must stay the same between views
+    /// for drag events to reach it.
+    pub fn drag_id(self) -> u64 {
+        match self {
+            FavoritesDropTarget::Add => u64::MAX - 1,
+            FavoritesDropTarget::Before(index) => u64::MAX - 2 - index as u64,
+        }
+    }
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -122,10 +144,12 @@ pub enum Message {
     ContextMenuTarget(usize),
     /// Adds or removes the app at this index from the favorites.
     ToggleFavoriteAt(usize),
-    /// An app was dropped on a place showing the favorites.
-    FavoriteDropped(Option<DraggedApp>),
-    /// An app is dragged onto (`true`) or off a place showing the favorites.
-    FavoritesDropHovered(bool),
+    /// An app was dropped on the favorites.
+    FavoriteDropped(Option<DraggedApp>, FavoritesDropTarget),
+    /// An app is dragged onto a drop target of the favorites.
+    FavoritesDragEntered(FavoritesDropTarget),
+    /// An app is dragged off a drop target of the favorites.
+    FavoritesDragLeft(FavoritesDropTarget),
     /// Dragging an app out of the app view was finished or cancelled.
     AppDragEnded,
     OpenPlace(crate::model::place::Place),
@@ -183,7 +207,7 @@ impl Application for Applet {
             recent_applications: Vec::new(),
             context_menu_target: None,
             context_menu_target_claimed: false,
-            favorites_drop_hovered: false,
+            favorites_drop_target: None,
         };
 
         // fetch current user asynchronously
@@ -367,24 +391,39 @@ impl Application for Applet {
 
                 Task::none()
             }
-            Message::FavoriteDropped(dragged_app) => {
-                self.favorites_drop_hovered = false;
-                if let Some(DraggedApp { app_id }) = dragged_app
-                    && !self.config.favorite_applications.contains(&app_id)
-                {
-                    let mut favorites = self.config.favorite_applications.clone();
-                    favorites.push(app_id);
-                    self.set_favorite_applications(favorites);
+            Message::FavoriteDropped(dragged_app, target) => {
+                self.favorites_drop_target = None;
+                if let Some(DraggedApp { app_id }) = dragged_app {
+                    let index = match target {
+                        FavoritesDropTarget::Add => None,
+                        FavoritesDropTarget::Before(index) => Some(index),
+                    };
+                    let favorites = crate::logic::apps::place_favorite(
+                        &self.config.favorite_applications,
+                        &app_id,
+                        index,
+                    );
+                    if favorites != self.config.favorite_applications {
+                        self.set_favorite_applications(favorites);
+                    }
                 }
 
                 Task::none()
             }
-            Message::FavoritesDropHovered(hovered) => {
-                self.favorites_drop_hovered = hovered;
+            Message::FavoritesDragEntered(target) => {
+                self.favorites_drop_target = Some(target);
+                Task::none()
+            }
+            Message::FavoritesDragLeft(target) => {
+                // Moving between targets may enter the next before leaving
+                // the last.
+                if self.favorites_drop_target == Some(target) {
+                    self.favorites_drop_target = None;
+                }
                 Task::none()
             }
             Message::AppDragEnded => {
-                self.favorites_drop_hovered = false;
+                self.favorites_drop_target = None;
                 Task::none()
             }
             Message::OpenPlace(place) => {
@@ -507,7 +546,7 @@ impl Applet {
             self.scroll_offset = 0.0;
             self.context_menu_target = None;
             self.context_menu = None;
-            self.favorites_drop_hovered = false;
+            self.favorites_drop_target = None;
             match crate::logic::apps::with_cached_apps(<[_]>::to_vec) {
                 Some(applications) => {
                     self.available_applications = applications;
@@ -599,7 +638,8 @@ impl Applet {
         // Recent apps also stand in for missing favorites in the sidebar.
         let show_recent = layout.has_favorites()
             || (layout == crate::config::MenuLayout::Modern
-                && self.config.featured_applications == FeaturedApplications::RecentlyUsed);
+                && self.config.effective_featured_applications()
+                    == FeaturedApplications::RecentlyUsed);
 
         let config = &self.config;
         let featured = crate::logic::apps::with_cached_apps(|apps| {

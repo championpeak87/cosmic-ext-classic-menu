@@ -209,10 +209,10 @@ impl cosmic::Application for AppModel {
                     .title(fl!("general"))
                     .add(Self::setting_item(fl!("applet-button-style"), applet_button_style))
                     .add(Self::setting_item(fl!("user-widget"), user_widget))
-                    .add(Self::setting_item(
-                        fl!("featured-applications"),
-                        featured_applications,
-                    ))
+                    // The sidebar layout shows the favorites in the sidebar.
+                    .add_maybe((!self.config.menu_layout.has_favorites()).then(|| {
+                        Self::setting_item(fl!("featured-applications"), featured_applications)
+                    }))
                     .add(Self::setting_item(fl!("button-label"), button_label))
                     .add(Self::setting_item(fl!("button-icon"), button_icon))
                     .into()])

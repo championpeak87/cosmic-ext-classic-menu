@@ -94,6 +94,16 @@ impl AppletConfig {
         }
     }
 
+    /// Which apps the "Recently used" category and recommendations show.
+    /// Layouts showing the favorites elsewhere keep the recently used apps.
+    pub fn effective_featured_applications(&self) -> FeaturedApplications {
+        if self.menu_layout.has_favorites() {
+            FeaturedApplications::RecentlyUsed
+        } else {
+            self.featured_applications
+        }
+    }
+
     /// Whether favorites are shown anywhere, so apps can be added to them.
     pub fn shows_favorites(&self) -> bool {
         self.menu_layout.has_favorites()

@@ -13,7 +13,7 @@ use cosmic::iced::clipboard::dnd::DndAction;
 use cosmic::widget::{DndDestination, container, menu};
 use cosmic::{Element, theme};
 
-use crate::applet::{Applet, Message};
+use crate::applet::{Applet, FavoritesDropTarget, Message};
 use crate::config::{
     FeaturedApplications, HorizontalPosition, MenuLayout, PowerMenuPosition, SidePanel,
     VerticalPosition,
@@ -299,30 +299,41 @@ impl AppletMenu {
         } else {
             &applet.favorite_applications[..]
         };
-        let favorites = favorites.iter().map(|app| -> Element<'_, Message> {
-            cosmic::widget::tooltip(
+        // Each favorite is a drop target placing the dropped app before it,
+        // so favorites can be reordered by dragging them.
+        let favorite_items = favorites.iter().enumerate().map(|(index, app)| {
+            let target = FavoritesDropTarget::Before(index);
+            let button = cosmic::widget::tooltip(
                 cosmic::widget::button::custom(VirtualizedAppList::create_icon_widget(app, 28))
                     .on_press(Message::ApplicationSelected(app.clone()))
                     .class(cosmic::theme::Button::AppletMenu)
                     .padding(space_xxs),
                 text(&app.name),
                 cosmic::widget::tooltip::Position::Right,
-            )
-            .into()
-        });
-
-        let favorites = cosmic::widget::column::with_children(favorites)
+            );
+            let item = column![
+                AppletMenu::insertion_marker(applet.favorites_drop_target == Some(target)),
+                VirtualizedAppList::drag_source(applet, app, button),
+            ]
             .spacing(space_xxs)
             .align_x(Alignment::Center);
-        // Shown as a drop target while an app is dragged over it.
-        let favorites = container(favorites)
-            .padding(2)
-            .class(cosmic::theme::Container::custom(
-                AppletMenu::drop_target_style(applet.favorites_drop_hovered),
-            ));
 
-        let sidebar = column![AppletMenu::favorites_drop_target(favorites)]
-            .push(cosmic::widget::Space::new().height(Length::Fill))
+            AppletMenu::favorites_drop_target(item, target)
+        });
+
+        // The space below the favorites places the dropped app last.
+        let end = FavoritesDropTarget::Before(favorites.len());
+        let end_target = AppletMenu::favorites_drop_target(
+            container(AppletMenu::insertion_marker(
+                applet.favorites_drop_target == Some(end),
+            ))
+            .width(Length::Fill)
+            .height(Length::Fill),
+            end,
+        );
+
+        let sidebar = cosmic::widget::column::with_children(favorite_items)
+            .push(end_target)
             .push(AppletMenu::create_power_menu(applet, PowerMenuStyle::Vertical))
             .spacing(space_xxs)
             .align_x(Alignment::Center)
@@ -357,7 +368,7 @@ impl AppletMenu {
 
         // Recommendations would only get in the way of search results.
         if applet.search_field.is_empty() {
-            body = match applet.config.featured_applications {
+            body = match applet.config.effective_featured_applications() {
                 FeaturedApplications::RecentlyUsed if !applet.recent_applications.is_empty() => {
                     body.push(cosmic::widget::divider::horizontal::default())
                         .push(text::heading(fl!("recently-used")))
@@ -375,12 +386,17 @@ impl AppletMenu {
                         .width(Length::Fill)
                         .padding(2)
                         .class(cosmic::theme::Container::custom(
-                            AppletMenu::drop_target_style(applet.favorites_drop_hovered),
+                            AppletMenu::drop_target_style(
+                                applet.favorites_drop_target == Some(FavoritesDropTarget::Add),
+                            ),
                         ));
 
                     body.push(cosmic::widget::divider::horizontal::default())
                         .push(text::heading(fl!("favorites")))
-                        .push(AppletMenu::favorites_drop_target(favorites))
+                        .push(AppletMenu::favorites_drop_target(
+                            favorites,
+                            FavoritesDropTarget::Add,
+                        ))
                 }
             };
         }
@@ -452,6 +468,24 @@ impl AppletMenu {
             .collect::<Vec<Element<'_, Message>>>();
 
         row(buttons).spacing(space_xxs).into()
+    }
+
+    /// Line showing where a dragged favorite would be placed, kept in the
+    /// layout while hidden so the favorites do not move under the pointer.
+    fn insertion_marker(shown: bool) -> Element<'static, Message> {
+        container(cosmic::widget::Space::new())
+            .width(Length::Fill)
+            .height(Length::Fixed(2.0))
+            .class(cosmic::theme::Container::custom(move |theme| {
+                let cosmic = theme.cosmic();
+                let mut style = container::Style::default();
+                if shown {
+                    style.background = Some(Background::Color(cosmic.accent_color().into()));
+                    style.border.radius = cosmic.radius_xs().into();
+                }
+                style
+            }))
+            .into()
     }
 
     /// Outlines a drop target while an app is dragged over it.
@@ -641,15 +675,24 @@ impl AppletMenu {
             .into()
     }
 
-    /// Adds apps dragged from the app view and dropped on `content` to the
-    /// favorites.
-    fn favorites_drop_target<'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-        DndDestination::for_data::<DraggedApp>(content, |app, _| Message::FavoriteDropped(app))
-            .action(DndAction::Copy)
-            .preferred_action(DndAction::Copy)
-            .on_enter(|_, _, _| Message::FavoritesDropHovered(true))
-            .on_leave(|| Message::FavoritesDropHovered(false))
-            .into()
+    /// Places apps dragged from the menu and dropped on `content` in the
+    /// favorites, as `target` says.
+    ///
+    /// Drop targets must not be nested, as the outer one would get all the
+    /// drag events.
+    fn favorites_drop_target<'a>(
+        content: impl Into<Element<'a, Message>>,
+        target: FavoritesDropTarget,
+    ) -> Element<'a, Message> {
+        DndDestination::for_data::<DraggedApp>(content, move |app, _| {
+            Message::FavoriteDropped(app, target)
+        })
+        .drag_id(target.drag_id())
+        .action(DndAction::Copy | DndAction::Move)
+        .preferred_action(DndAction::Copy)
+        .on_enter(move |_, _, _| Message::FavoritesDragEntered(target))
+        .on_leave(move || Message::FavoritesDragLeft(target))
+        .into()
     }
 
     fn create_category_icon(category_icon: &CategoryIcon) -> Element<'static, Message> {
@@ -675,13 +718,14 @@ impl AppletMenu {
             .map(|category| {
                 // The recently used category may be swapped for favorites.
                 let category = if *category == ApplicationCategory::RECENTLY_USED {
-                    applet.config.featured_applications.category()
+                    applet.config.effective_featured_applications().category()
                 } else {
                     category.clone()
                 };
                 let is_favorites = category == ApplicationCategory::FAVORITES;
                 let highlighted = applet.selected_category.as_ref() == Some(&category)
-                    || (is_favorites && applet.favorites_drop_hovered);
+                    || (is_favorites
+                        && applet.favorites_drop_target == Some(FavoritesDropTarget::Add));
 
                 let button = cosmic::widget::button::custom(
                     row![
@@ -700,7 +744,7 @@ impl AppletMenu {
                 .on_press(Message::CategorySelected(category));
 
                 if is_favorites {
-                    AppletMenu::favorites_drop_target(button)
+                    AppletMenu::favorites_drop_target(button, FavoritesDropTarget::Add)
                 } else {
                     button.into()
                 }
