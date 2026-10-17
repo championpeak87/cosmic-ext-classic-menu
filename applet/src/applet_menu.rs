@@ -661,10 +661,7 @@ impl AppletMenu {
             .available_applications
             .iter()
             .enumerate()
-            // Favorites are set in bold, apart from the recently used apps.
-            .map(|(index, app)| {
-                VirtualizedAppList::create_app_button(applet, index, app, index < favorites)
-            });
+            .map(|(index, app)| VirtualizedAppList::create_app_button(applet, index, app));
         let favorite_rows: Vec<Element<'_, Message>> = rows.by_ref().take(favorites).collect();
         let recent_rows: Vec<Element<'_, Message>> = rows.collect();
 
@@ -677,10 +674,19 @@ impl AppletMenu {
         } else {
             column(favorite_rows).into()
         };
+        // A tinted background sets the favorites apart from the recently
+        // used apps.
+        let drop_hovered = applet.favorites_drop_target == Some(FavoritesDropTarget::Add);
         let favorites = container(favorites).width(Length::Fill).class(
-            cosmic::theme::Container::custom(AppletMenu::drop_target_style(
-                applet.favorites_drop_target == Some(FavoritesDropTarget::Add),
-            )),
+            cosmic::theme::Container::custom(move |theme| {
+                let mut style = AppletMenu::drop_target_style(drop_hovered)(theme);
+                let cosmic = theme.cosmic();
+                let mut tint: cosmic::iced::Color = cosmic.accent_color().into();
+                tint.a = 0.12;
+                style.background = Some(Background::Color(tint));
+                style.border.radius = cosmic.radius_s().into();
+                style
+            }),
         );
 
         let mut list = column![AppletMenu::favorites_drop_target(
