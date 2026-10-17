@@ -45,8 +45,6 @@ impl VirtualizedAppList {
     /// # Returns
     /// A scrollable element containing only the visible app items
     pub fn view(applet: &Applet) -> Element<'_, Message> {
-        let space_s = theme::active().cosmic().space_s();
-
         let item_height = f32::from(Self::item_metrics(applet.config.column_item_size).1);
         let scroll_offset = applet.scroll_offset;
         let total_items = applet.available_applications.len();
@@ -90,10 +88,10 @@ impl VirtualizedAppList {
             items.push(cosmic::widget::Space::new().width(Length::Fill).height(remaining_height).into());
         }
 
-        // Build list column from items
+        // Build list column from items. The buttons pad their content
+        // themselves, so their highlight reaches the list's edges.
         let app_list: ListColumn<Message> = items.into_iter().fold(
-            cosmic::widget::list_column()
-                .list_item_padding([0., space_s as f32]),
+            cosmic::widget::list_column().list_item_padding(0),
             |list, item| list.add(item),
         );
 
@@ -156,6 +154,7 @@ impl VirtualizedAppList {
                 cosmic::theme::Button::AppletMenu
             },
         )
+        .padding([0, theme::active().cosmic().space_s()])
         .width(Length::Fill)
         .height(item_height);
 
