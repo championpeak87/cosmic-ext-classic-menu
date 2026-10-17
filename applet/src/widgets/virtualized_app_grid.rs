@@ -51,7 +51,7 @@ impl VirtualizedAppGrid {
         let total_rows = applet.available_applications.len().div_ceil(metrics.columns);
 
         let visible_start = (applet.scroll_offset / metrics.row_height).floor() as usize;
-        let viewport_height = applet.scroll_viewport_height.max(metrics.row_height);
+        let viewport_height = applet.render_viewport_height().max(metrics.row_height);
         let visible_count = ((viewport_height / metrics.row_height).ceil() as usize) + 1;
 
         let render_start = visible_start.saturating_sub(Self::RENDER_BUFFER);

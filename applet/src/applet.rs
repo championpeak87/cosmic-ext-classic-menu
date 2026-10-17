@@ -718,6 +718,16 @@ impl Applet {
         true
     }
 
+    /// Height of the app view to render apps for. Lists too short to scroll
+    /// never report it, so until then all apps that may fit are rendered.
+    pub fn render_viewport_height(&self) -> f32 {
+        if self.scroll_viewport_height > 0.0 {
+            self.scroll_viewport_height
+        } else {
+            crate::applet_menu::AppletMenu::POPUP_MAX_HEIGHT
+        }
+    }
+
     /// Recently used apps shown on the start page, below the favorites.
     const START_PAGE_RECENT_APPLICATIONS: usize = 8;
 
