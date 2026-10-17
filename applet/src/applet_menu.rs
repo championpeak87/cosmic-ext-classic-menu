@@ -661,7 +661,10 @@ impl AppletMenu {
             .available_applications
             .iter()
             .enumerate()
-            .map(|(index, app)| VirtualizedAppList::create_app_button(applet, index, app));
+            // Favorites are set in bold, apart from the recently used apps.
+            .map(|(index, app)| {
+                VirtualizedAppList::create_app_button(applet, index, app, index < favorites)
+            });
         let favorite_rows: Vec<Element<'_, Message>> = rows.by_ref().take(favorites).collect();
         let recent_rows: Vec<Element<'_, Message>> = rows.collect();
 
@@ -715,10 +718,7 @@ impl AppletMenu {
     ) -> cosmic::widget::Button<'static, Message> {
         let Spacing { space_xs, .. } = theme::active().cosmic().spacing;
         let arrow = cosmic::widget::icon::from_name(arrow).size(16).icon();
-        let label = text::body(label).font(Font {
-            weight: cosmic::iced::font::Weight::Bold,
-            ..Default::default()
-        });
+        let label = text::body(label).font(cosmic::font::bold());
 
         let content = if leading {
             row![arrow, label]

@@ -80,7 +80,8 @@ impl VirtualizedAppList {
             items.push(Self::create_app_button(
                 applet,
                 original_index,
-                app
+                app,
+                false
             ));
         }
 
@@ -117,10 +118,13 @@ impl VirtualizedAppList {
     ///
     /// # Returns
     /// An element containing a button with context menu
+    /// With `bold`, the app's name is set in bold, e.g. to set favorites
+    /// apart from other apps.
     pub(crate) fn create_app_button<'a>(
         applet: &'a Applet,
         index: usize,
-        app: &'a Arc<ApplicationEntry>
+        app: &'a Arc<ApplicationEntry>,
+        bold: bool,
     ) -> Element<'a, Message> {
         let (icon_size, item_height) = Self::item_metrics(applet.config.column_item_size);
         let description = app
@@ -140,6 +144,12 @@ impl VirtualizedAppList {
                 cosmic::widget::Space::new().width(5).height(Length::Fill),
                 column![
                     text(&app.name)
+                        // In the theme's interface font, unlike `Font::default()`.
+                        .font(if bold {
+                            cosmic::font::bold()
+                        } else {
+                            cosmic::font::default()
+                        })
                         .wrapping(Wrapping::None)
                         .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1))),
                 ]
