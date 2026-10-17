@@ -117,10 +117,11 @@ impl VirtualizedAppGrid {
         .width(Length::Fill)
         .height(Length::Fill);
 
-        container(
-            cosmic::widget::mouse_area(button)
-                .on_right_press(Message::ContextMenuTarget(index)),
-        )
+        container(VirtualizedAppList::drag_source(
+            applet,
+            app,
+            cosmic::widget::mouse_area(button).on_right_press(Message::ContextMenuTarget(index)),
+        ))
         .padding(2)
         .width(Length::FillPortion(1))
         .height(Length::Fill)

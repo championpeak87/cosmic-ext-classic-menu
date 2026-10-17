@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use cosmic::{
     desktop::{DesktopEntryData, fde::{DesktopEntry, IconSource}},
@@ -20,6 +20,8 @@ pub struct ApplicationEntry {
     /// Desktop file id as defined by the desktop entry specification,
     /// e.g. `wine-Programs-Foo-Bar.desktop` for `applications/wine/Programs/Foo/Bar.desktop`.
     pub desktop_file_id: String,
+    /// Path of the desktop file.
+    pub path: Option<PathBuf>,
     pub icon: Option<IconHandle>,
     pub comment: Option<String>,
     pub exec: Option<String>,
@@ -54,6 +56,7 @@ impl From<DesktopEntryData> for ApplicationEntry {
             is_terminal: get_is_terminal(&app),
             generic_name,
             desktop_file_id: get_desktop_file_id(app.path.as_deref()),
+            path: app.path,
             id: app.id,
             name: app.name,
             icon: match app.icon {

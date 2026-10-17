@@ -19,6 +19,7 @@ Classic Menu is a customizable application launcher for the COSMIC™ desktop en
 - Categorized application list
 - Recently used applications
 - Application context menu (launch, pin to panel, add to favorites, desktop actions)
+- Applications can be dragged from the menu into the dock to pin them
 - Power options (shutdown, restart, logout, etc.)
 - System tools (settings, system monitor, disk management)
 - Customizable applet button (icon, label) and user widget

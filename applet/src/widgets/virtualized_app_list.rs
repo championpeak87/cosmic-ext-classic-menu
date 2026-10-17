@@ -5,14 +5,15 @@ use std::sync::Arc;
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::widget::{column, row};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Alignment, ContentFit, Length};
+use cosmic::iced::{Alignment, ContentFit, Length, Vector};
 use cosmic::widget::text;
-use cosmic::widget::{ListColumn, container, scrollable};
+use cosmic::widget::{DndSource, ListColumn, container, scrollable};
 use cosmic::{Element, theme};
 
 use crate::applet::{Applet, Message};
 use crate::widgets::right_release_guard::RightReleaseGuard;
-use crate::model::application_entry::ApplicationEntry;
+use crate::model::application_entry::{ApplicationEntry, IconHandle};
+use crate::model::dragged_app::DraggedApp;
 
 /// A virtualized app list widget that only renders visible items for performance.
 ///
@@ -153,8 +154,43 @@ impl VirtualizedAppList {
 
         // The context menu itself wraps the whole scrollable, see
         // `with_context_menu`; this only marks which app it is for.
-        cosmic::widget::mouse_area(button)
-            .on_right_press(Message::ContextMenuTarget(index))
+        Self::drag_source(
+            applet,
+            app,
+            cosmic::widget::mouse_area(button).on_right_press(Message::ContextMenuTarget(index)),
+        )
+    }
+
+    /// Lets `app` be dragged out of `content`, e.g. into the dock, which
+    /// pins it.
+    pub(crate) fn drag_source<'a>(
+        applet: &Applet,
+        app: &ApplicationEntry,
+        content: impl Into<Element<'a, Message>>,
+    ) -> Element<'a, Message> {
+        const DRAG_ICON_SIZE: u16 = 32;
+
+        let dragged_app = DraggedApp {
+            app_id: app.id.clone(),
+            desktop_file: app.path.clone(),
+        };
+        let drag_icon = app.icon.clone();
+
+        DndSource::new(content)
+            .window(applet.popup.unwrap_or(Id::NONE))
+            .drag_threshold(16.)
+            .drag_content(move || dragged_app.clone())
+            .drag_icon(move |_| {
+                (
+                    Self::icon_widget(drag_icon.as_ref(), DRAG_ICON_SIZE),
+                    cosmic::iced::core::widget::tree::State::None,
+                    // Center the icon on the pointer.
+                    Vector::new(
+                        -f32::from(DRAG_ICON_SIZE) / 2.,
+                        -f32::from(DRAG_ICON_SIZE) / 2.,
+                    ),
+                )
+            })
             .into()
     }
 
@@ -166,19 +202,24 @@ impl VirtualizedAppList {
     ///
     /// # Returns
     /// A container element with the app icon
-    pub(crate) fn create_icon_widget(app: &Arc<ApplicationEntry>, space_l: u16) -> Element<'_, Message> {
-        let default_icon = crate::model::application_entry::IconHandle::default();
-        let icon_handle = app.icon.as_ref().unwrap_or(&default_icon);
+    pub(crate) fn create_icon_widget<'a, M: 'a>(app: &ApplicationEntry, space_l: u16) -> Element<'a, M> {
+        Self::icon_widget(app.icon.as_ref(), space_l)
+    }
+
+    /// Icon widget for `icon`, or the default icon without one.
+    fn icon_widget<'a, M: 'a>(icon: Option<&IconHandle>, space_l: u16) -> Element<'a, M> {
+        let default_icon = IconHandle::default();
+        let icon_handle = icon.unwrap_or(&default_icon);
 
         match icon_handle {
-            crate::model::application_entry::IconHandle::SvgHandle(handle) => container(
+            IconHandle::SvgHandle(handle) => container(
                 cosmic::widget::svg(handle.clone())
                     .width(Length::Fixed(space_l.into()))
                     .height(Length::Fixed(space_l.into()))
                     .content_fit(ContentFit::Contain),
             )
             .into(),
-            crate::model::application_entry::IconHandle::RasterHandle(handle) => container(
+            IconHandle::RasterHandle(handle) => container(
                 cosmic::widget::image(handle.clone())
                     .width(Length::Fixed(space_l.into()))
                     .height(Length::Fixed(space_l.into()))
