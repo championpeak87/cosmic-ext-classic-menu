@@ -123,6 +123,20 @@ More details and package versions are available on the COPR page:
 
 https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-ext-classic-menu/
 
+## Opening the menu with a keyboard shortcut
+
+`--toggle` opens the menu of the running applet, or closes it if it is open. To open the menu with a key, e.g. the Super key, add a custom shortcut in COSMIC Settings → Input Devices → Keyboard → Keyboard shortcuts → Custom shortcuts with the command:
+
+```bash
+cosmic-ext-classic-menu-applet --toggle
+```
+
+or, for the Flatpak:
+
+```bash
+flatpak run com.championpeak87.cosmic-ext-classic-menu --toggle
+```
+
 ## Contributing
 
 A [justfile](./justfile) is included with common recipes used by other COSMIC projects:
