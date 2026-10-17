@@ -168,7 +168,8 @@ impl VirtualizedAppList {
         )
     }
 
-    /// Lets `app` be dragged out of `content`, e.g. into the favorites.
+    /// Lets `app` be dragged out of `content`, e.g. into the favorites or
+    /// the dock, which pins it.
     pub(crate) fn drag_source<'a>(
         applet: &Applet,
         app: &ApplicationEntry,
@@ -178,6 +179,7 @@ impl VirtualizedAppList {
 
         let dragged_app = DraggedApp {
             app_id: app.id.clone(),
+            desktop_file: app.path.clone(),
         };
         let drag_icon = app.icon.clone();
 

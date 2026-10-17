@@ -395,7 +395,7 @@ impl Application for Applet {
             }
             Message::FavoriteDropped(dragged_app, target) => {
                 self.favorites_drop_target = None;
-                if let Some(DraggedApp { app_id }) = dragged_app {
+                if let Some(DraggedApp { app_id, .. }) = dragged_app {
                     let index = match target {
                         FavoritesDropTarget::Add => None,
                         FavoritesDropTarget::Before(index) => Some(index),
