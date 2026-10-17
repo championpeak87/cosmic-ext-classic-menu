@@ -680,7 +680,7 @@ impl Applet {
             return ApplicationCategory::ALL;
         }
 
-        let id = self.config.default_category.as_str();
+        let id = self.config.default_category_id();
         // Favorites are not among the loaded categories, see
         // `FeaturedApplications`.
         if id == ApplicationCategory::FAVORITES.id() {

@@ -142,6 +142,18 @@ impl AppletConfig {
             && !self.menu_layout.has_start_page()
     }
 
+    /// Id of the category the menu opens on. Favorites and recently used
+    /// apps take each other's place, see `featured_applications`, so either
+    /// stands for the one shown.
+    pub fn default_category_id(&self) -> String {
+        let featured = [ApplicationCategory::RECENTLY_USED, ApplicationCategory::FAVORITES];
+        if featured.iter().any(|category| category.id() == self.default_category) {
+            self.effective_featured_applications().category().id().to_owned()
+        } else {
+            self.default_category.clone()
+        }
+    }
+
     /// Whether favorites are shown anywhere, so apps can be added to them.
     pub fn shows_favorites(&self) -> bool {
         self.menu_layout.has_favorites()
@@ -438,6 +450,21 @@ mod tests {
 
         config.menu_layout = MenuLayout::Whistler;
         assert!(!config.shows_default_category());
+    }
+
+    #[test]
+    fn default_category_follows_the_featured_applications() {
+        let mut config = config(MenuLayout::Classic, None);
+        config.default_category = "recently-used".to_owned();
+        config.featured_applications = FeaturedApplications::Favorites;
+        assert_eq!(config.default_category_id(), "favorites");
+
+        config.default_category = "favorites".to_owned();
+        config.featured_applications = FeaturedApplications::RecentlyUsed;
+        assert_eq!(config.default_category_id(), "recently-used");
+
+        config.default_category = "office".to_owned();
+        assert_eq!(config.default_category_id(), "office");
     }
 
     #[test]

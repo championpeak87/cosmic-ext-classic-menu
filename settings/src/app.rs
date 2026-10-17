@@ -42,10 +42,8 @@ pub struct AppModel {
     /// Index in the places list of the entry being reordered by dragging.
     /// Separators may repeat, so the index tells them apart.
     dragged_place: Option<usize>,
-    /// Ids of the categories the menu can open on, loaded in the background.
-    category_ids: Vec<String>,
-    /// Names of the categories in `category_ids`, in the same order.
-    category_names: Vec<String>,
+    /// The menu's categories, loaded in the background.
+    categories: Vec<ApplicationCategory>,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -66,7 +64,8 @@ pub enum Message {
     StartPageFavoriteCountChanged(u16),
     /// The categories the menu can open on were loaded.
     CategoriesLoaded(Vec<ApplicationCategory>),
-    /// The menu opens on the category at this index in `category_ids`.
+    /// The menu opens on the category at this index in
+    /// [`AppModel::default_category_options`].
     DefaultCategoryChanged(usize),
     SidePanelChanged(usize),
     PlaceToggled(Place, bool),
@@ -143,8 +142,7 @@ impl cosmic::Application for AppModel {
             config: AppletConfig::config(),
             layout_editor: LayoutEditor::default(),
             dragged_place: None,
-            category_ids: Vec::new(),
-            category_names: Vec::new(),
+            categories: Vec::new(),
         };
 
         // Loading the categories loads all apps, so it is done in the
@@ -494,24 +492,13 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::CategoriesLoaded(categories) => {
-                // Favorites are not among the loaded categories, as the
-                // applet shows them in place of the recently used ones.
-                let mut categories = categories;
-                let after_recent = categories
-                    .iter()
-                    .position(|category| *category == ApplicationCategory::RECENTLY_USED)
-                    .map_or(categories.len(), |index| index + 1);
-                categories.insert(after_recent, ApplicationCategory::FAVORITES);
-
-                self.category_ids = categories.iter().map(|c| c.id().to_owned()).collect();
-                self.category_names = categories.iter().map(|c| c.get_display_name()).collect();
-
+                self.categories = categories;
                 Task::none()
             }
             Message::DefaultCategoryChanged(index) => {
-                if let Some(id) = self.category_ids.get(index) {
-                    log::info!("Default category changed to: {id}");
-                    self.config.default_category = id.clone();
+                if let Some(category) = self.default_category_options().get(index) {
+                    log::info!("Default category changed to: {}", category.id());
+                    self.config.default_category = category.id().to_owned();
                     self.save_config();
                 }
 
@@ -632,6 +619,23 @@ impl AppModel {
             .into()
     }
 
+    /// The categories the menu can open on, as listed in the menu: the
+    /// recently used apps are replaced by the favorites when they are shown
+    /// in their place.
+    fn default_category_options(&self) -> Vec<ApplicationCategory> {
+        let featured = self.config.effective_featured_applications().category();
+        self.categories
+            .iter()
+            .map(|category| {
+                if *category == ApplicationCategory::RECENTLY_USED {
+                    featured.clone()
+                } else {
+                    category.clone()
+                }
+            })
+            .collect()
+    }
+
     /// Options of the start page, for layouts having one.
     fn start_page_section(&self) -> Option<Element<'_, Message>> {
         if !self.config.menu_layout.has_start_page() {
@@ -677,12 +681,12 @@ impl AppModel {
             .add(Self::setting_item(fl!("side-panel-content"), content));
 
         // Shown once the categories are loaded.
-        if self.config.shows_default_category() && !self.category_ids.is_empty() {
+        let options = self.default_category_options();
+        if self.config.shows_default_category() && !options.is_empty() {
+            let default_id = self.config.default_category_id();
             let default_category = cosmic::widget::dropdown(
-                &self.category_names,
-                self.category_ids
-                    .iter()
-                    .position(|id| *id == self.config.default_category),
+                options.iter().map(|c| c.get_display_name()).collect::<Vec<_>>(),
+                options.iter().position(|category| category.id() == default_id),
                 Message::DefaultCategoryChanged,
             );
             section = section.add(Self::setting_item(
