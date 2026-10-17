@@ -129,6 +129,8 @@ impl AppletMenu {
     pub const POPUP_MIN_WIDTH: f32 = 500.0;
     pub const POPUP_MAX_HEIGHT: f32 = 700.0;
     pub const POPUP_MIN_HEIGHT: f32 = 300.0;
+    /// Size of the favorites' icons in the sidebar.
+    const SIDEBAR_ICON_SIZE: u16 = 28;
 
     const SYSTEM_LOCKSCREEN_SYMBOLIC_ICON: &[u8] =
         include_bytes!("../../res/icons/bundled/system-lock-screen-symbolic.svg");
@@ -304,7 +306,10 @@ impl AppletMenu {
         let favorite_items = favorites.iter().enumerate().map(|(index, app)| {
             let target = FavoritesDropTarget::Before(index);
             let button = cosmic::widget::tooltip(
-                cosmic::widget::button::custom(VirtualizedAppList::create_icon_widget(app, 28))
+                cosmic::widget::button::custom(VirtualizedAppList::create_icon_widget(
+                    app,
+                    AppletMenu::SIDEBAR_ICON_SIZE,
+                ))
                     .on_press(Message::ApplicationSelected(app.clone()))
                     .class(cosmic::theme::Button::AppletMenu)
                     .padding(space_xxs),
@@ -332,11 +337,16 @@ impl AppletMenu {
             end,
         );
 
+        // A fixed width, as the drop targets fill it and would otherwise
+        // make the sidebar take a share of the panes' width.
         let sidebar = cosmic::widget::column::with_children(favorite_items)
             .push(end_target)
             .push(AppletMenu::create_power_menu(applet, PowerMenuStyle::Vertical))
             .spacing(space_xxs)
             .align_x(Alignment::Center)
+            .width(Length::Fixed(f32::from(
+                AppletMenu::SIDEBAR_ICON_SIZE + 2 * space_xxs,
+            )))
             .height(Length::Fill);
 
         let body = row![
