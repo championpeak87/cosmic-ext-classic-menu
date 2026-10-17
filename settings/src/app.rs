@@ -10,7 +10,7 @@ use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
 use cosmic::{iced::Background, widget::text, Element};
 use cosmic_ext_classic_menu_applet::config::{
-    AppletButtonStyle, AppletConfig, Place, SidePanel, UserWidgetStyle,
+    AppView, AppletButtonStyle, AppletConfig, ItemSize, Place, SidePanel, UserWidgetStyle,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -50,6 +50,11 @@ pub enum Message {
     LayoutEditor(layout_editor::Message),
     AppletButtonStyleChanged(usize),
     UserWidgetChanged(usize),
+    AppViewChanged(usize),
+    /// Size of the apps in the selected view.
+    ItemSizeChanged(usize),
+    /// Whether the selected view shows app descriptions.
+    ShowDescriptionToggled(bool),
     SidePanelChanged(usize),
     PlaceToggled(Place, bool),
     /// The enabled place at this index was grabbed.
@@ -195,6 +200,7 @@ impl cosmic::Application for AppModel {
                     .into(),
             ]
             .into_iter()
+            .chain([self.app_view_section()])
             .chain(self.side_panel_section())
             .chain([cosmic::widget::settings::section()
                     .title(fl!("general"))
@@ -398,6 +404,38 @@ impl cosmic::Application for AppModel {
 
                 Task::none()
             }
+            Message::AppViewChanged(index) => {
+                self.config.app_view = Some(if index == 1 {
+                    AppView::Grid
+                } else {
+                    AppView::Column
+                });
+                log::info!("App view changed to: {:?}", self.config.app_view);
+                self.save_config();
+
+                Task::none()
+            }
+            Message::ItemSizeChanged(index) => {
+                let size = ItemSize::ALL.get(index).copied().unwrap_or_default();
+                match self.config.effective_app_view() {
+                    AppView::Column => self.config.column_item_size = size,
+                    AppView::Grid => self.config.grid_item_size = size,
+                }
+                log::info!("App item size changed to: {size:?}");
+                self.save_config();
+
+                Task::none()
+            }
+            Message::ShowDescriptionToggled(show) => {
+                match self.config.effective_app_view() {
+                    AppView::Column => self.config.column_show_description = show,
+                    AppView::Grid => self.config.grid_show_description = show,
+                }
+                log::info!("Show app descriptions changed to: {show}");
+                self.save_config();
+
+                Task::none()
+            }
             Message::ButtonLabelChanged(new_label) => {
                 let mut new_label = new_label;
                 if new_label.len() == 0 {
@@ -455,6 +493,45 @@ impl cosmic::Application for AppModel {
 }
 
 impl AppModel {
+    /// Choice between the column and grid views, and their options.
+    fn app_view_section(&self) -> Element<'_, Message> {
+        let app_view = self.config.effective_app_view();
+        let (item_size, show_description) = match app_view {
+            AppView::Column => (
+                self.config.column_item_size,
+                self.config.column_show_description,
+            ),
+            AppView::Grid => (self.config.grid_item_size, self.config.grid_show_description),
+        };
+
+        let view = cosmic::widget::dropdown(
+            vec![fl!("app-view-column"), fl!("app-view-grid")],
+            Some(match app_view {
+                AppView::Column => 0,
+                AppView::Grid => 1,
+            }),
+            Message::AppViewChanged,
+        );
+        let size = cosmic::widget::dropdown(
+            vec![
+                fl!("item-size-small"),
+                fl!("item-size-medium"),
+                fl!("item-size-large"),
+            ],
+            ItemSize::ALL.iter().position(|size| *size == item_size),
+            Message::ItemSizeChanged,
+        );
+        let description =
+            cosmic::widget::toggler(show_description).on_toggle(Message::ShowDescriptionToggled);
+
+        cosmic::widget::settings::section()
+            .title(fl!("app-view"))
+            .add(Self::setting_item(fl!("app-view-style"), view))
+            .add(Self::setting_item(fl!("item-size"), size))
+            .add(Self::setting_item(fl!("show-description"), description))
+            .into()
+    }
+
     /// Choice between categories and places, for layouts with a side panel.
     fn side_panel_section(&self) -> Option<Element<'_, Message>> {
         if !self.config.menu_layout.has_side_panel() {

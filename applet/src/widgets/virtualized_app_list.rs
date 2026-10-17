@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use cosmic::cosmic_theme::Spacing;
+use cosmic::iced::core::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
 use cosmic::iced::widget::{column, row};
 use cosmic::iced::window::Id;
 use cosmic::iced::{Alignment, ContentFit, Length};
@@ -11,6 +11,7 @@ use cosmic::widget::{ListColumn, container, scrollable};
 use cosmic::{Element, theme};
 
 use crate::applet::{Applet, Message};
+use crate::config::ItemSize;
 use crate::widgets::right_release_guard::RightReleaseGuard;
 use crate::model::application_entry::ApplicationEntry;
 
@@ -23,6 +24,17 @@ pub struct VirtualizedAppList;
 impl VirtualizedAppList {
     /// Buffer items to render above/below viewport for smooth scrolling
     const RENDER_BUFFER: usize = 2;
+    /// Font size of app descriptions.
+    const DESCRIPTION_SIZE: u16 = 10;
+
+    /// Icon size and row height of apps of `size`.
+    pub fn item_metrics(size: ItemSize) -> (u16, u16) {
+        match size {
+            ItemSize::Small => (24, 36),
+            ItemSize::Medium => (32, 48),
+            ItemSize::Large => (48, 64),
+        }
+    }
 
     /// Creates a virtualized app list element
     ///
@@ -32,14 +44,9 @@ impl VirtualizedAppList {
     /// # Returns
     /// A scrollable element containing only the visible app items
     pub fn view(applet: &Applet) -> Element<'_, Message> {
-        let Spacing {
-            space_s,
-            space_xl,
-            ..
-        } = theme::active().cosmic().spacing;
+        let space_s = theme::active().cosmic().space_s();
 
-        // Use actual button height from theme spacing
-        let item_height = space_xl as f32;
+        let item_height = f32::from(Self::item_metrics(applet.config.column_item_size).1);
         let scroll_offset = applet.scroll_offset;
         let total_items = applet.available_applications.len();
 
@@ -114,28 +121,28 @@ impl VirtualizedAppList {
         index: usize,
         app: &'a Arc<ApplicationEntry>
     ) -> Element<'a, Message> {
-        let Spacing {
-            space_l,
-            space_xl,
-            ..
-        } = theme::active().cosmic().spacing;
-
-        // Show comment only if item height is sufficient (at least 60 pixels)
-        let show_comment = space_xl >= 40;
+        let (icon_size, item_height) = Self::item_metrics(applet.config.column_item_size);
+        let description = app
+            .comment
+            .as_deref()
+            .filter(|_| applet.config.column_show_description)
+            .map(|comment| {
+                text(comment)
+                    .size(Self::DESCRIPTION_SIZE)
+                    .wrapping(Wrapping::None)
+                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
+            });
 
         let button = cosmic::widget::button::custom(
             row![
-                Self::create_icon_widget(app, space_l),
+                Self::create_icon_widget(app, icon_size),
                 cosmic::widget::Space::new().width(5).height(Length::Fill),
-                if show_comment {
-                    column![
-                        text(&app.name),
-                        text(app.comment.as_deref().unwrap_or_default()).size(8.0),
-                    ]
-                    .padding([0, 0])
-                } else {
-                    column![text(&app.name)].padding([0, 0])
-                },
+                column![
+                    text(&app.name)
+                        .wrapping(Wrapping::None)
+                        .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1))),
+                ]
+                .push_maybe(description),
             ]
             .align_y(Alignment::Center),
         )
@@ -149,7 +156,7 @@ impl VirtualizedAppList {
             },
         )
         .width(Length::Fill)
-        .height(space_xl);
+        .height(item_height);
 
         // The context menu itself wraps the whole scrollable, see
         // `with_context_menu`; this only marks which app it is for.

@@ -30,6 +30,17 @@ pub struct AppletConfig {
     pub places: Vec<Place>,
     /// Ids of apps added to favorites, shown in layouts with a favorites bar.
     pub favorite_applications: Vec<String>,
+    /// How apps are shown; `None` uses the layout's own view, see
+    /// [`AppletConfig::effective_app_view`].
+    pub app_view: Option<AppView>,
+    /// Size of the apps in the column view.
+    pub column_item_size: ItemSize,
+    /// Whether the column view shows app descriptions.
+    pub column_show_description: bool,
+    /// Size of the apps in the grid view.
+    pub grid_item_size: ItemSize,
+    /// Whether the grid view shows app descriptions.
+    pub grid_show_description: bool,
 }
 
 impl Default for AppletConfig {
@@ -48,6 +59,11 @@ impl Default for AppletConfig {
             side_panel_width: Self::DEFAULT_SIDE_PANEL_WIDTH,
             places: Place::DEFAULT.to_vec(),
             favorite_applications: vec![],
+            app_view: None,
+            column_item_size: ItemSize::default(),
+            column_show_description: true,
+            grid_item_size: ItemSize::default(),
+            grid_show_description: false,
         }
     }
 }
@@ -90,10 +106,16 @@ impl AppletConfig {
         }
     }
 
+    /// How apps are shown, given the layout when none was chosen.
+    pub fn effective_app_view(&self) -> AppView {
+        self.app_view.unwrap_or(self.menu_layout.default_app_view())
+    }
+
     /// Switches to `layout` and resets the element positions to the ones
     /// that best resemble it.
     pub fn apply_layout(&mut self, layout: MenuLayout) {
         self.menu_layout = layout;
+        self.app_view = None;
         match layout {
             MenuLayout::Classic => {
                 self.app_menu_position = HorizontalPosition::Left;
@@ -182,6 +204,37 @@ impl MenuLayout {
     pub fn has_favorites(self) -> bool {
         self == MenuLayout::Cinnamon
     }
+
+    /// How the layout shows apps unless another view is chosen.
+    pub fn default_app_view(self) -> AppView {
+        if self == MenuLayout::Modern {
+            AppView::Grid
+        } else {
+            AppView::Column
+        }
+    }
+}
+
+/// How the apps are shown.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum AppView {
+    /// One app per row, with its name next to its icon.
+    Column,
+    /// Several apps per row, with their names below their icons.
+    Grid,
+}
+
+/// Size of the apps in the app view.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ItemSize {
+    Small,
+    #[default]
+    Medium,
+    Large,
+}
+
+impl ItemSize {
+    pub const ALL: [ItemSize; 3] = [ItemSize::Small, ItemSize::Medium, ItemSize::Large];
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
@@ -271,4 +324,35 @@ pub enum SidePanel {
 pub struct RecentApplication {
     pub app_id: String,
     pub launch_count: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config(menu_layout: MenuLayout, app_view: Option<AppView>) -> AppletConfig {
+        AppletConfig {
+            menu_layout,
+            app_view,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn app_view_defaults_to_the_layouts_own() {
+        assert_eq!(config(MenuLayout::Classic, None).effective_app_view(), AppView::Column);
+        assert_eq!(config(MenuLayout::Modern, None).effective_app_view(), AppView::Grid);
+        assert_eq!(
+            config(MenuLayout::Modern, Some(AppView::Column)).effective_app_view(),
+            AppView::Column
+        );
+    }
+
+    #[test]
+    fn applying_a_layout_resets_the_app_view() {
+        let mut config = config(MenuLayout::Classic, Some(AppView::Grid));
+        config.apply_layout(MenuLayout::Retro);
+
+        assert_eq!(config.effective_app_view(), AppView::Column);
+    }
 }
