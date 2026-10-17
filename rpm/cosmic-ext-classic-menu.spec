@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu
-Version:        1.0.0
+Version:        1.1.0
 Release:        1%{?dist}
 Summary:        Classic Menu Applet
 
@@ -36,6 +36,17 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/com.championpeak87.cosmic-ext-classic-menu/applet-buttons/*
 
 %changelog
+* Sat Oct 17 2026 Kamil Lihan <k.lihan@outlook.com> 1.1.0-1
+- Favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout
+- Add applications to the favorites by dragging them onto the favorites, and reorder the favorites in the Sidebar layout by dragging them
+- Column or grid view of applications in any layout, with a choice of size and of showing application descriptions
+- Drag applications from the menu into the dock to pin them
+- --toggle option to open or close the menu, e.g. from a keyboard shortcut
+- Applet description shown in COSMIC Settings
+- New screenshots of all layouts
+- Fixed icons given as a path to a PNG image, e.g. of Citrix applications, showing the default icon
+- Fixed applet crashing with PNG based icon themes
+
 * Thu Oct 08 2026 Kamil Lihan <k.lihan@outlook.com> 1.0.0-1
 - Five menu layouts to choose from: Classic, Retro, Compact, Sidebar and Modern
 - Drag and drop layout editor in the settings: move the search field and power controls, swap and resize the panes

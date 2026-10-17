@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-ext-classic-menu-settings"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 authors = ["Kamil Lihan <k.lihan@outlook.com>"]
 license = "GPL-3.0-only"

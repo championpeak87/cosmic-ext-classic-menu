@@ -180,6 +180,22 @@
     <category>Desktop</category>
   </categories>
   <releases>
+    <release version="1.1.0" date="2026-10-17">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>Favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout</li>
+          <li>Add applications to the favorites by dragging them onto the favorites, and reorder the favorites in the Sidebar layout by dragging them</li>
+          <li>Column or grid view of applications in any layout, with a choice of size and of showing application descriptions</li>
+          <li>Drag applications from the menu into the dock to pin them</li>
+          <li>--toggle option to open or close the menu, e.g. from a keyboard shortcut</li>
+          <li>Applet description shown in COSMIC Settings</li>
+          <li>New screenshots of all layouts</li>
+          <li>Fixed icons given as a path to a PNG image, e.g. of Citrix applications, showing the default icon</li>
+          <li>Fixed applet crashing with PNG based icon themes</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-10-08">
       <description>
         <h1>What's changed</h1>
