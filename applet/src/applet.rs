@@ -315,6 +315,9 @@ impl Application for Applet {
                 // context menu show.
                 self.update_featured_applications();
                 self.update_context_menu();
+                if self.start_page_favorites.is_some() {
+                    self.show_start_page();
+                }
 
                 Task::none()
             }
@@ -397,6 +400,9 @@ impl Application for Applet {
                     let mut favorites = self.config.favorite_applications.clone();
                     if let Some(position) = favorites.iter().position(|id| *id == app.id) {
                         favorites.remove(position);
+                    } else if self.config.menu_layout.has_start_page() {
+                        // The start page shows only the first favorites.
+                        favorites.insert(0, app.id.clone());
                     } else {
                         favorites.push(app.id.clone());
                     }
@@ -667,16 +673,21 @@ impl Applet {
     /// Recently used apps shown on the start page, below the favorites.
     const START_PAGE_RECENT_APPLICATIONS: usize = 8;
 
-    /// Shows the start page of the favorites, then the recently used apps
-    /// that are not among them, in layouts having one. Returns whether it
-    /// is shown.
+    /// Shows the start page of the first favorites, then the recently used
+    /// apps that are not among them, in layouts having one. Returns whether
+    /// it is shown.
     fn show_start_page(&mut self) -> bool {
         if !self.config.menu_layout.has_start_page() {
             self.start_page_favorites = None;
             return false;
         }
 
-        let favorites = &self.favorite_applications;
+        let count = self.config.start_page_favorite_count.clamp(
+            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.start(),
+            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.end(),
+        );
+        let shown = self.favorite_applications.len().min(usize::from(count));
+        let favorites = &self.favorite_applications[..shown];
         let recent = self
             .recent_applications
             .iter()

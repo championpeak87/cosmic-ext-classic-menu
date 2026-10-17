@@ -44,6 +44,9 @@ pub struct AppletConfig {
     pub grid_item_size: ItemSize,
     /// Whether the grid view shows app descriptions.
     pub grid_show_description: bool,
+    /// How many of the first favorites the start page shows, see
+    /// [`MenuLayout::has_start_page`].
+    pub start_page_favorite_count: u16,
 }
 
 impl Default for AppletConfig {
@@ -68,6 +71,7 @@ impl Default for AppletConfig {
             column_show_description: true,
             grid_item_size: ItemSize::default(),
             grid_show_description: false,
+            start_page_favorite_count: Self::DEFAULT_START_PAGE_FAVORITE_COUNT,
         }
     }
 }
@@ -77,6 +81,11 @@ impl AppletConfig {
     pub const DEFAULT_SIDE_PANEL_WIDTH: u16 = 38;
     /// Bounds of `side_panel_width`, keeping both panes usable.
     pub const SIDE_PANEL_WIDTH_RANGE: std::ops::RangeInclusive<u16> = 20..=60;
+
+    /// Favorites on the start page, leaving room for recently used apps.
+    pub const DEFAULT_START_PAGE_FAVORITE_COUNT: u16 = 2;
+    /// Bounds of `start_page_favorite_count`.
+    pub const START_PAGE_FAVORITE_COUNT_RANGE: std::ops::RangeInclusive<u16> = 1..=10;
 
     /// `FillPortion`s of the app list and the side panel.
     pub fn pane_portions(&self) -> (u16, u16) {

@@ -57,6 +57,8 @@ pub enum Message {
     ItemSizeChanged(usize),
     /// Whether the selected view shows app descriptions.
     ShowDescriptionToggled(bool),
+    /// How many favorites the start page shows.
+    StartPageFavoriteCountChanged(u16),
     SidePanelChanged(usize),
     PlaceToggled(Place, bool),
     /// The enabled place at this index was grabbed.
@@ -211,6 +213,7 @@ impl cosmic::Application for AppModel {
             ]
             .into_iter()
             .chain([self.app_view_section()])
+            .chain(self.start_page_section())
             .chain(self.side_panel_section())
             .chain([cosmic::widget::settings::section()
                     .title(fl!("general"))
@@ -464,6 +467,19 @@ impl cosmic::Application for AppModel {
 
                 Task::none()
             }
+            Message::StartPageFavoriteCountChanged(count) => {
+                self.config.start_page_favorite_count = count.clamp(
+                    *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.start(),
+                    *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.end(),
+                );
+                log::info!(
+                    "Start page favorites changed to: {}",
+                    self.config.start_page_favorite_count
+                );
+                self.save_config();
+
+                Task::none()
+            }
             Message::ButtonLabelChanged(new_label) => {
                 let mut new_label = new_label;
                 if new_label.len() == 0 {
@@ -558,6 +574,31 @@ impl AppModel {
             .add(Self::setting_item(fl!("item-size"), size))
             .add(Self::setting_item(fl!("show-description"), description))
             .into()
+    }
+
+    /// Options of the start page, for layouts having one.
+    fn start_page_section(&self) -> Option<Element<'_, Message>> {
+        if !self.config.menu_layout.has_start_page() {
+            return None;
+        }
+
+        let count = self.config.start_page_favorite_count;
+        let favorites = cosmic::widget::spin_button(
+            count.to_string(),
+            fl!("start-page-favorites"),
+            count,
+            1,
+            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.start(),
+            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.end(),
+            Message::StartPageFavoriteCountChanged,
+        );
+
+        Some(
+            cosmic::widget::settings::section()
+                .title(fl!("start-page"))
+                .add(Self::setting_item(fl!("start-page-favorites"), favorites))
+                .into(),
+        )
     }
 
     /// Choice between categories and places, for layouts with a side panel.

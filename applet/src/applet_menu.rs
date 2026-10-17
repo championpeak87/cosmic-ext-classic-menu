@@ -676,7 +676,9 @@ impl AppletMenu {
         };
         // A tinted background sets the favorites apart from the recently
         // used apps.
-        let drop_hovered = applet.favorites_drop_target == Some(FavoritesDropTarget::Add);
+        // Dropped apps go first, as only the first favorites are shown.
+        let drop_target = FavoritesDropTarget::Before(0);
+        let drop_hovered = applet.favorites_drop_target == Some(drop_target);
         let favorites = container(favorites).width(Length::Fill).class(
             cosmic::theme::Container::custom(move |theme| {
                 let mut style = AppletMenu::drop_target_style(drop_hovered)(theme);
@@ -691,7 +693,7 @@ impl AppletMenu {
 
         let mut list = column![AppletMenu::favorites_drop_target(
             favorites,
-            FavoritesDropTarget::Add
+            drop_target
         )];
         if !recent_rows.is_empty() {
             list = list
