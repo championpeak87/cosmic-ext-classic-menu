@@ -71,6 +71,6 @@ default-category = 기본 카테고리
 layout-favorites = 즐겨찾기
 layout-whistler = Whistler
 layout-whistler-description = 시작 페이지
-featured-applications = 모든 애플리케이션 옆에 표시
+featured-applications = 빠른 실행 유형
 featured-recently-used = 최근 사용
 featured-favorites = 즐겨찾기

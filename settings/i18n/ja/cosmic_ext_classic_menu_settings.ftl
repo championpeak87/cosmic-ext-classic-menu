@@ -71,6 +71,6 @@ default-category = デフォルトのカテゴリ
 layout-favorites = お気に入り
 layout-whistler = Whistler
 layout-whistler-description = スタートページ
-featured-applications = すべてのアプリケーションの横に表示
+featured-applications = クイックランチャーの種類
 featured-recently-used = 最近使用した項目
 featured-favorites = お気に入り

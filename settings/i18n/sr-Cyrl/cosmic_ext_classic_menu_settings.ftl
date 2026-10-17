@@ -71,6 +71,6 @@ default-category = Подразумевана категорија
 layout-favorites = Омиљене
 layout-whistler = Whistler
 layout-whistler-description = Почетна страница
-featured-applications = Прикажи поред свих апликација
+featured-applications = Тип брзог покретача
 featured-recently-used = Недавно коришћене
 featured-favorites = Омиљене

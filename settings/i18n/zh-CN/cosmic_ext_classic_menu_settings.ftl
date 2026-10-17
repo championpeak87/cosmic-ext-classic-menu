@@ -71,6 +71,6 @@ default-category = 默认类别
 layout-favorites = 收藏夹
 layout-whistler = Whistler
 layout-whistler-description = 开始页面
-featured-applications = 在所有应用旁显示
+featured-applications = 快速启动类型
 featured-recently-used = 最近使用
 featured-favorites = 收藏夹

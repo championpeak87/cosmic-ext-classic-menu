@@ -71,6 +71,6 @@ default-category = الفئة الافتراضية
 layout-favorites = المفضلة
 layout-whistler = Whistler
 layout-whistler-description = صفحة البداية
-featured-applications = العرض بجانب جميع التطبيقات
+featured-applications = نوع المشغل السريع
 featured-recently-used = المستخدمة مؤخرًا
 featured-favorites = المفضلة

@@ -71,6 +71,6 @@ default-category = Alapértelmezett kategória
 layout-favorites = Kedvencek
 layout-whistler = Whistler
 layout-whistler-description = Kezdőlap
-featured-applications = Megjelenítés az összes alkalmazás mellett
+featured-applications = Gyorsindító típusa
 featured-recently-used = Legutóbb használt
 featured-favorites = Kedvencek

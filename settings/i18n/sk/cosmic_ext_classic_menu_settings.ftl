@@ -71,6 +71,6 @@ default-category = Predvolená kategória
 layout-favorites = Obľúbené
 layout-whistler = Whistler
 layout-whistler-description = Úvodná stránka
-featured-applications = Zobraziť vedľa všetkých aplikácií
+featured-applications = Typ rýchleho spúšťača
 featured-recently-used = Nedávno použité
 featured-favorites = Obľúbené

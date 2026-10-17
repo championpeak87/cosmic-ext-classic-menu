@@ -71,6 +71,6 @@ default-category = دسته پیش‌فرض
 layout-favorites = علاقه‌مندی‌ها
 layout-whistler = Whistler
 layout-whistler-description = صفحه شروع
-featured-applications = نمایش در کنار همه برنامه‌ها
+featured-applications = نوع راه‌انداز سریع
 featured-recently-used = اخیراً استفاده‌شده
 featured-favorites = علاقه‌مندی‌ها

@@ -71,6 +71,6 @@ default-category = ಡೀಫಾಲ್ಟ್ ವರ್ಗ
 layout-favorites = ಮೆಚ್ಚಿನವುಗಳು
 layout-whistler = Whistler
 layout-whistler-description = ಪ್ರಾರಂಭ ಪುಟ
-featured-applications = ಎಲ್ಲಾ ಅಪ್ಲಿಕೇಶನ್‌ಗಳ ಪಕ್ಕದಲ್ಲಿ ತೋರಿಸು
+featured-applications = ತ್ವರಿತ ಲಾಂಚರ್ ಪ್ರಕಾರ
 featured-recently-used = ಇತ್ತೀಚೆಗೆ ಬಳಸಿದವು
 featured-favorites = ಮೆಚ್ಚಿನವುಗಳು

@@ -71,6 +71,6 @@ default-category = Varsayılan kategori
 layout-favorites = Sık kullanılanlar
 layout-whistler = Whistler
 layout-whistler-description = Başlangıç sayfası
-featured-applications = Tüm uygulamaların yanında göster
+featured-applications = Hızlı başlatıcı türü
 featured-recently-used = Son kullanılanlar
 featured-favorites = Sık kullanılanlar

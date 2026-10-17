@@ -71,6 +71,6 @@ default-category = 預設類別
 layout-favorites = 我的最愛
 layout-whistler = Whistler
 layout-whistler-description = 開始頁面
-featured-applications = 在所有應用程式旁顯示
+featured-applications = 快速啟動類型
 featured-recently-used = 最近使用
 featured-favorites = 我的最愛

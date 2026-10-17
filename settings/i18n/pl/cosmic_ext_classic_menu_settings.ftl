@@ -71,6 +71,6 @@ default-category = Domyślna kategoria
 layout-favorites = Ulubione
 layout-whistler = Whistler
 layout-whistler-description = Strona startowa
-featured-applications = Pokaż obok wszystkich aplikacji
+featured-applications = Typ szybkiego uruchamiania
 featured-recently-used = Ostatnio używane
 featured-favorites = Ulubione

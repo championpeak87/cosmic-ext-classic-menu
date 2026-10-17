@@ -72,6 +72,6 @@ default-category = Standardkategori
 layout-favorites = Favoriter
 layout-whistler = Whistler
 layout-whistler-description = Startsida
-featured-applications = Visa bredvid alla program
+featured-applications = Typ av snabbstart
 featured-recently-used = Nyligen använda
 featured-favorites = Favoriter
