@@ -70,9 +70,7 @@ impl From<DesktopEntryData> for ApplicationEntry {
                         .prefer_svg(true)
                         .into(),
                 ),
-                IconSource::Path(path) => {
-                    Some(cosmic::widget::icon(cosmic::widget::icon::from_path(path.clone())).into())
-                }
+                IconSource::Path(path) => Some(IconHandle::from_path(&path)),
             },
             exec: app.exec,
             category: app.categories,
@@ -82,22 +80,15 @@ impl From<DesktopEntryData> for ApplicationEntry {
     }
 }
 
-impl From<cosmic::widget::Icon> for IconHandle {
-    fn from(icon: cosmic::widget::Icon) -> IconHandle {
-        if let Some(icon_handle) = icon.into_svg_handle() {
-            IconHandle::SvgHandle(cosmic::widget::svg::Handle::from(icon_handle))
-        } else {
-            IconHandle::default()
-        }
-    }
-}
-
 impl From<Named> for IconHandle {
     fn from(named: Named) -> IconHandle {
         if let Some(handle) = named.clone().icon().into_svg_handle() {
             IconHandle::SvgHandle(handle)
+        } else if let Some(path) = named.path() {
+            // PNG based icon themes, e.g. ubuntu-mono-light
+            IconHandle::RasterHandle(Handle::from_path(path))
         } else {
-            IconHandle::RasterHandle(Handle::from_path(named.path().unwrap()))
+            IconHandle::bundled_fallback()
         }
     }
 }
@@ -113,14 +104,36 @@ impl From<cosmic::desktop::DesktopAction> for DesktopAction {
 
 impl Default for IconHandle {
     fn default() -> Self {
-        IconHandle::SvgHandle(
-            cosmic::widget::icon::from_name("application-x-executable")
-                .size(32)
-                .handle()
-                .icon()
-                .into_svg_handle()
-                .unwrap(),
-        )
+        cosmic::widget::icon::from_name("application-x-executable")
+            .size(32)
+            .into()
+    }
+}
+
+impl IconHandle {
+    /// Icon loaded from an image file, which some desktop entries give
+    /// instead of an icon name, e.g. PNGs of Citrix apps.
+    fn from_path(path: &Path) -> Self {
+        if !path.is_file() {
+            return IconHandle::default();
+        }
+
+        let is_svg = path.extension().is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("svg") || extension.eq_ignore_ascii_case("svgz")
+        });
+        if is_svg {
+            IconHandle::SvgHandle(cosmic::widget::svg::Handle::from_path(path))
+        } else {
+            IconHandle::RasterHandle(Handle::from_path(path))
+        }
+    }
+
+    /// Used when the icon theme provides no icon at all, so it must not
+    /// depend on the theme.
+    fn bundled_fallback() -> Self {
+        IconHandle::SvgHandle(cosmic::widget::svg::Handle::from_memory(
+            &include_bytes!("../../../res/icons/bundled/applications-system-symbolic.svg")[..],
+        ))
     }
 }
 
@@ -195,6 +208,39 @@ fn get_desktop_file_id(path: Option<&Path>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn bundled_icon(name: &str) -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../res/icons/bundled").join(name)
+    }
+
+    #[test]
+    fn svg_icon_from_path() {
+        assert!(matches!(
+            IconHandle::from_path(&bundled_icon("document-open-recent-symbolic.svg")),
+            IconHandle::SvgHandle(_)
+        ));
+    }
+
+    #[test]
+    fn raster_icon_from_path() {
+        // Only the extension decides, so an SVG file named .png stands in
+        // for a real PNG.
+        let png = std::env::temp_dir().join("cosmic-ext-classic-menu-test-icon.png");
+        std::fs::copy(bundled_icon("document-open-recent-symbolic.svg"), &png).unwrap();
+
+        let icon = IconHandle::from_path(&png);
+        std::fs::remove_file(&png).unwrap();
+
+        assert!(matches!(icon, IconHandle::RasterHandle(_)));
+    }
+
+    #[test]
+    fn missing_icon_file_falls_back() {
+        assert_eq!(
+            IconHandle::from_path(Path::new("/nonexistent/icon.png")),
+            IconHandle::default()
+        );
+    }
 
     #[test]
     fn desktop_file_id_of_nested_entry() {
