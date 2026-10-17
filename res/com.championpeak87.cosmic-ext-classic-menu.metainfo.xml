@@ -140,19 +140,33 @@
   <icon type="stock">com.championpeak87.cosmic-ext-classic-menu.svg</icon>
   <screenshots>
     <screenshot type="default">
-      <image>
-        https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/cosmic-ext-classic-menu-applet.png
-      </image>
-      <caption>Main menu screenshot</caption>
-      <caption xml:lang="cs">Hlavní menu</caption>
-     </screenshot>
-     <screenshot type="default">
-      <image>
-        https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/cosmic-ext-classic-menu-settings.png
-      </image>
-      <caption>Applet settings</caption>
-      <caption xml:lang="cs">Nastavení appletu</caption>
-     </screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-classic.png</image>
+      <caption>Classic layout with applications and categories side by side</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-retro.png</image>
+      <caption>Retro layout with colored bars and places</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-compact.png</image>
+      <caption>Compact layout with categories on the left</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-sidebar.png</image>
+      <caption>Sidebar layout with favorites and power controls</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-modern.png</image>
+      <caption>Modern layout with an application grid and favorites</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/grid-view.png</image>
+      <caption>Grid view of applications with the favorites category</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/settings.png</image>
+      <caption>Settings with the drag and drop layout editor</caption>
+    </screenshot>
   </screenshots>
   <provides>
     <id>com.system76.CosmicApplet</id>
