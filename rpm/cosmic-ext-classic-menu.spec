@@ -38,7 +38,7 @@ just rootdir=%{buildroot} install
 %changelog
 * Sat Oct 17 2026 Kamil Lihan <k.lihan@outlook.com> 1.1.0-1
 - Favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout
-- Add applications to the favorites by dragging them onto the favorites, and reorder the favorites in the Sidebar layout by dragging them
+- Add applications to the favorites by dragging them onto the favorites
 - Column or grid view of applications in any layout, with a choice of size and of showing application descriptions
 - Drag applications from the menu into the dock to pin them
 - --toggle option to open or close the menu, e.g. from a keyboard shortcut

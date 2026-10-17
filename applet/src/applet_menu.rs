@@ -302,10 +302,8 @@ impl AppletMenu {
         } else {
             &applet.favorite_applications[..]
         };
-        // Each favorite is a drop target placing the dropped app before it,
-        // so favorites can be reordered by dragging them.
-        let favorite_items = favorites.iter().enumerate().map(|(index, app)| {
-            let target = FavoritesDropTarget::Before(index);
+        // Favorites can be dragged, e.g. into the dock.
+        let favorite_items = favorites.iter().map(|app| {
             let button = cosmic::widget::tooltip(
                 cosmic::widget::button::custom(VirtualizedAppList::create_icon_widget(
                     app,
@@ -317,31 +315,28 @@ impl AppletMenu {
                 text(&app.name),
                 cosmic::widget::tooltip::Position::Right,
             );
-            let item = column![
-                AppletMenu::insertion_marker(applet.favorites_drop_target == Some(target)),
-                VirtualizedAppList::drag_source(applet, app, button),
-            ]
-            .spacing(space_xxs)
-            .align_x(Alignment::Center);
-
-            AppletMenu::favorites_drop_target(item, target)
+            VirtualizedAppList::drag_source(applet, app, button)
         });
 
-        // The space below the favorites places the dropped app last.
-        let end = FavoritesDropTarget::Before(favorites.len());
-        let end_target = AppletMenu::favorites_drop_target(
-            container(AppletMenu::insertion_marker(
-                applet.favorites_drop_target == Some(end),
-            ))
-            .width(Length::Fill)
-            .height(Length::Fill),
-            end,
-        );
+        // Apps dropped on the favorites, or the space below them, are added
+        // to them.
+        let favorites = container(
+            cosmic::widget::column::with_children(favorite_items)
+                .spacing(space_xxs)
+                .align_x(Alignment::Center),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .class(cosmic::theme::Container::custom(AppletMenu::drop_target_style(
+            applet.favorites_drop_target == Some(FavoritesDropTarget::Add),
+        )));
 
-        // A fixed width, as the drop targets fill it and would otherwise
+        // A fixed width, as the drop target fills it and would otherwise
         // make the sidebar take a share of the panes' width.
-        let sidebar = cosmic::widget::column::with_children(favorite_items)
-            .push(end_target)
+        let sidebar = column![AppletMenu::favorites_drop_target(
+            favorites,
+            FavoritesDropTarget::Add
+        )]
             .push(AppletMenu::create_power_menu(applet, PowerMenuStyle::Vertical))
             .spacing(space_xxs)
             .align_x(Alignment::Center)
@@ -479,24 +474,6 @@ impl AppletMenu {
             .collect::<Vec<Element<'_, Message>>>();
 
         row(buttons).spacing(space_xxs).into()
-    }
-
-    /// Line showing where a dragged favorite would be placed, kept in the
-    /// layout while hidden so the favorites do not move under the pointer.
-    fn insertion_marker(shown: bool) -> Element<'static, Message> {
-        container(cosmic::widget::Space::new())
-            .width(Length::Fill)
-            .height(Length::Fixed(2.0))
-            .class(cosmic::theme::Container::custom(move |theme| {
-                let cosmic = theme.cosmic();
-                let mut style = container::Style::default();
-                if shown {
-                    style.background = Some(Background::Color(cosmic.accent_color().into()));
-                    style.border.radius = cosmic.radius_xs().into();
-                }
-                style
-            }))
-            .into()
     }
 
     /// Outlines a drop target while an app is dragged over it.
@@ -677,7 +654,7 @@ impl AppletMenu {
         // A tinted background sets the favorites apart from the recently
         // used apps.
         // Dropped apps go first, as only the first favorites are shown.
-        let drop_target = FavoritesDropTarget::Before(0);
+        let drop_target = FavoritesDropTarget::First;
         let drop_hovered = applet.favorites_drop_target == Some(drop_target);
         let favorites = container(favorites).width(Length::Fill).class(
             cosmic::theme::Container::custom(move |theme| {

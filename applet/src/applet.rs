@@ -97,11 +97,12 @@ pub struct Applet {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FavoritesDropTarget {
     /// At the end, unless it is a favorite already. Dropped on the
-    /// favorites category or the favorites row of the modern layout.
+    /// favorites category, the favorites row of the modern layout or the
+    /// sidebar.
     Add,
-    /// Before the favorite at this index in the sidebar, or at the end for
-    /// the space below them.
-    Before(usize),
+    /// First, moved there if it is a favorite already. Dropped on the start
+    /// page, which shows only the first favorites.
+    First,
 }
 
 impl FavoritesDropTarget {
@@ -110,7 +111,7 @@ impl FavoritesDropTarget {
     pub fn drag_id(self) -> u64 {
         match self {
             FavoritesDropTarget::Add => u64::MAX - 1,
-            FavoritesDropTarget::Before(index) => u64::MAX - 2 - index as u64,
+            FavoritesDropTarget::First => u64::MAX - 2,
         }
     }
 }
@@ -416,7 +417,7 @@ impl Application for Applet {
                 if let Some(DraggedApp { app_id, .. }) = dragged_app {
                     let index = match target {
                         FavoritesDropTarget::Add => None,
-                        FavoritesDropTarget::Before(index) => Some(index),
+                        FavoritesDropTarget::First => Some(0),
                     };
                     let favorites = crate::logic::apps::place_favorite(
                         &self.config.favorite_applications,
