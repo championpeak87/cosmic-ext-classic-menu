@@ -17,8 +17,8 @@ use cosmic::iced::{mouse, Alignment, Background, Border, Color, Length, Padding,
 use cosmic::widget::{container, icon, mouse_area, text, tooltip, Space};
 use cosmic::{Element, Theme};
 use cosmic_ext_classic_menu_applet::config::{
-    AppletConfig, HorizontalPosition, MenuLayout, Place, PowerMenuPosition, SidePanel,
-    VerticalPosition,
+    AppletConfig, FeaturedApplications, HorizontalPosition, MenuLayout, Place, PowerMenuPosition,
+    SidePanel, VerticalPosition,
 };
 use cosmic_ext_classic_menu_applet::model::application_category::{ApplicationCategory, CategoryIcon};
 
@@ -376,7 +376,13 @@ impl LayoutEditor {
             .push_maybe(header)
             .push_maybe(self.search_slot(Slot::SearchTop, config))
             .push(fixed_part(app_grid_sketch(), fl!("layout-app-list")))
-            .push(fixed_part(recent_sketch(), fl!("layout-recent")))
+            .push(fixed_part(
+                recent_sketch(),
+                match config.featured_applications {
+                    FeaturedApplications::RecentlyUsed => fl!("layout-recent"),
+                    FeaturedApplications::Favorites => fl!("layout-favorites"),
+                },
+            ))
             .push_maybe(self.search_slot(Slot::SearchBottom, config))
             .push(cosmic::widget::divider::horizontal::light())
             .push(footer)

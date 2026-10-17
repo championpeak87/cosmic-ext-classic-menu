@@ -1,6 +1,7 @@
 # categories
 all-applications=All applications
 recently-used=Recently used
+favorites=Favorites
 audio=Audio
 video=Video
 development=Development
@@ -29,6 +30,7 @@ menu-label=Menu
 launch=Launch
 pin-to-panel=Pin to panel
 add-to-favorites=Add to favorites
+favorites-empty=Drag apps here or add them from their context menu
 
 
 # places

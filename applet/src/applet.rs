@@ -27,11 +27,12 @@ use std::sync::Arc;
 
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
-use crate::config::{AppletButtonStyle, AppletConfig, RecentApplication};
+use crate::config::{AppletButtonStyle, AppletConfig, FeaturedApplications, RecentApplication};
 use crate::fl;
 use crate::logic::apps::{Event, desktop_files, load_apps};
 use crate::model::application_category::ApplicationCategory;
 use crate::model::application_entry::{ApplicationEntry, DesktopAction};
+use crate::model::dragged_app::DraggedApp;
 use crate::model::popup_type::PopupType;
 use crate::model::power_action::PowerAction;
 use crate::model::system_tool::SystemTool;
@@ -83,6 +84,8 @@ pub struct Applet {
     /// Whether an app claimed the current right click, see
     /// [`Message::ContextMenuRightPress`].
     context_menu_target_claimed: bool,
+    /// Whether an app is dragged over a place showing the favorites.
+    pub favorites_drop_hovered: bool,
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -119,6 +122,12 @@ pub enum Message {
     ContextMenuTarget(usize),
     /// Adds or removes the app at this index from the favorites.
     ToggleFavoriteAt(usize),
+    /// An app was dropped on a place showing the favorites.
+    FavoriteDropped(Option<DraggedApp>),
+    /// An app is dragged onto (`true`) or off a place showing the favorites.
+    FavoritesDropHovered(bool),
+    /// Dragging an app out of the app view was finished or cancelled.
+    AppDragEnded,
     OpenPlace(crate::model::place::Place),
     /// Right press anywhere in the app view.
     ContextMenuRightPress,
@@ -174,6 +183,7 @@ impl Application for Applet {
             recent_applications: Vec::new(),
             context_menu_target: None,
             context_menu_target_claimed: false,
+            favorites_drop_hovered: false,
         };
 
         // fetch current user asynchronously
@@ -352,18 +362,29 @@ impl Application for Applet {
                     } else {
                         favorites.push(app.id.clone());
                     }
-
-                    // Write only this key, see `update_recent_applications`.
-                    if let Err(err) = self.config.set_favorite_applications(
-                        AppletConfig::config_handler().as_ref().unwrap(),
-                        favorites,
-                    ) {
-                        log::error!("Failed to write favorite applications: {err}");
-                    }
-                    self.update_featured_applications();
-                    self.update_context_menu();
+                    self.set_favorite_applications(favorites);
                 }
 
+                Task::none()
+            }
+            Message::FavoriteDropped(dragged_app) => {
+                self.favorites_drop_hovered = false;
+                if let Some(DraggedApp { app_id }) = dragged_app
+                    && !self.config.favorite_applications.contains(&app_id)
+                {
+                    let mut favorites = self.config.favorite_applications.clone();
+                    favorites.push(app_id);
+                    self.set_favorite_applications(favorites);
+                }
+
+                Task::none()
+            }
+            Message::FavoritesDropHovered(hovered) => {
+                self.favorites_drop_hovered = hovered;
+                Task::none()
+            }
+            Message::AppDragEnded => {
+                self.favorites_drop_hovered = false;
                 Task::none()
             }
             Message::OpenPlace(place) => {
@@ -486,6 +507,7 @@ impl Applet {
             self.scroll_offset = 0.0;
             self.context_menu_target = None;
             self.context_menu = None;
+            self.favorites_drop_hovered = false;
             match crate::logic::apps::with_cached_apps(<[_]>::to_vec) {
                 Some(applications) => {
                     self.available_applications = applications;
@@ -548,12 +570,36 @@ impl Applet {
         )
     }
 
+    /// Writes the favorites and updates everything showing them.
+    fn set_favorite_applications(&mut self, favorites: Vec<String>) {
+        // Write only this key, see `update_recent_applications`.
+        if let Err(err) = self.config.set_favorite_applications(
+            AppletConfig::config_handler().as_ref().unwrap(),
+            favorites,
+        ) {
+            log::error!("Failed to write favorite applications: {err}");
+        }
+        self.update_featured_applications();
+
+        if self.selected_category == Some(ApplicationCategory::FAVORITES) {
+            // The shown list changed, so indices into it no longer apply.
+            self.available_applications = self.favorite_applications.clone();
+            self.selected_item_index = None;
+            self.context_menu_target = None;
+            self.context_menu = None;
+        } else {
+            self.update_context_menu();
+        }
+    }
+
     /// Updates the recent and favorite apps, if the layout shows them.
     fn update_featured_applications(&mut self) {
         let layout = self.config.menu_layout;
-        let show_favorites = layout.has_favorites();
-        // Recent apps also stand in for missing favorites.
-        let show_recent = layout == crate::config::MenuLayout::Modern || show_favorites;
+        let show_favorites = self.config.shows_favorites();
+        // Recent apps also stand in for missing favorites in the sidebar.
+        let show_recent = layout.has_favorites()
+            || (layout == crate::config::MenuLayout::Modern
+                && self.config.featured_applications == FeaturedApplications::RecentlyUsed);
 
         let config = &self.config;
         let featured = crate::logic::apps::with_cached_apps(|apps| {
@@ -572,12 +618,7 @@ impl Applet {
 
         // Without cached apps, they are updated once the apps are loaded.
         if let Some((recent, favorites)) = featured {
-            // Keep the favorites bar useful until the user adds favorites.
-            self.favorite_applications = if show_favorites && favorites.is_empty() {
-                recent.iter().take(6).cloned().collect()
-            } else {
-                favorites
-            };
+            self.favorite_applications = favorites;
             self.recent_applications = recent;
         }
     }
@@ -617,8 +658,8 @@ impl Applet {
             ),
         ];
 
-        // Only offered where the layout shows the favorites.
-        if self.config.menu_layout.has_favorites() {
+        // Only offered where the favorites are shown.
+        if self.config.shows_favorites() {
             context_menu_buttons.push(Item::CheckBox(
                 crate::fl!("add-to-favorites"),
                 None,
@@ -806,9 +847,15 @@ impl Applet {
         self.search_field.clear();
         self.selected_category = Some(category.clone());
         self.selected_item_index = None;
-        // Only needed, and so only copied, for the recently used category.
+        // Only needed, and so only copied, for the recently used and
+        // favorites categories.
         let recent_applications = if category == ApplicationCategory::RECENTLY_USED {
             self.config.recent_applications.clone()
+        } else {
+            Vec::new()
+        };
+        let favorite_applications = if category == ApplicationCategory::FAVORITES {
+            self.config.favorite_applications.clone()
         } else {
             Vec::new()
         };
@@ -821,7 +868,11 @@ impl Applet {
             ),
             Task::perform(
                 tokio::task::spawn_blocking(move || {
-                    crate::logic::apps::get_apps_of_category(category, &recent_applications)
+                    crate::logic::apps::get_apps_of_category(
+                        category,
+                        &recent_applications,
+                        &favorite_applications,
+                    )
                 }),
                 |res| cosmic::Action::App(Message::UpdateAvailableApplications(res.unwrap())),
             ),

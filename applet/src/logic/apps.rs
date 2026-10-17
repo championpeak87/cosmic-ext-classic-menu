@@ -160,12 +160,15 @@ pub fn get_favorite_applications(
 pub fn get_apps_of_category(
     category: ApplicationCategory,
     recent_applications: &[RecentApplication],
+    favorite_applications: &[String],
 ) -> Vec<Arc<ApplicationEntry>> {
     log::info!("Getting apps of category: {}", category.mime_name);
     if category == ApplicationCategory::ALL {
         load_apps()
     } else if category == ApplicationCategory::RECENTLY_USED {
         get_recent_applications(recent_applications, &load_apps())
+    } else if category == ApplicationCategory::FAVORITES {
+        get_favorite_applications(favorite_applications, &load_apps())
     } else {
         load_apps()
             .into_iter()

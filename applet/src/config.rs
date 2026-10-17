@@ -28,8 +28,11 @@ pub struct AppletConfig {
     pub side_panel_width: u16,
     /// Places shown when `side_panel` is [`SidePanel::Places`], in order.
     pub places: Vec<Place>,
-    /// Ids of apps added to favorites, shown in layouts with a favorites bar.
+    /// Ids of apps added to favorites, shown in layouts with a favorites bar
+    /// and when `featured_applications` is [`FeaturedApplications::Favorites`].
     pub favorite_applications: Vec<String>,
+    /// Which apps the "Recently used" category and recommendations show.
+    pub featured_applications: FeaturedApplications,
 }
 
 impl Default for AppletConfig {
@@ -48,6 +51,7 @@ impl Default for AppletConfig {
             side_panel_width: Self::DEFAULT_SIDE_PANEL_WIDTH,
             places: Place::DEFAULT.to_vec(),
             favorite_applications: vec![],
+            featured_applications: FeaturedApplications::default(),
         }
     }
 }
@@ -88,6 +92,12 @@ impl AppletConfig {
         } else {
             supported.last().copied()
         }
+    }
+
+    /// Whether favorites are shown anywhere, so apps can be added to them.
+    pub fn shows_favorites(&self) -> bool {
+        self.menu_layout.has_favorites()
+            || self.featured_applications == FeaturedApplications::Favorites
     }
 
     /// Switches to `layout` and resets the element positions to the ones
@@ -181,6 +191,28 @@ impl MenuLayout {
     /// Whether the layout shows the favorite apps.
     pub fn has_favorites(self) -> bool {
         self == MenuLayout::Cinnamon
+    }
+}
+
+/// Apps shown in the category next to "All applications" and below the app
+/// grid of the modern layout.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub enum FeaturedApplications {
+    /// Most launched apps.
+    #[default]
+    RecentlyUsed,
+    /// Apps the user added to favorites.
+    Favorites,
+}
+
+impl FeaturedApplications {
+    /// The category listing these apps.
+    pub fn category(self) -> crate::model::application_category::ApplicationCategory {
+        use crate::model::application_category::ApplicationCategory;
+        match self {
+            FeaturedApplications::RecentlyUsed => ApplicationCategory::RECENTLY_USED,
+            FeaturedApplications::Favorites => ApplicationCategory::FAVORITES,
+        }
     }
 }
 

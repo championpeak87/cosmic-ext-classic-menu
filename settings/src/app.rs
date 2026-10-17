@@ -10,7 +10,7 @@ use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
 use cosmic::{iced::Background, widget::text, Element};
 use cosmic_ext_classic_menu_applet::config::{
-    AppletButtonStyle, AppletConfig, Place, SidePanel, UserWidgetStyle,
+    AppletButtonStyle, AppletConfig, FeaturedApplications, Place, SidePanel, UserWidgetStyle,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -50,6 +50,7 @@ pub enum Message {
     LayoutEditor(layout_editor::Message),
     AppletButtonStyleChanged(usize),
     UserWidgetChanged(usize),
+    FeaturedApplicationsChanged(usize),
     SidePanelChanged(usize),
     PlaceToggled(Place, bool),
     /// The enabled place at this index was grabbed.
@@ -180,6 +181,14 @@ impl cosmic::Application for AppModel {
             Some(self.config.user_widget as usize),
             Message::UserWidgetChanged,
         );
+        let featured_applications = cosmic::widget::dropdown(
+            vec![fl!("featured-recently-used"), fl!("featured-favorites")],
+            Some(match self.config.featured_applications {
+                FeaturedApplications::RecentlyUsed => 0,
+                FeaturedApplications::Favorites => 1,
+            }),
+            Message::FeaturedApplicationsChanged,
+        );
         let button_label =
             cosmic::widget::text_input(fl!("button-label-placeholder"), &self.config.button_label)
                 .on_input(Message::ButtonLabelChanged)
@@ -200,6 +209,10 @@ impl cosmic::Application for AppModel {
                     .title(fl!("general"))
                     .add(Self::setting_item(fl!("applet-button-style"), applet_button_style))
                     .add(Self::setting_item(fl!("user-widget"), user_widget))
+                    .add(Self::setting_item(
+                        fl!("featured-applications"),
+                        featured_applications,
+                    ))
                     .add(Self::setting_item(fl!("button-label"), button_label))
                     .add(Self::setting_item(fl!("button-icon"), button_icon))
                     .into()])
@@ -394,6 +407,20 @@ impl cosmic::Application for AppModel {
                     _ => UserWidgetStyle::None,
                 };
 
+                self.save_config();
+
+                Task::none()
+            }
+            Message::FeaturedApplicationsChanged(index) => {
+                self.config.featured_applications = if index == 1 {
+                    FeaturedApplications::Favorites
+                } else {
+                    FeaturedApplications::RecentlyUsed
+                };
+                log::info!(
+                    "Featured applications changed to: {:?}",
+                    self.config.featured_applications
+                );
                 self.save_config();
 
                 Task::none()
