@@ -617,14 +617,16 @@ impl AppletMenu {
             AppView::Column => VirtualizedAppList::view(applet),
             AppView::Grid => VirtualizedAppGrid::view(applet),
         };
-        // Search results are left by clearing the search.
+        // Search results are left by clearing the search. The button takes
+        // the place of the one leading here, at the bottom.
         if applet.config.menu_layout.has_start_page() && applet.search_field.is_empty() {
             column![
+                view,
+                AppletMenu::horizontal_divider(),
                 AppletMenu::page_button(fl!("back"), "go-previous-symbolic", true)
                     .on_press(Message::ShowStartPage),
-                AppletMenu::horizontal_divider(),
-                view,
             ]
+            .height(Length::Fill)
             .into()
         } else {
             view
