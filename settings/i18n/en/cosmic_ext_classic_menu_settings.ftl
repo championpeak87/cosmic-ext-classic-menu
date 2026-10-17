@@ -24,6 +24,7 @@ item-size-small = Small
 item-size-medium = Medium
 item-size-large = Large
 show-description = Show app descriptions
+show-description-on-hover = Show app descriptions on hover
 start-page = Start page
 start-page-favorites = Favorites shown
 side-panel = Side panel

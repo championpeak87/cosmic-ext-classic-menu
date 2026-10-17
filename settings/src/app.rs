@@ -572,7 +572,13 @@ impl AppModel {
             .title(fl!("app-view"))
             .add(Self::setting_item(fl!("app-view-style"), view))
             .add(Self::setting_item(fl!("item-size"), size))
-            .add(Self::setting_item(fl!("show-description"), description))
+            .add(Self::setting_item(
+                match app_view {
+                    AppView::Column => fl!("show-description"),
+                    AppView::Grid => fl!("show-description-on-hover"),
+                },
+                description,
+            ))
             .into()
     }
 

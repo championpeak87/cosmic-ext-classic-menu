@@ -891,16 +891,15 @@ impl AppsSketch {
             .into()
     }
 
-    /// A grid of app tiles with names, and descriptions if shown, below.
+    /// A grid of app tiles with names below. Descriptions are only shown
+    /// on hover, so they are not sketched.
     fn grid(self, columns: usize) -> Element<'static, Message> {
-        let show_description = self.show_description;
         let rows = (0..6).map(|row| -> Element<'static, Message> {
             cosmic::widget::row::with_children((0..columns).map(|column| {
                 cosmic::iced::widget::column![
                     app_tile(row * columns + column),
                     text_line(Length::Fixed(28.0), 3.0),
                 ]
-                .push_maybe(show_description.then(|| text_line(Length::Fixed(20.0), 2.0)))
                 .spacing(3)
                 .align_x(Alignment::Center)
                 .width(Length::FillPortion(1))

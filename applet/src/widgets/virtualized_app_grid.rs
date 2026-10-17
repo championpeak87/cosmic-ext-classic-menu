@@ -30,10 +30,8 @@ pub struct GridMetrics {
 impl VirtualizedAppGrid {
     /// Buffer rows to render above/below viewport for smooth scrolling
     const RENDER_BUFFER: usize = 1;
-    /// Font size of app descriptions.
-    const DESCRIPTION_SIZE: u16 = 10;
-    /// Extra row height for the two lines of an app description.
-    const DESCRIPTION_HEIGHT: f32 = 26.0;
+    /// Width at which app descriptions in tooltips wrap.
+    const TOOLTIP_MAX_WIDTH: f32 = 280.0;
 
     pub fn metrics(config: &AppletConfig) -> GridMetrics {
         let (columns, icon_size, row_height) = match config.grid_item_size {
@@ -41,16 +39,10 @@ impl VirtualizedAppGrid {
             ItemSize::Medium => (5, 40, 88.0),
             ItemSize::Large => (4, 56, 108.0),
         };
-        let description_height = if config.grid_show_description {
-            Self::DESCRIPTION_HEIGHT
-        } else {
-            0.0
-        };
-
         GridMetrics {
             columns,
             icon_size,
-            row_height: row_height + description_height,
+            row_height,
         }
     }
 
@@ -125,18 +117,6 @@ impl VirtualizedAppGrid {
     ) -> Element<'a, Message> {
         let space_xxs = theme::active().cosmic().space_xxs();
 
-        let description = app
-            .comment
-            .as_deref()
-            .filter(|_| applet.config.grid_show_description)
-            .map(|comment| {
-                text(comment)
-                    .size(Self::DESCRIPTION_SIZE)
-                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(2)))
-                    .align_x(Alignment::Center)
-                    .width(Length::Fill)
-            });
-
         let button = cosmic::widget::button::custom(
             column![
                 VirtualizedAppList::create_icon_widget(app, metrics.icon_size),
@@ -147,7 +127,6 @@ impl VirtualizedAppGrid {
                     .align_x(Alignment::Center)
                     .width(Length::Fill),
             ]
-            .push_maybe(description)
             .spacing(space_xxs)
             .align_x(Alignment::Center),
         )
@@ -161,10 +140,33 @@ impl VirtualizedAppGrid {
         .width(Length::Fill)
         .height(Length::Fill);
 
+        // Tiles have no room for descriptions, so they are shown on hover,
+        // with the name, which may be cut off on the tile.
+        let tile: Element<'a, Message> = match app
+            .comment
+            .as_deref()
+            .filter(|_| applet.config.grid_show_description)
+        {
+            Some(comment) => cosmic::widget::tooltip(
+                button,
+                container(
+                    column![
+                        text::body(&app.name).font(cosmic::font::bold()),
+                        text::caption(comment),
+                    ]
+                    .spacing(space_xxs),
+                )
+                .max_width(Self::TOOLTIP_MAX_WIDTH),
+                cosmic::widget::tooltip::Position::Bottom,
+            )
+            .into(),
+            None => button.into(),
+        };
+
         container(VirtualizedAppList::drag_source(
             applet,
             app,
-            cosmic::widget::mouse_area(button).on_right_press(Message::ContextMenuTarget(index)),
+            cosmic::widget::mouse_area(tile).on_right_press(Message::ContextMenuTarget(index)),
         ))
         .padding(2)
         .width(Length::FillPortion(1))
