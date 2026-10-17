@@ -2,7 +2,13 @@
 
 Classic Menu is a customizable application launcher for the COSMIC™ desktop environment. It provides a classic style menu for launching applications, accessing system tools, and managing power options.
 
-![Classic Menu Screenshot](screenshots/cosmic-ext-classic-menu-applet.png)
+![Classic Menu Screenshot](screenshots/layout-classic.png)
+
+| Retro | Compact | Sidebar |
+| :---: | :---: | :---: |
+| ![Retro layout](screenshots/layout-retro.png) | ![Compact layout](screenshots/layout-compact.png) | ![Sidebar layout](screenshots/layout-sidebar.png) |
+| **Modern** | **Grid view** | **Settings** |
+| ![Modern layout](screenshots/layout-modern.png) | ![Grid view](screenshots/grid-view.png) | ![Settings](screenshots/settings.png) |
 
 ## Features
 
