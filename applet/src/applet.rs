@@ -583,7 +583,9 @@ impl Applet {
                 Some(applications) => {
                     self.available_applications = applications;
                     self.update_featured_applications();
-                    self.show_start_page();
+                    if !self.show_start_page() {
+                        self.show_default_category();
+                    }
                 }
                 None => {
                     // Shown once the apps are loaded.
@@ -669,6 +671,51 @@ impl Applet {
         } else {
             self.update_context_menu();
         }
+    }
+
+    /// The category the menu opens on, falling back to all apps when the
+    /// configured one is not shown or no longer exists.
+    fn default_category(&self) -> ApplicationCategory {
+        if !self.config.shows_default_category() {
+            return ApplicationCategory::ALL;
+        }
+
+        let id = self.config.default_category.as_str();
+        // Favorites are not among the loaded categories, see
+        // `FeaturedApplications`.
+        if id == ApplicationCategory::FAVORITES.id() {
+            return ApplicationCategory::FAVORITES;
+        }
+        self.available_categories
+            .iter()
+            .find(|category| category.id() == id)
+            .cloned()
+            .unwrap_or(ApplicationCategory::ALL)
+    }
+
+    /// Shows the apps of the default category, if the apps are cached.
+    /// Returns whether they are shown.
+    fn show_default_category(&mut self) -> bool {
+        let category = self.default_category();
+        let config = &self.config;
+        let Some(applications) = crate::logic::apps::with_cached_apps(|apps| {
+            crate::logic::apps::apps_of_category(
+                &category,
+                &config.recent_applications,
+                &config.favorite_applications,
+                apps,
+            )
+        }) else {
+            return false;
+        };
+
+        self.selected_category = Some(category);
+        self.available_applications = applications;
+        // Indices into the old list no longer apply.
+        self.selected_item_index = None;
+        self.context_menu_target = None;
+        self.context_menu = None;
+        true
     }
 
     /// Recently used apps shown on the start page, below the favorites.
@@ -824,7 +871,7 @@ impl Applet {
     fn clear_search(&mut self) -> Task<Message> {
         self.selected_category = Some(ApplicationCategory::ALL);
         self.search_field.clear();
-        if self.show_start_page() {
+        if self.show_start_page() || self.show_default_category() {
             return Task::none();
         }
 

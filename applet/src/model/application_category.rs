@@ -166,6 +166,12 @@ impl ApplicationCategory {
         include_filenames: Vec::new(),
     };
 
+    /// Identifies the category in the config: the translation key of
+    /// built-in categories, or the name of custom ones.
+    pub fn id(&self) -> &str {
+        &self.display_name
+    }
+
     pub fn get_display_name(&self) -> String {
         match self.display_name {
             std::borrow::Cow::Borrowed("all-applications") => fl!("all-applications"),

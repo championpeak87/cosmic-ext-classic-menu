@@ -9,6 +9,7 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
 use cosmic::{iced::Background, widget::text, Element};
+use cosmic_ext_classic_menu_applet::model::application_category::ApplicationCategory;
 use cosmic_ext_classic_menu_applet::config::{
     AppView, AppletButtonStyle, AppletConfig, FeaturedApplications, ItemSize, Place, SidePanel,
     UserWidgetStyle,
@@ -41,6 +42,10 @@ pub struct AppModel {
     /// Index in the places list of the entry being reordered by dragging.
     /// Separators may repeat, so the index tells them apart.
     dragged_place: Option<usize>,
+    /// Ids of the categories the menu can open on, loaded in the background.
+    category_ids: Vec<String>,
+    /// Names of the categories in `category_ids`, in the same order.
+    category_names: Vec<String>,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -59,6 +64,10 @@ pub enum Message {
     ShowDescriptionToggled(bool),
     /// How many favorites the start page shows.
     StartPageFavoriteCountChanged(u16),
+    /// The categories the menu can open on were loaded.
+    CategoriesLoaded(Vec<ApplicationCategory>),
+    /// The menu opens on the category at this index in `category_ids`.
+    DefaultCategoryChanged(usize),
     SidePanelChanged(usize),
     PlaceToggled(Place, bool),
     /// The enabled place at this index was grabbed.
@@ -134,9 +143,26 @@ impl cosmic::Application for AppModel {
             config: AppletConfig::config(),
             layout_editor: LayoutEditor::default(),
             dragged_place: None,
+            category_ids: Vec::new(),
+            category_names: Vec::new(),
         };
 
-        (app, Task::none())
+        // Loading the categories loads all apps, so it is done in the
+        // background.
+        let load_categories = Task::perform(
+            tokio::task::spawn_blocking(
+                cosmic_ext_classic_menu_applet::logic::apps::load_app_categories,
+            ),
+            |categories| match categories {
+                Ok(categories) => cosmic::action::app(Message::CategoriesLoaded(categories)),
+                Err(err) => {
+                    log::error!("Failed to load categories: {err}");
+                    cosmic::action::none()
+                }
+            },
+        );
+
+        (app, load_categories)
     }
 
     /// Elements to pack at the start of the header bar.
@@ -467,6 +493,30 @@ impl cosmic::Application for AppModel {
 
                 Task::none()
             }
+            Message::CategoriesLoaded(categories) => {
+                // Favorites are not among the loaded categories, as the
+                // applet shows them in place of the recently used ones.
+                let mut categories = categories;
+                let after_recent = categories
+                    .iter()
+                    .position(|category| *category == ApplicationCategory::RECENTLY_USED)
+                    .map_or(categories.len(), |index| index + 1);
+                categories.insert(after_recent, ApplicationCategory::FAVORITES);
+
+                self.category_ids = categories.iter().map(|c| c.id().to_owned()).collect();
+                self.category_names = categories.iter().map(|c| c.get_display_name()).collect();
+
+                Task::none()
+            }
+            Message::DefaultCategoryChanged(index) => {
+                if let Some(id) = self.category_ids.get(index) {
+                    log::info!("Default category changed to: {id}");
+                    self.config.default_category = id.clone();
+                    self.save_config();
+                }
+
+                Task::none()
+            }
             Message::StartPageFavoriteCountChanged(count) => {
                 self.config.start_page_favorite_count = count.clamp(
                     *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.start(),
@@ -625,6 +675,21 @@ impl AppModel {
         let mut section = cosmic::widget::settings::section()
             .title(fl!("side-panel"))
             .add(Self::setting_item(fl!("side-panel-content"), content));
+
+        // Shown once the categories are loaded.
+        if self.config.shows_default_category() && !self.category_ids.is_empty() {
+            let default_category = cosmic::widget::dropdown(
+                &self.category_names,
+                self.category_ids
+                    .iter()
+                    .position(|id| *id == self.config.default_category),
+                Message::DefaultCategoryChanged,
+            );
+            section = section.add(Self::setting_item(
+                fl!("default-category"),
+                default_category,
+            ));
+        }
 
         if self.config.side_panel == SidePanel::Places {
             let add_separator = cosmic::widget::button::standard(fl!("add-separator"))

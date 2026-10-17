@@ -29,6 +29,7 @@ start-page = Start page
 start-page-favorites = Favorites shown
 side-panel = Side panel
 side-panel-content = Show
+default-category = Default category
 add-separator = Add separator
 remove-separator = Remove separator
 layout-pinned = Pinned apps

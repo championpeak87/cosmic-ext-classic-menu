@@ -188,17 +188,24 @@ pub fn get_apps_of_category(
     favorite_applications: &[String],
 ) -> Vec<Arc<ApplicationEntry>> {
     log::info!("Getting apps of category: {}", category.mime_name);
-    if category == ApplicationCategory::ALL {
-        load_apps()
-    } else if category == ApplicationCategory::RECENTLY_USED {
-        get_recent_applications(recent_applications, &load_apps())
-    } else if category == ApplicationCategory::FAVORITES {
-        get_favorite_applications(favorite_applications, &load_apps())
+    apps_of_category(&category, recent_applications, favorite_applications, &load_apps())
+}
+
+/// The apps among `apps` in `category`.
+pub fn apps_of_category(
+    category: &ApplicationCategory,
+    recent_applications: &[RecentApplication],
+    favorite_applications: &[String],
+    apps: &[Arc<ApplicationEntry>],
+) -> Vec<Arc<ApplicationEntry>> {
+    if *category == ApplicationCategory::ALL {
+        apps.to_vec()
+    } else if *category == ApplicationCategory::RECENTLY_USED {
+        get_recent_applications(recent_applications, apps)
+    } else if *category == ApplicationCategory::FAVORITES {
+        get_favorite_applications(favorite_applications, apps)
     } else {
-        load_apps()
-            .into_iter()
-            .filter(|app| category.matches(app))
-            .collect()
+        apps.iter().filter(|app| category.matches(app)).cloned().collect()
     }
 }
 

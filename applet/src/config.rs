@@ -7,6 +7,7 @@ use cosmic::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::model::application_category::ApplicationCategory;
 pub use crate::model::place::Place;
 
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
@@ -47,6 +48,9 @@ pub struct AppletConfig {
     /// How many of the first favorites the start page shows, see
     /// [`MenuLayout::has_start_page`].
     pub start_page_favorite_count: u16,
+    /// Id of the category the menu opens on, see
+    /// [`AppletConfig::shows_default_category`].
+    pub default_category: String,
 }
 
 impl Default for AppletConfig {
@@ -72,6 +76,7 @@ impl Default for AppletConfig {
             grid_item_size: ItemSize::default(),
             grid_show_description: false,
             start_page_favorite_count: Self::DEFAULT_START_PAGE_FAVORITE_COUNT,
+            default_category: ApplicationCategory::ALL.id().to_owned(),
         }
     }
 }
@@ -127,6 +132,14 @@ impl AppletConfig {
         } else {
             self.featured_applications
         }
+    }
+
+    /// Whether the menu opens on `default_category`: only next to the
+    /// categories, so another one can be chosen, and without a start page.
+    pub fn shows_default_category(&self) -> bool {
+        self.menu_layout.has_side_panel()
+            && self.side_panel == SidePanel::Categories
+            && !self.menu_layout.has_start_page()
     }
 
     /// Whether favorites are shown anywhere, so apps can be added to them.
@@ -408,6 +421,23 @@ mod tests {
             config(MenuLayout::Modern, Some(AppView::Column)).effective_app_view(),
             AppView::Column
         );
+    }
+
+    #[test]
+    fn default_category_only_next_to_the_categories() {
+        let mut config = config(MenuLayout::Classic, None);
+        config.side_panel = SidePanel::Categories;
+        assert!(config.shows_default_category());
+
+        config.side_panel = SidePanel::Places;
+        assert!(!config.shows_default_category());
+
+        config.side_panel = SidePanel::Categories;
+        config.menu_layout = MenuLayout::Modern;
+        assert!(!config.shows_default_category());
+
+        config.menu_layout = MenuLayout::Whistler;
+        assert!(!config.shows_default_category());
     }
 
     #[test]
