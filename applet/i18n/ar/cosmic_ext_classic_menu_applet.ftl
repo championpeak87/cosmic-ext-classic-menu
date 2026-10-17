@@ -46,3 +46,7 @@ place-store=متجر التطبيقات
 place-system-monitor=مراقب النظام
 place-disks=الأقراص
 place-separator=فاصل
+
+favorites=المفضلة
+favorites-empty=اسحب التطبيقات إلى هنا أو أضفها من قائمتها السياقية
+back=رجوع

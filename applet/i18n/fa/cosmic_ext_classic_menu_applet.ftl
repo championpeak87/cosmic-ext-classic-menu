@@ -46,3 +46,7 @@ place-store=فروشگاه برنامه
 place-system-monitor=پایشگر سیستم
 place-disks=دیسک‌ها
 place-separator=جداکننده
+
+favorites=علاقه‌مندی‌ها
+favorites-empty=برنامه‌ها را به اینجا بکشید یا از منوی زمینه آن‌ها اضافه کنید
+back=بازگشت

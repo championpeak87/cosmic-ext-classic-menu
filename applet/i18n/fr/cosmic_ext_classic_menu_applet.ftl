@@ -46,3 +46,7 @@ place-store=Logithèque
 place-system-monitor=Moniteur système
 place-disks=Disques
 place-separator=Séparateur
+
+favorites=Favoris
+favorites-empty=Faites glisser des applications ici ou ajoutez-les depuis leur menu contextuel
+back=Retour

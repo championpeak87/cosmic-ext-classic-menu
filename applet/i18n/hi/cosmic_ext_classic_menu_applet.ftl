@@ -46,3 +46,7 @@ place-store=ऐप स्टोर
 place-system-monitor=सिस्टम मॉनिटर
 place-disks=डिस्क
 place-separator=विभाजक
+
+favorites=पसंदीदा
+favorites-empty=ऐप्स को यहाँ खींचें या उनके संदर्भ मेनू से जोड़ें
+back=वापस

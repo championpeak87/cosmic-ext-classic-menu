@@ -46,3 +46,7 @@ place-store=アプリストア
 place-system-monitor=システムモニター
 place-disks=ディスク
 place-separator=区切り線
+
+favorites=お気に入り
+favorites-empty=ここにアプリをドラッグするか、コンテキストメニューから追加してください
+back=戻る

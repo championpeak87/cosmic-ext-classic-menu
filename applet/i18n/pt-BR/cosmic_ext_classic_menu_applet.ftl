@@ -46,3 +46,7 @@ place-store=Loja de aplicativos
 place-system-monitor=Monitor do sistema
 place-disks=Discos
 place-separator=Separador
+
+favorites=Favoritos
+favorites-empty=Arraste aplicativos para cá ou adicione-os pelo menu de contexto
+back=Voltar

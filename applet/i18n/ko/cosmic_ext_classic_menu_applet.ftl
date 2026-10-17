@@ -46,3 +46,7 @@ place-store=앱 스토어
 place-system-monitor=시스템 모니터
 place-disks=디스크
 place-separator=구분선
+
+favorites=즐겨찾기
+favorites-empty=앱을 여기로 끌어오거나 컨텍스트 메뉴에서 추가하세요
+back=뒤로

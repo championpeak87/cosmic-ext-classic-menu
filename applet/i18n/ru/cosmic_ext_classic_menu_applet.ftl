@@ -46,3 +46,7 @@ place-store=Магазин приложений
 place-system-monitor=Системный монитор
 place-disks=Диски
 place-separator=Разделитель
+
+favorites=Избранное
+favorites-empty=Перетащите сюда приложения или добавьте их из контекстного меню
+back=Назад

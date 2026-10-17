@@ -46,3 +46,7 @@ place-store=应用商店
 place-system-monitor=系统监视器
 place-disks=磁盘
 place-separator=分隔线
+
+favorites=收藏夹
+favorites-empty=将应用拖到此处，或从其右键菜单中添加
+back=返回

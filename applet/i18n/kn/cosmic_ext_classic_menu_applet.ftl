@@ -46,3 +46,7 @@ place-store=ಅಪ್ಲಿಕೇಶನ್ ಸ್ಟೋರ್
 place-system-monitor=ಸಿಸ್ಟಮ್ ಮಾನಿಟರ್
 place-disks=ಡಿಸ್ಕ್‌ಗಳು
 place-separator=ವಿಭಾಜಕ
+
+favorites=ಮೆಚ್ಚಿನವುಗಳು
+favorites-empty=ಅಪ್ಲಿಕೇಶನ್‌ಗಳನ್ನು ಇಲ್ಲಿಗೆ ಎಳೆಯಿರಿ ಅಥವಾ ಅವುಗಳ ಸಂದರ್ಭ ಮೆನುವಿನಿಂದ ಸೇರಿಸಿ
+back=ಹಿಂದೆ

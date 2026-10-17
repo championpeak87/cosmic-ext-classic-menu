@@ -46,3 +46,7 @@ place-store=Uygulama mağazası
 place-system-monitor=Sistem izleyici
 place-disks=Diskler
 place-separator=Ayırıcı
+
+favorites=Sık kullanılanlar
+favorites-empty=Uygulamaları buraya sürükleyin veya bağlam menülerinden ekleyin
+back=Geri

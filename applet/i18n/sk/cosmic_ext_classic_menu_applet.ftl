@@ -46,3 +46,7 @@ place-store=Obchod s aplikáciami
 place-system-monitor=Monitor systému
 place-disks=Disky
 place-separator=Oddeľovač
+
+favorites=Obľúbené
+favorites-empty=Presuňte sem aplikácie alebo ich pridajte z ich kontextovej ponuky
+back=Späť

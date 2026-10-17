@@ -46,3 +46,7 @@ place-store=Programbutik
 place-system-monitor=Systemövervakare
 place-disks=Diskar
 place-separator=Avgränsare
+
+favorites=Favoriter
+favorites-empty=Dra hit program eller lägg till dem från deras snabbmeny
+back=Tillbaka

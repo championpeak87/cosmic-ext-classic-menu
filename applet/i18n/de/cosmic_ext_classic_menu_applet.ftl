@@ -46,3 +46,7 @@ place-store=App Store
 place-system-monitor=Systemmonitor
 place-disks=Laufwerke
 place-separator=Trennlinie
+
+favorites=Favoriten
+favorites-empty=Apps hierher ziehen oder über ihr Kontextmenü hinzufügen
+back=Zurück

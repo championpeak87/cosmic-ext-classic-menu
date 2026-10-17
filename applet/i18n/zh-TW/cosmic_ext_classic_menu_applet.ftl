@@ -46,3 +46,7 @@ place-store=應用程式商店
 place-system-monitor=系統監控
 place-disks=磁碟
 place-separator=分隔線
+
+favorites=我的最愛
+favorites-empty=將應用程式拖曳到這裡，或從其右鍵選單加入
+back=返回

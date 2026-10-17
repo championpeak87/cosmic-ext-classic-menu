@@ -46,3 +46,7 @@ place-store=Alkalmazásbolt
 place-system-monitor=Rendszerfigyelő
 place-disks=Lemezek
 place-separator=Elválasztó
+
+favorites=Kedvencek
+favorites-empty=Húzza ide az alkalmazásokat, vagy adja hozzá őket a helyi menüjükből
+back=Vissza

@@ -46,3 +46,7 @@ place-store=Продавница апликација
 place-system-monitor=Надгледање система
 place-disks=Дискови
 place-separator=Раздвајач
+
+favorites=Омиљене
+favorites-empty=Превуците апликације овде или их додајте из њиховог контекстног менија
+back=Назад

@@ -46,3 +46,7 @@ place-store=Магазин застосунків
 place-system-monitor=Системний монітор
 place-disks=Диски
 place-separator=Роздільник
+
+favorites=Улюблені
+favorites-empty=Перетягніть сюди програми або додайте їх з контекстного меню
+back=Назад
