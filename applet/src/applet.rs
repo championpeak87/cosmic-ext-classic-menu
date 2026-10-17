@@ -27,7 +27,9 @@ use std::sync::Arc;
 
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
-use crate::config::{AppletButtonStyle, AppletConfig, FeaturedApplications, RecentApplication};
+use crate::config::{
+    AppView, AppletButtonStyle, AppletConfig, FeaturedApplications, RecentApplication,
+};
 use crate::fl;
 use crate::logic::apps::{Event, desktop_files, load_apps};
 use crate::model::application_category::ApplicationCategory;
@@ -724,16 +726,20 @@ impl Applet {
         cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons)
     }
 
-    /// Items per row and row height of the app view in the current layout,
-    /// used to move the selection and keep it scrolled into view.
+    /// Items per row and row height of the app view, used to move the
+    /// selection and keep it scrolled into view.
     fn app_view_metrics(&self) -> (usize, f32) {
-        if self.config.menu_layout == crate::config::MenuLayout::Modern {
-            (
-                crate::widgets::VirtualizedAppGrid::COLUMNS,
-                crate::widgets::VirtualizedAppGrid::ROW_HEIGHT,
-            )
-        } else {
-            (1, cosmic::theme::active().cosmic().spacing.space_xl as f32)
+        match self.config.effective_app_view() {
+            AppView::Grid => {
+                let metrics = crate::widgets::VirtualizedAppGrid::metrics(&self.config);
+                (metrics.columns, metrics.row_height)
+            }
+            AppView::Column => {
+                let (_, item_height) = crate::widgets::VirtualizedAppList::item_metrics(
+                    self.config.column_item_size,
+                );
+                (1, f32::from(item_height))
+            }
         }
     }
 

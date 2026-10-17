@@ -15,7 +15,7 @@ use cosmic::{Element, theme};
 
 use crate::applet::{Applet, FavoritesDropTarget, Message};
 use crate::config::{
-    FeaturedApplications, HorizontalPosition, MenuLayout, PowerMenuPosition, SidePanel,
+    AppView, FeaturedApplications, HorizontalPosition, MenuLayout, PowerMenuPosition, SidePanel,
     VerticalPosition,
 };
 use crate::fl;
@@ -372,7 +372,7 @@ impl AppletMenu {
 
         let mut body = column![
             text::heading(fl!("all-applications")),
-            VirtualizedAppGrid::view(applet),
+            AppletMenu::create_app_view(applet),
         ]
         .spacing(space_xxs);
 
@@ -629,8 +629,16 @@ impl AppletMenu {
             .into()
     }
 
+    /// The apps, in the configured view.
+    fn create_app_view(applet: &Applet) -> Element<'_, Message> {
+        match applet.config.effective_app_view() {
+            AppView::Column => VirtualizedAppList::view(applet),
+            AppView::Grid => VirtualizedAppGrid::view(applet),
+        }
+    }
+
     fn create_app_list(applet: &Applet) -> Element<'_, Message> {
-        let app_list = VirtualizedAppList::view(applet);
+        let app_list = AppletMenu::create_app_view(applet);
 
         column![app_list]
             .push_maybe(AppletMenu::power_menu_at(
