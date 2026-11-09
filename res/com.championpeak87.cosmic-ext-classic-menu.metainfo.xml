@@ -184,7 +184,7 @@
     <category>Desktop</category>
   </categories>
   <releases>
-    <release version="1.1.0" date="2026-10-17">
+    <release version="1.1.0" date="2026-11-09">
       <description>
         <h1>What's changed</h1>
         <ul>
@@ -195,6 +195,18 @@
           <li>Add applications to the favorites by dragging them onto the favorites</li>
           <li>Drag applications from the menu into the dock to pin them</li>
           <li>--toggle option to open or close the menu, e.g. from a keyboard shortcut</li>
+          <li>The menu takes the keyboard when opened from the panel or a shortcut, so search and arrow keys work right away</li>
+          <li>Keyboard shortcut for opening the menu, Super or any key combination, set in the settings</li>
+          <li>Resize the menu by dragging it in the layout editor, with its size shown in pixels</li>
+          <li>Whistler layout: Home category to return to the start page, and the search field and power controls in one row</li>
+          <li>Sidebar layout: favorites column on either side, scrolling when it is full</li>
+          <li>Reorder favorites by dragging them, with a line showing where they end up, and a plus badge on dragged applications</li>
+          <li>Escape closes the menu</li>
+          <li>The first search result is highlighted, and is launched by Enter</li>
+          <li>Left and right arrow keys in the grid view, continuing on the next or previous row</li>
+          <li>System monitor opens the COSMIC one when installed, or else another one found</li>
+          <li>Larger, resizable settings window with the layout editor next to the other settings</li>
+          <li>Updated libcosmic and the other dependencies</li>
           <li>Applet description shown in COSMIC Settings</li>
           <li>New settings translated into all languages</li>
           <li>New screenshots of all layouts</li>
@@ -202,6 +214,8 @@
           <li>Fixed applet crashing with PNG based icon themes</li>
           <li>Fixed short application lists showing only their first four applications</li>
           <li>Fixed the highlight of applications in the column view not reaching the edges of the list</li>
+          <li>Fixed the highlighted category when switching to all applications in the Whistler layout</li>
+          <li>Fixed uneven padding in the menu layouts</li>
         </ul>
       </description>
     </release>

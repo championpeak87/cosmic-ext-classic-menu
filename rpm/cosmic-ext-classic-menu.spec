@@ -36,7 +36,7 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/com.championpeak87.cosmic-ext-classic-menu/applet-buttons/*
 
 %changelog
-* Sat Oct 17 2026 Kamil Lihan <k.lihan@outlook.com> 1.1.0-1
+* Mon Nov 09 2026 Kamil Lihan <k.lihan@outlook.com> 1.1.0-1
 - New Whistler layout: a start page with favorite and recently used applications, leading to all applications
 - Quick launcher type: favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout
 - Choose the category the menu opens on
@@ -44,6 +44,18 @@ just rootdir=%{buildroot} install
 - Add applications to the favorites by dragging them onto the favorites
 - Drag applications from the menu into the dock to pin them
 - --toggle option to open or close the menu, e.g. from a keyboard shortcut
+- The menu takes the keyboard when opened from the panel or a shortcut, so search and arrow keys work right away
+- Keyboard shortcut for opening the menu, Super or any key combination, set in the settings
+- Resize the menu by dragging it in the layout editor, with its size shown in pixels
+- Whistler layout: Home category to return to the start page, and the search field and power controls in one row
+- Sidebar layout: favorites column on either side, scrolling when it is full
+- Reorder favorites by dragging them, with a line showing where they end up, and a plus badge on dragged applications
+- Escape closes the menu
+- The first search result is highlighted, and is launched by Enter
+- Left and right arrow keys in the grid view, continuing on the next or previous row
+- System monitor opens the COSMIC one when installed, or else another one found
+- Larger, resizable settings window with the layout editor next to the other settings
+- Updated libcosmic and the other dependencies
 - Applet description shown in COSMIC Settings
 - New settings translated into all languages
 - New screenshots of all layouts
@@ -51,6 +63,8 @@ just rootdir=%{buildroot} install
 - Fixed applet crashing with PNG based icon themes
 - Fixed short application lists showing only their first four applications
 - Fixed the highlight of applications in the column view not reaching the edges of the list
+- Fixed the highlighted category when switching to all applications in the Whistler layout
+- Fixed uneven padding in the menu layouts
 
 * Thu Oct 08 2026 Kamil Lihan <k.lihan@outlook.com> 1.0.0-1
 - Five menu layouts to choose from: Classic, Retro, Compact, Sidebar and Modern

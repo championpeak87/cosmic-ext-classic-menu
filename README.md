@@ -18,26 +18,24 @@ Classic Menu is a customizable application launcher for the COSMIC™ desktop en
   - **Classic**: user on top, application list and categories side by side
   - **Retro**: colored header and footer bars around two panes
   - **Compact**: user and search share the header, power controls in the footer
-  - **Sidebar**: favorite applications and power controls in a sidebar next to categories and applications
+  - **Sidebar**: favorite applications and power controls in a sidebar next to categories and applications, on either side of them
   - **Modern**: grid of applications with recently used or favorite ones below
-  - **Whistler**: start page of favorite and recently used applications leading to all applications, next to places
-- Drag and drop layout editor in the settings application: move the search field and power controls, swap and resize the panes
+  - **Whistler**: start page of favorite and recently used applications leading to all applications, next to places, with a Home category to return to it
+- Drag and drop layout editor in the settings application: move the search field, power controls and favorites column, swap and resize the panes, resize the menu itself with its size shown in pixels
 - Places panel as an alternative to categories (home, documents, downloads, computer, settings, terminal, app store, ...), with customizable order and separators
-- Favorite applications, added from the application context menu or by dragging an application onto the favorites
+- Favorite applications, added from the application context menu or by dragging an application onto the favorites, and reordered by dragging them
 - Column or grid view of applications, each with a choice of size and of showing application descriptions
-- Search functionality with fuzzy matching and typo tolerance
+- Search functionality with fuzzy matching and typo tolerance, with the best match highlighted so that Enter launches it
+- Keyboard navigation: the menu takes the keyboard when opened, arrow keys move through the list or grid, Escape closes the menu
+- Keyboard shortcut to open the menu, Super or any key combination, set in the settings application
 - Categorized application list
 - Recently used applications, or favorites shown in their place
 - Application context menu (launch, pin to panel, add to favorites, desktop actions)
 - Applications can be dragged from the menu into the dock to pin them
 - Power options (shutdown, restart, logout, etc.)
-- System tools (settings, system monitor, disk management)
+- System tools (settings, system monitor, disk management), opening the COSMIC system monitor or else another one that is installed
 - Customizable applet button (icon, label) and user widget
 - Settings changes are applied to the menu immediately
-
-## Known issues
-
-- Popup is not in focus when opened, search field and arrow key navigation may not work properly unless the popup is in focus by clicking on it
 
 ## Installation 
 
@@ -102,6 +100,8 @@ Notes & troubleshooting
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 ```
 
+- Started with `flatpak run` rather than from the panel, the menu opens as a popup without keyboard focus, as only the panel may show it as a layer surface. Add the applet to the panel to test the menu as users get it.
+
 - The manifest uses `com.system76.Cosmic.BaseApp` as its base. Ensure that remote provides that runtime or change the manifest to a base available to you.
 
 
@@ -136,7 +136,9 @@ https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-ext-classic-menu/
 
 ## Opening the menu with a keyboard shortcut
 
-`--toggle` opens the menu of the running applet, or closes it if it is open. To open the menu with a key, e.g. the Super key, add a custom shortcut in COSMIC Settings → Input Devices → Keyboard → Keyboard shortcuts → Custom shortcuts with the command:
+In the settings app, under **Keyboard shortcut**, either turn on the Super key or press **Not set** and then the keys you want. It is saved with your COSMIC shortcuts, and using the Super key replaces the Launcher until you turn it off again.
+
+To set it up by hand, `--toggle` opens the menu of the running applet, or closes it if it is open. Add a custom shortcut in COSMIC Settings running:
 
 ```bash
 cosmic-ext-classic-menu-applet --toggle
