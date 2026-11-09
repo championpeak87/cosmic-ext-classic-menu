@@ -1,6 +1,7 @@
 cosmic-applet-button = コズミックボタン
 
 # カテゴリ
+home-page=ホーム
 all-applications=すべてのアプリケーション
 recently-used=最近使用したもの
 audio=オーディオ

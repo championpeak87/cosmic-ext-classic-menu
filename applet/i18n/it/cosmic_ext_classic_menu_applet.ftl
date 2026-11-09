@@ -1,6 +1,7 @@
 cosmic-applet-button = Pulsante Cosmico
 
 # categorie
+home-page=Home
 all-applications=Tutte le applicazioni
 recently-used=Usate di recente
 audio=Audio

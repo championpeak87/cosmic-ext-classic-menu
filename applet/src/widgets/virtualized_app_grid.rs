@@ -8,7 +8,8 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{container, scrollable, text};
 use cosmic::{Element, theme};
 
-use crate::applet::{Applet, Message};
+use crate::applet::{Applet, FavoritesRegion, Message};
+use crate::applet_menu::{AppletMenu, FavoriteSlotAxis};
 use crate::config::{AppletConfig, ItemSize};
 use crate::model::application_entry::ApplicationEntry;
 use crate::widgets::VirtualizedAppList;
@@ -163,11 +164,25 @@ impl VirtualizedAppGrid {
             None => button.into(),
         };
 
-        container(VirtualizedAppList::drag_source(
+        let cell = VirtualizedAppList::drag_source(
             applet,
             app,
             cosmic::widget::mouse_area(tile).on_right_press(Message::ContextMenuTarget(index)),
-        ))
+        );
+        let cell = if applet.app_view_shows_favorites() {
+            AppletMenu::favorite_slot(
+                applet,
+                app,
+                FavoritesRegion::List,
+                FavoriteSlotAxis::Horizontal,
+                (Length::Fill, Length::Fill),
+                cell,
+            )
+        } else {
+            cell
+        };
+
+        container(cell)
         .padding(2)
         .width(Length::FillPortion(1))
         .height(Length::Fill)

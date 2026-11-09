@@ -1,6 +1,7 @@
 cosmic-applet-button = Botão Cósmico
 
 # categorias
+home-page=Início
 all-applications=Todas as aplicações
 recently-used=Recentemente usadas
 audio=Áudio

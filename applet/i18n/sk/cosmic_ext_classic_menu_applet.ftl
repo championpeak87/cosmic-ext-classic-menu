@@ -1,6 +1,7 @@
 cosmic-applet-button  =  Cosmic Button
 
 # categories
+home-page = Domov
 all-applications = Všetky aplikácie
 recently-used = Nedávne
 audio = Audio

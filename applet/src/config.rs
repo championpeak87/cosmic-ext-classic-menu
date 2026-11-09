@@ -16,6 +16,8 @@ pub use crate::model::place::Place;
 pub struct AppletConfig {
     pub menu_layout: MenuLayout,
     pub app_menu_position: HorizontalPosition,
+    /// Side of the panes the favorites column is on, in layouts having one.
+    pub favorites_bar_position: HorizontalPosition,
     pub search_field_position: VerticalPosition,
     pub power_menu_position: PowerMenuPosition,
     pub applet_button_style: AppletButtonStyle,
@@ -27,6 +29,10 @@ pub struct AppletConfig {
     pub side_panel: SidePanel,
     /// Share of the panes' width taken by the side panel, in percent.
     pub side_panel_width: u16,
+    /// Width of the menu popup in pixels, see [`AppletConfig::menu_size`].
+    pub menu_width: u16,
+    /// Height of the menu popup in pixels, see [`AppletConfig::menu_size`].
+    pub menu_height: u16,
     /// Places shown when `side_panel` is [`SidePanel::Places`], in order.
     pub places: Vec<Place>,
     /// Ids of apps added to favorites, shown in layouts with a favorites bar
@@ -58,6 +64,7 @@ impl Default for AppletConfig {
         AppletConfig {
             menu_layout: MenuLayout::default(),
             app_menu_position: HorizontalPosition::default(),
+            favorites_bar_position: HorizontalPosition::default(),
             search_field_position: VerticalPosition::default(),
             power_menu_position: PowerMenuPosition::default(),
             applet_button_style: AppletButtonStyle::default(),
@@ -67,6 +74,8 @@ impl Default for AppletConfig {
             recent_applications: vec![],
             side_panel: SidePanel::default(),
             side_panel_width: Self::DEFAULT_SIDE_PANEL_WIDTH,
+            menu_width: Self::DEFAULT_MENU_WIDTH,
+            menu_height: Self::DEFAULT_MENU_HEIGHT,
             places: Place::DEFAULT.to_vec(),
             favorite_applications: vec![],
             featured_applications: FeaturedApplications::default(),
@@ -87,6 +96,14 @@ impl AppletConfig {
     /// Bounds of `side_panel_width`, keeping both panes usable.
     pub const SIDE_PANEL_WIDTH_RANGE: std::ops::RangeInclusive<u16> = 20..=60;
 
+    pub const DEFAULT_MENU_WIDTH: u16 = 600;
+    pub const DEFAULT_MENU_HEIGHT: u16 = 700;
+    /// Bounds of `menu_width`. The upper one is the widest menu whose
+    /// preview fits the settings window.
+    pub const MENU_WIDTH_RANGE: std::ops::RangeInclusive<u16> = 500..=960;
+    /// Bounds of `menu_height`.
+    pub const MENU_HEIGHT_RANGE: std::ops::RangeInclusive<u16> = 400..=1000;
+
     /// Favorites on the start page, leaving room for recently used apps.
     pub const DEFAULT_START_PAGE_FAVORITE_COUNT: u16 = 2;
     /// Bounds of `start_page_favorite_count`.
@@ -99,6 +116,16 @@ impl AppletConfig {
             *Self::SIDE_PANEL_WIDTH_RANGE.end(),
         );
         (100 - side_panel, side_panel)
+    }
+
+    /// Width and height of the menu popup in pixels.
+    pub fn menu_size(&self) -> (u16, u16) {
+        (
+            self.menu_width
+                .clamp(*Self::MENU_WIDTH_RANGE.start(), *Self::MENU_WIDTH_RANGE.end()),
+            self.menu_height
+                .clamp(*Self::MENU_HEIGHT_RANGE.start(), *Self::MENU_HEIGHT_RANGE.end()),
+        )
     }
 
     pub fn config_handler() -> Option<Config> {
@@ -170,6 +197,7 @@ impl AppletConfig {
     pub fn apply_layout(&mut self, layout: MenuLayout) {
         self.menu_layout = layout;
         self.app_view = None;
+        self.favorites_bar_position = HorizontalPosition::Left;
         match layout {
             MenuLayout::Classic => {
                 self.app_menu_position = HorizontalPosition::Left;
@@ -238,10 +266,17 @@ impl MenuLayout {
     /// fallback when the configured position is not supported.
     pub fn power_menu_positions(self) -> &'static [PowerMenuPosition] {
         match self {
-            MenuLayout::Classic | MenuLayout::Retro | MenuLayout::Whistler => &[
+            MenuLayout::Classic | MenuLayout::Retro => &[
                 PowerMenuPosition::Header,
                 PowerMenuPosition::AppList,
                 PowerMenuPosition::Categories,
+                PowerMenuPosition::Footer,
+            ],
+            MenuLayout::Whistler => &[
+                PowerMenuPosition::Header,
+                PowerMenuPosition::AppList,
+                PowerMenuPosition::Categories,
+                PowerMenuPosition::Search,
                 PowerMenuPosition::Footer,
             ],
             MenuLayout::Compact | MenuLayout::Modern => {
@@ -387,6 +422,8 @@ pub enum PowerMenuPosition {
     AppList,
     /// Below the categories pane.
     Categories,
+    /// In one row with the search field.
+    Search,
     /// Full-width row at the bottom of the menu.
     Footer,
 }
@@ -436,6 +473,16 @@ mod tests {
     }
 
     #[test]
+    fn picking_a_layout_puts_the_favorites_bar_back_on_the_left() {
+        let mut config = config(MenuLayout::Cinnamon, None);
+        config.favorites_bar_position = HorizontalPosition::Right;
+
+        config.apply_layout(MenuLayout::Cinnamon);
+
+        assert_eq!(config.favorites_bar_position, HorizontalPosition::Left);
+    }
+
+    #[test]
     fn default_category_only_next_to_the_categories() {
         let mut config = config(MenuLayout::Classic, None);
         config.side_panel = SidePanel::Categories;
@@ -465,6 +512,32 @@ mod tests {
 
         config.default_category = "office".to_owned();
         assert_eq!(config.default_category_id(), "office");
+    }
+
+    #[test]
+    fn only_whistler_shares_a_row_with_the_search_field() {
+        let mut config = config(MenuLayout::Whistler, None);
+        config.power_menu_position = PowerMenuPosition::Search;
+        assert_eq!(
+            config.effective_power_menu_position(),
+            Some(PowerMenuPosition::Search)
+        );
+
+        config.menu_layout = MenuLayout::Retro;
+        assert_eq!(
+            config.effective_power_menu_position(),
+            Some(PowerMenuPosition::Footer)
+        );
+    }
+
+    #[test]
+    fn menu_size_stays_within_its_bounds() {
+        let mut config = config(MenuLayout::Classic, None);
+        assert_eq!(config.menu_size(), (600, 700));
+
+        config.menu_width = 1;
+        config.menu_height = u16::MAX;
+        assert_eq!(config.menu_size(), (500, 1000));
     }
 
     #[test]

@@ -1,6 +1,7 @@
 cosmic-applet-button = 宇宙按钮
 
 # 类别
+home-page=主页
 all-applications=所有应用
 recently-used=最近使用
 audio=音频

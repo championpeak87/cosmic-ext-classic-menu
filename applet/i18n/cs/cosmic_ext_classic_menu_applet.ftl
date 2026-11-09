@@ -1,4 +1,5 @@
 # kategorie
+home-page=Domů
 all-applications=Všechny aplikace
 recently-used=Nedávno použité
 audio=Zvuk

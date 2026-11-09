@@ -1,6 +1,7 @@
 cosmic-applet-button = Космічна кнопка
 
 # категорії
+home-page=Головна
 all-applications=Усі програми
 recently-used=Нещодавно використані
 audio=Аудіо

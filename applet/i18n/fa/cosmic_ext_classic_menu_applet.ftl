@@ -1,6 +1,7 @@
 cosmic-applet-button = دکمه کیهانی
 
 # دسته‌ها
+home-page=خانه
 all-applications=تمام برنامه‌ها
 recently-used=استفاده شده اخیراً
 audio=صوت

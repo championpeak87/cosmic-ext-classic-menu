@@ -1,6 +1,7 @@
 cosmic-applet-button = Kozmik Düğme
 
 # kategoriler
+home-page=Ana Sayfa
 all-applications=Tüm uygulamalar
 recently-used=Son kullanılanlar
 audio=Ses

@@ -1,6 +1,7 @@
 cosmic-applet-button = Kosmisk knapp
 
 # kategorier
+home-page=Hem
 all-applications=Alla applikationer
 recently-used=Senast använda
 audio=Ljud

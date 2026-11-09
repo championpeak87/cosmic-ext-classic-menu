@@ -1,6 +1,7 @@
 cosmic-applet-button = Космичко дугме
 
 # категорије
+home-page=Почетна
 all-applications=Све апликације
 recently-used=Недавно коришћене
 audio=Аудио

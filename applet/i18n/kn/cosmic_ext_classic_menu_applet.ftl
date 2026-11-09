@@ -1,6 +1,7 @@
 cosmic-applet-button = ಕಾಸ್ಮಿಕ್ ಬಟನ್
 
 # ವರ್ಗಗಳು
+home-page=ಮುಖಪುಟ
 all-applications=ಎಲ್ಲಾ ಅಪ್ಲಿಕೇಶನ್‌ಗಳು
 recently-used=ಇತ್ತೀಚೆಗೆ ಬಳಸಿದವು
 audio=ಆಡಿಯೋ

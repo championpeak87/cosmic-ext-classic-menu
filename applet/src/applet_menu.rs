@@ -10,10 +10,11 @@ use cosmic::iced::core::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
 use cosmic::iced::{Background, ContentFit, Font, Limits};
 use cosmic::widget::text;
 use cosmic::iced::clipboard::dnd::DndAction;
+use cosmic::iced::widget::scrollable::{Direction, Scrollbar};
 use cosmic::widget::{DndDestination, container, menu};
 use cosmic::{Element, theme};
 
-use crate::applet::{Applet, FavoritesDropTarget, Message};
+use crate::applet::{Applet, FavoritesDropTarget, FavoritesRegion, Message};
 use crate::config::{
     AppView, FeaturedApplications, HorizontalPosition, MenuLayout, PowerMenuPosition, SidePanel,
     VerticalPosition,
@@ -48,6 +49,13 @@ impl menu::Action for ContextMenuAction {
             ContextMenuAction::ToggleFavorite(index) => Message::ToggleFavoriteAt(*index),
         }
     }
+}
+
+/// How the favorites around a [`AppletMenu::favorite_slot`] are laid out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FavoriteSlotAxis {
+    Vertical,
+    Horizontal,
 }
 
 pub struct AppletMenu;
@@ -111,6 +119,22 @@ fn banner_button_class() -> cosmic::theme::Button {
     }
 }
 
+/// The menu on its transparent surface, solid as it is not blurred.
+fn menu_surface_style(theme: &cosmic::Theme) -> container::Style {
+    let cosmic = theme.cosmic();
+    container::Style {
+        text_color: Some(cosmic.background(false).on.into()),
+        icon_color: Some(cosmic.background(false).on.into()),
+        background: Some(Background::Color(cosmic.background(false).base.into())),
+        border: cosmic::iced::Border {
+            radius: cosmic.corner_radii.radius_m.into(),
+            width: 1.0,
+            color: cosmic.background(false).divider.into(),
+        },
+        ..Default::default()
+    }
+}
+
 /// Background of the categories pane in the retro layout.
 fn tinted_pane_style(theme: &cosmic::Theme) -> container::Style {
     let cosmic = theme.cosmic();
@@ -125,10 +149,8 @@ fn tinted_pane_style(theme: &cosmic::Theme) -> container::Style {
 }
 
 impl AppletMenu {
-    pub const POPUP_MAX_WIDTH: f32 = 700.0;
-    pub const POPUP_MIN_WIDTH: f32 = 500.0;
-    pub const POPUP_MAX_HEIGHT: f32 = 700.0;
-    pub const POPUP_MIN_HEIGHT: f32 = 300.0;
+    /// Gap between the menu and the edges of its surface.
+    const SURFACE_PADDING: u16 = 4;
     /// Size of the favorites' icons in the sidebar.
     const SIDEBAR_ICON_SIZE: u16 = 28;
 
@@ -146,9 +168,7 @@ impl AppletMenu {
         include_bytes!("../../res/icons/bundled/user-idle-symbolic.svg");
 
     pub fn view_main_menu_list(applet: &Applet) -> Element<'_, Message> {
-        let Spacing {
-            space_xxs, space_s, ..
-        } = theme::active().cosmic().spacing;
+        let Spacing { space_xs, .. } = theme::active().cosmic().spacing;
 
         let menu_layout = match applet.config.menu_layout {
             MenuLayout::Classic => AppletMenu::view_classic(applet),
@@ -159,23 +179,63 @@ impl AppletMenu {
             MenuLayout::Modern => AppletMenu::view_modern(applet),
         };
 
-        applet
-            .core
-            .applet
-            .popup_container(
-                container(menu_layout)
-                    .padding([space_xxs, space_s])
-                    .width(Length::Fixed(600.))
-                    .height(Length::Fixed(AppletMenu::POPUP_MAX_HEIGHT)),
-            )
-            .limits(
-                Limits::NONE
-                    .max_height(AppletMenu::POPUP_MAX_HEIGHT)
-                    .min_height(AppletMenu::POPUP_MIN_HEIGHT)
-                    .max_width(AppletMenu::POPUP_MAX_WIDTH)
-                    .min_width(AppletMenu::POPUP_MIN_WIDTH),
-            )
-            .into()
+        let (width, height) = applet.config.menu_size();
+        let (width, height) = (f32::from(width), f32::from(height));
+
+        let content = container(menu_layout)
+            .padding(space_xs)
+            .width(Length::Fixed(width))
+            .height(Length::Fixed(height));
+
+        if !applet.menu_is_layer_surface {
+            return applet
+                .core
+                .applet
+                .popup_container(content)
+                .limits(
+                    Limits::NONE
+                        .max_height(height)
+                        .min_height(height)
+                        .max_width(width)
+                        .min_width(width),
+                )
+                .into();
+        }
+
+        let menu = container(content).class(cosmic::theme::Container::custom(menu_surface_style));
+
+        let placement = applet.menu_placement;
+        let surface = cosmic::widget::mouse_area(
+            container(cosmic::widget::mouse_area(menu).on_press(Message::MenuPressed))
+                .padding(AppletMenu::SURFACE_PADDING)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(placement.align_x)
+                .align_y(placement.align_y),
+        )
+        .on_press(Message::CloseMenu);
+
+        let mut layers = cosmic::iced::widget::Stack::new()
+            .push(surface)
+            .width(Length::Fill)
+            .height(Length::Fill);
+        // Follows the pointer over the surface, which fills the screen.
+        if let Some(drag) = applet.app_drag.as_ref()
+            && let Some(position) = drag.position
+        {
+            let half = VirtualizedAppList::DRAG_PREVIEW_SIZE / 2.;
+            layers = layers.push(
+                container(VirtualizedAppList::drag_preview::<Message>(drag.icon.as_ref()))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .padding(cosmic::iced::Padding {
+                        top: (position.y - half).max(0.),
+                        left: (position.x - half).max(0.),
+                        ..Default::default()
+                    }),
+            );
+        }
+        layers.into()
     }
 
     /// User on top, app list and categories side by side.
@@ -221,6 +281,12 @@ impl AppletMenu {
         .padding([0, space_s])
         .width(Length::Fill)
         .class(cosmic::theme::Container::custom(banner_style));
+        // Keeps the bars off the search field. The body keeps its own gap.
+        let search_on_top = applet.config.search_field_position == VerticalPosition::Top;
+        let header = container(header).padding(cosmic::iced::Padding {
+            bottom: if search_on_top { f32::from(space_xxs) } else { 0. },
+            ..Default::default()
+        });
 
         // The footer bar is shown even without power controls, as in the
         // original.
@@ -236,6 +302,10 @@ impl AppletMenu {
         .padding([space_xxs, space_s])
         .width(Length::Fill)
         .class(cosmic::theme::Container::custom(banner_style));
+        let footer = container(footer).padding(cosmic::iced::Padding {
+            top: if search_on_top { 0. } else { f32::from(space_xxs) },
+            ..Default::default()
+        });
 
         AppletMenu::with_search(
             applet,
@@ -295,6 +365,7 @@ impl AppletMenu {
     /// and app list (Cinnamon like).
     fn view_cinnamon(applet: &Applet) -> Element<'_, Message> {
         let Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
+        let bar_position = applet.config.favorites_bar_position;
 
         // Keep the sidebar useful until the user adds favorites.
         let favorites = if applet.favorite_applications.is_empty() {
@@ -313,30 +384,69 @@ impl AppletMenu {
                     .class(cosmic::theme::Button::AppletMenu)
                     .padding(space_xxs),
                 text(&app.name),
-                cosmic::widget::tooltip::Position::Right,
+                // Towards the rest of the menu.
+                match bar_position {
+                    HorizontalPosition::Left => cosmic::widget::tooltip::Position::Right,
+                    HorizontalPosition::Right => cosmic::widget::tooltip::Position::Left,
+                },
             );
-            VirtualizedAppList::drag_source(applet, app, button)
+            let item = container(VirtualizedAppList::drag_source(applet, app, button))
+                .width(Length::Fill)
+                .align_x(Alignment::Center);
+            AppletMenu::favorite_slot(
+                applet,
+                app,
+                FavoritesRegion::Bar,
+                FavoriteSlotAxis::Vertical,
+                (Length::Fill, Length::Shrink),
+                item,
+            )
         });
 
-        // Apps dropped on the favorites, or the space below them, are added
-        // to them.
-        let favorites = container(
-            cosmic::widget::column::with_children(favorite_items)
-                .spacing(space_xxs)
-                .align_x(Alignment::Center),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .class(cosmic::theme::Container::custom(AppletMenu::drop_target_style(
-            applet.favorites_drop_target == Some(FavoritesDropTarget::Add),
-        )));
+        let favorite_items = cosmic::widget::column::with_children(favorite_items)
+            .spacing(space_xxs)
+            .align_x(Alignment::Center);
+
+        // Recently used apps stand in for missing favorites and can't be
+        // reordered, so the whole sidebar adds to the favorites. Otherwise
+        // each favorite is a drop target and the space below them is the
+        // end, as drop targets must not be nested.
+        let drop_area: Element<'_, Message> = if applet.favorite_applications.is_empty() {
+            AppletMenu::favorites_drop_target(
+                container(favorite_items)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .class(cosmic::theme::Container::custom(AppletMenu::drop_target_style(
+                        applet.favorites_drop_target == Some(FavoritesDropTarget::Add),
+                    ))),
+                FavoritesDropTarget::Add,
+            )
+        } else {
+            let end = container(cosmic::widget::Space::new())
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .class(cosmic::theme::Container::custom(AppletMenu::drop_target_style(
+                    applet.favorites_drop_target == Some(FavoritesDropTarget::End),
+                )));
+            // Many favorites would otherwise get squeezed. The bar is hidden
+            // as it would cover the icons in such a narrow column.
+            let favorite_items = cosmic::widget::scrollable(favorite_items)
+                .width(Length::Fill)
+                .direction(Direction::Vertical(
+                    Scrollbar::new().width(0).scroller_width(0).margin(0),
+                ));
+            column![
+                favorite_items,
+                AppletMenu::favorites_drop_target(end, FavoritesDropTarget::End),
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+        };
 
         // A fixed width, as the drop target fills it and would otherwise
         // make the sidebar take a share of the panes' width.
-        let sidebar = column![AppletMenu::favorites_drop_target(
-            favorites,
-            FavoritesDropTarget::Add
-        )]
+        let sidebar = column![drop_area]
             .push(AppletMenu::create_power_menu(applet, PowerMenuStyle::Vertical))
             .spacing(space_xxs)
             .align_x(Alignment::Center)
@@ -345,11 +455,11 @@ impl AppletMenu {
             )))
             .height(Length::Fill);
 
-        let body = row![
-            sidebar,
-            AppletMenu::vertical_divider(),
-            AppletMenu::create_dual_pane(applet, false),
-        ];
+        let panes = AppletMenu::create_dual_pane(applet, false);
+        let body = match bar_position {
+            HorizontalPosition::Left => row![sidebar, AppletMenu::vertical_divider(), panes],
+            HorizontalPosition::Right => row![panes, AppletMenu::vertical_divider(), sidebar],
+        };
 
         AppletMenu::with_search(
             applet,
@@ -378,7 +488,7 @@ impl AppletMenu {
                 FeaturedApplications::RecentlyUsed if !applet.recent_applications.is_empty() => {
                     body.push(cosmic::widget::divider::horizontal::default())
                         .push(text::heading(fl!("recently-used")))
-                        .push(AppletMenu::featured_row(&applet.recent_applications))
+                        .push(AppletMenu::featured_row(applet, &applet.recent_applications, false))
                 }
                 FeaturedApplications::RecentlyUsed => body,
                 FeaturedApplications::Favorites => {
@@ -386,7 +496,7 @@ impl AppletMenu {
                         if applet.favorite_applications.is_empty() {
                             text::caption(fl!("favorites-empty")).into()
                         } else {
-                            AppletMenu::featured_row(&applet.favorite_applications)
+                            AppletMenu::featured_row(applet, &applet.favorite_applications, true)
                         };
                     let favorites = container(favorites)
                         .width(Length::Fill)
@@ -396,13 +506,17 @@ impl AppletMenu {
                                 applet.favorites_drop_target == Some(FavoritesDropTarget::Add),
                             ),
                         ));
+                    // Filled, each favorite is a drop target of its own.
+                    let favorites: Element<'_, Message> =
+                        if applet.favorite_applications.is_empty() {
+                            AppletMenu::favorites_drop_target(favorites, FavoritesDropTarget::Add)
+                        } else {
+                            favorites.into()
+                        };
 
                     body.push(cosmic::widget::divider::horizontal::default())
                         .push(text::heading(fl!("favorites")))
-                        .push(AppletMenu::favorites_drop_target(
-                            favorites,
-                            FavoritesDropTarget::Add,
-                        ))
+                        .push(favorites)
                 }
             };
         }
@@ -447,7 +561,13 @@ impl AppletMenu {
     }
 
     /// Up to four apps in a row, below the app grid of the modern layout.
-    fn featured_row(apps: &[Arc<ApplicationEntry>]) -> Element<'_, Message> {
+    /// A row of `apps`, which can be reordered by dragging if they are the
+    /// `favorites`.
+    fn featured_row<'a>(
+        applet: &'a Applet,
+        apps: &'a [Arc<ApplicationEntry>],
+        favorites: bool,
+    ) -> Element<'a, Message> {
         let Spacing {
             space_xxs, space_xs, ..
         } = theme::active().cosmic().spacing;
@@ -456,7 +576,7 @@ impl AppletMenu {
             .iter()
             .take(4)
             .map(|app| {
-                cosmic::widget::button::custom(
+                let button = cosmic::widget::button::custom(
                     row![
                         VirtualizedAppList::create_icon_widget(app, 24),
                         text(&app.name)
@@ -467,9 +587,20 @@ impl AppletMenu {
                     .align_y(Alignment::Center),
                 )
                 .on_press(Message::ApplicationSelected(app.clone()))
-                .class(cosmic::theme::Button::AppletMenu)
-                .width(Length::FillPortion(1))
-                .into()
+                .class(cosmic::theme::Button::AppletMenu);
+
+                if favorites {
+                    AppletMenu::favorite_slot(
+                        applet,
+                        app,
+                        FavoritesRegion::Bar,
+                        FavoriteSlotAxis::Horizontal,
+                        (Length::FillPortion(1), Length::Shrink),
+                        VirtualizedAppList::drag_source(applet, app, button.width(Length::Fill)),
+                    )
+                } else {
+                    button.width(Length::FillPortion(1)).into()
+                }
             })
             .collect::<Vec<Element<'_, Message>>>();
 
@@ -500,9 +631,22 @@ impl AppletMenu {
         body: Element<'a, Message>,
         footer: Option<Element<'a, Message>>,
     ) -> Element<'a, Message> {
-        let Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
+        let Spacing {
+            space_xxs, space_xs, ..
+        } = theme::active().cosmic().spacing;
 
         let search_field = AppletMenu::create_search_field(applet);
+        let search_field = match AppletMenu::power_menu_at(
+            applet,
+            PowerMenuPosition::Search,
+            PowerMenuStyle::Compact,
+        ) {
+            Some(power) => row![search_field, power]
+                .spacing(space_xs)
+                .align_y(Alignment::Center)
+                .into(),
+            None => search_field,
+        };
         let body = container(body).padding([space_xxs, 0]).height(Length::Fill);
         let column = match applet.config.search_field_position {
             VerticalPosition::Top => column![header, search_field, body],
@@ -670,10 +814,13 @@ impl AppletMenu {
             }),
         );
 
-        let mut list = column![AppletMenu::favorites_drop_target(
-            favorites,
-            drop_target
-        )];
+        // Filled, each favorite is a drop target of its own.
+        let favorites: Element<'_, Message> = if applet.favorite_applications.is_empty() {
+            AppletMenu::favorites_drop_target(favorites, drop_target)
+        } else {
+            favorites.into()
+        };
+        let mut list = column![favorites];
         if !recent_rows.is_empty() {
             list = list
                 .push(AppletMenu::horizontal_divider())
@@ -703,7 +850,12 @@ impl AppletMenu {
         arrow: &'static str,
         leading: bool,
     ) -> cosmic::widget::Button<'static, Message> {
-        let Spacing { space_xs, .. } = theme::active().cosmic().spacing;
+        let Spacing {
+            space_xxs,
+            space_xs,
+            space_s,
+            ..
+        } = theme::active().cosmic().spacing;
         let arrow = cosmic::widget::icon::from_name(arrow).size(16).icon();
         let label = text::body(label).font(cosmic::font::bold());
 
@@ -716,6 +868,8 @@ impl AppletMenu {
             content.spacing(space_xs).align_y(Alignment::Center),
         )
         .class(cosmic::theme::Button::AppletMenu)
+        // Lines up with the apps in the list.
+        .padding([space_xxs, space_s])
         .width(Length::Fill)
     }
 
@@ -775,6 +929,71 @@ impl AppletMenu {
             .into()
     }
 
+    /// Makes the favorite `app` shown in `content` a place to drop apps on,
+    /// with a line showing where the dropped app ends up.
+    ///
+    /// The line is drawn over `content`, and always there if only invisibly,
+    /// so that showing it moves nothing around and interrupts no drag.
+    pub(crate) fn favorite_slot<'a>(
+        applet: &Applet,
+        app: &ApplicationEntry,
+        region: FavoritesRegion,
+        axis: FavoriteSlotAxis,
+        (width, height): (Length, Length),
+        content: impl Into<Element<'a, Message>>,
+    ) -> Element<'a, Message> {
+        const LINE_THICKNESS: f32 = 3.0;
+
+        let favorites = &applet.config.favorite_applications;
+        let Some(index) = favorites.iter().position(|id| *id == app.id) else {
+            return content.into();
+        };
+        let target = FavoritesDropTarget::Onto { index, region };
+
+        let dragged_from = applet
+            .app_drag
+            .as_ref()
+            .and_then(|drag| favorites.iter().position(|id| *id == drag.app_id));
+        // Dropping a favorite on itself leaves it where it is.
+        let shown = applet.favorites_drop_target == Some(target) && dragged_from != Some(index);
+        // Dragged down the list, it ends up after this favorite.
+        let edge = if dragged_from.is_some_and(|from| from < index) {
+            Alignment::End
+        } else {
+            Alignment::Start
+        };
+
+        let line = match axis {
+            FavoriteSlotAxis::Vertical => container(cosmic::widget::Space::new())
+                .width(Length::Fill)
+                .height(Length::Fixed(LINE_THICKNESS)),
+            FavoriteSlotAxis::Horizontal => container(cosmic::widget::Space::new())
+                .width(Length::Fixed(LINE_THICKNESS))
+                .height(Length::Fill),
+        }
+        .class(cosmic::theme::Container::custom(move |theme| {
+            let cosmic = theme.cosmic();
+            container::Style {
+                background: shown.then(|| Background::Color(cosmic.accent_color().into())),
+                border: cosmic::iced::Border {
+                    radius: cosmic.radius_xs().into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        }));
+        let line = container(line).width(Length::Fill).height(Length::Fill);
+        let line = match axis {
+            FavoriteSlotAxis::Vertical => line.align_y(edge),
+            FavoriteSlotAxis::Horizontal => line.align_x(edge),
+        };
+
+        let slot = cosmic::iced::widget::stack![content.into(), line]
+            .width(width)
+            .height(height);
+        AppletMenu::favorites_drop_target(slot, target)
+    }
+
     /// Places apps dragged from the menu and dropped on `content` in the
     /// favorites, as `target` says.
     ///
@@ -823,7 +1042,11 @@ impl AppletMenu {
                     category.clone()
                 };
                 let is_favorites = category == ApplicationCategory::FAVORITES;
-                let highlighted = applet.selected_category.as_ref() == Some(&category)
+                // The start page is not one of the categories, whichever
+                // was selected before it.
+                let selected = applet.start_page_favorites.is_none()
+                    && applet.selected_category.as_ref() == Some(&category);
+                let highlighted = selected
                     || (is_favorites
                         && applet.favorites_drop_target == Some(FavoritesDropTarget::Add));
 
@@ -854,8 +1077,33 @@ impl AppletMenu {
         if !categories_pane.is_empty() {
             categories_pane.insert(2, AppletMenu::horizontal_divider());
         }
+        if applet.config.menu_layout.has_start_page() {
+            categories_pane.insert(0, AppletMenu::create_home_button(applet));
+        }
 
         categories_pane
+    }
+
+    /// Entry above the categories leading to the start page.
+    fn create_home_button(applet: &Applet) -> Element<'_, Message> {
+        let Spacing { space_m, .. } = cosmic::theme::active().cosmic().spacing;
+
+        cosmic::widget::button::custom(
+            row![
+                container(cosmic::widget::icon::from_name(Place::Home.icon_name()).size(16))
+                    .padding([0, space_m]),
+                text(fl!("home-page")),
+            ]
+            .align_y(Alignment::Center),
+        )
+        .class(if applet.start_page_favorites.is_some() {
+            cosmic::theme::Button::Suggested
+        } else {
+            cosmic::theme::Button::AppletMenu
+        })
+        .width(Length::Fill)
+        .on_press(Message::ShowStartPage)
+        .into()
     }
 
     /// The pane next to the app list, showing categories or places.

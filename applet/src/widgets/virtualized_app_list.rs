@@ -5,12 +5,13 @@ use std::sync::Arc;
 use cosmic::iced::core::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
 use cosmic::iced::widget::{column, row};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Alignment, ContentFit, Length, Vector};
+use cosmic::iced::{Alignment, Background, ContentFit, Length, Vector};
 use cosmic::widget::text;
 use cosmic::widget::{DndSource, ListColumn, container, scrollable};
 use cosmic::{Element, theme};
 
-use crate::applet::{Applet, Message};
+use crate::applet::{Applet, FavoritesRegion, Message};
+use crate::applet_menu::{AppletMenu, FavoriteSlotAxis};
 use crate::config::ItemSize;
 use crate::widgets::right_release_guard::RightReleaseGuard;
 use crate::model::application_entry::{ApplicationEntry, IconHandle};
@@ -25,6 +26,8 @@ pub struct VirtualizedAppList;
 impl VirtualizedAppList {
     /// Buffer items to render above/below viewport for smooth scrolling
     const RENDER_BUFFER: usize = 2;
+    /// Width and height of the icon shown while dragging an app.
+    pub(crate) const DRAG_PREVIEW_SIZE: f32 = 40.0;
     /// Font size of app descriptions.
     const DESCRIPTION_SIZE: u16 = 10;
 
@@ -160,11 +163,24 @@ impl VirtualizedAppList {
 
         // The context menu itself wraps the whole scrollable, see
         // `with_context_menu`; this only marks which app it is for.
-        Self::drag_source(
+        let row = Self::drag_source(
             applet,
             app,
             cosmic::widget::mouse_area(button).on_right_press(Message::ContextMenuTarget(index)),
-        )
+        );
+
+        if applet.app_view_shows_favorites() {
+            AppletMenu::favorite_slot(
+                applet,
+                app,
+                FavoritesRegion::List,
+                FavoriteSlotAxis::Vertical,
+                (Length::Fill, Length::Shrink),
+                row,
+            )
+        } else {
+            row
+        }
     }
 
     /// Lets `app` be dragged out of `content`, e.g. into the favorites or
@@ -174,32 +190,80 @@ impl VirtualizedAppList {
         app: &ApplicationEntry,
         content: impl Into<Element<'a, Message>>,
     ) -> Element<'a, Message> {
-        const DRAG_ICON_SIZE: u16 = 32;
-
         let dragged_app = DraggedApp {
             app_id: app.id.clone(),
             desktop_file: app.path.clone(),
         };
         let drag_icon = app.icon.clone();
 
-        DndSource::new(content)
+        let source = DndSource::new(content)
             .window(applet.popup.unwrap_or(Id::NONE))
             .drag_threshold(16.)
             .drag_content(move || dragged_app.clone())
+            .on_start(Some(Message::AppDragStarted(
+                app.id.clone(),
+                drag_icon.clone(),
+            )))
+            .on_cancel(Some(Message::AppDragEnded))
+            .on_finish(Some(Message::AppDragEnded));
+
+        // On a layer surface the menu draws it itself, see `drag_preview`:
+        // the panel doesn't show the icons of the drags it forwards.
+        if applet.menu_is_layer_surface {
+            return source.into();
+        }
+
+        source
             .drag_icon(move |_| {
                 (
-                    Self::icon_widget(drag_icon.as_ref(), DRAG_ICON_SIZE),
+                    Self::drag_preview(drag_icon.as_ref()),
                     cosmic::iced::core::widget::tree::State::None,
                     // Center the icon on the pointer.
-                    Vector::new(
-                        -f32::from(DRAG_ICON_SIZE) / 2.,
-                        -f32::from(DRAG_ICON_SIZE) / 2.,
-                    ),
+                    Vector::new(-Self::DRAG_PREVIEW_SIZE / 2., -Self::DRAG_PREVIEW_SIZE / 2.),
                 )
             })
-            .on_cancel(Some(Message::AppDragEnded))
-            .on_finish(Some(Message::AppDragEnded))
             .into()
+    }
+
+    /// The icon of a dragged app, with a small plus at its corner.
+    pub(crate) fn drag_preview<'a, M: Clone + 'static>(
+        icon: Option<&IconHandle>,
+    ) -> Element<'a, M> {
+        const ICON_SIZE: u16 = 32;
+        const BADGE_SIZE: f32 = 14.0;
+
+        let badge = container(text::caption("+"))
+            .width(Length::Fixed(BADGE_SIZE))
+            .height(Length::Fixed(BADGE_SIZE))
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center)
+            .class(cosmic::theme::Container::custom(|theme| {
+                let cosmic = theme.cosmic();
+                container::Style {
+                    background: Some(Background::Color(cosmic.accent_color().into())),
+                    text_color: Some(cosmic.on_accent_color().into()),
+                    border: cosmic::iced::Border {
+                        radius: (BADGE_SIZE / 2.).into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            }));
+
+        let size = Length::Fixed(Self::DRAG_PREVIEW_SIZE);
+        cosmic::iced::widget::stack![
+            container(Self::icon_widget(icon, ICON_SIZE))
+                .width(size)
+                .height(size)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center),
+            container(badge)
+                .width(size)
+                .height(size)
+                .align_x(Alignment::End)
+                .align_y(Alignment::End),
+        ]
+        .into()
     }
 
     /// Creates the icon widget for an application
@@ -260,9 +324,19 @@ impl VirtualizedAppList {
         // the guard keeps it from opening when no app was right clicked.
         let context_menu = cosmic::widget::context_menu(content, Some(context_menu.unwrap_or_default()))
             .close_on_escape(true)
+            .on_open(Message::ContextMenuOpenChanged(true))
+            .on_close(Message::ContextMenuOpenChanged(false))
             .on_surface_action(Message::ContextMenuAction)
-            .window_id(applet.popup.unwrap_or(Id::NONE));
+            // No window on a layer surface, so it is drawn in the menu: the
+            // panel cannot attach popups to them.
+            .window_id(if applet.menu_is_layer_surface {
+                Id::NONE
+            } else {
+                applet.popup.unwrap_or(Id::NONE)
+            });
 
-        RightReleaseGuard::new(context_menu, !has_target).into()
+        RightReleaseGuard::new(context_menu, !has_target)
+            .capture_escape(applet.context_menu_open)
+            .into()
     }
 }

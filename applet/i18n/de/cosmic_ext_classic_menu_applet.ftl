@@ -1,6 +1,7 @@
 cosmic-applet-button = Kosmische Taste
 
 # Kategorien
+home-page=Startseite
 all-applications=Alle Anwendungen
 recently-used=Kürzlich verwendet
 audio=Audio

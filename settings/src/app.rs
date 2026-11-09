@@ -2,9 +2,12 @@
 
 use crate::fl;
 use crate::layout_editor::{self, LayoutEditor};
+use crate::shortcut;
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::dialog::file_chooser::FileFilter;
+use cosmic::iced::keyboard::key::Named;
+use cosmic::iced::keyboard::{Key, Modifiers};
 use cosmic::iced::{Alignment, Length};
 use cosmic::prelude::*;
 use cosmic::widget::{button, icon, menu, menu::{ItemWidth, ItemHeight}};
@@ -14,9 +17,17 @@ use cosmic_ext_classic_menu_applet::config::{
     AppView, AppletButtonStyle, AppletConfig, FeaturedApplications, ItemSize, Place, SidePanel,
     UserWidgetStyle,
 };
+use cosmic_settings_config::shortcuts::Binding;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+
+/// Width of the pane holding the layout editor, fitting the largest preview
+/// of the menu.
+const LAYOUT_PANE_WIDTH: f32 = 570.0;
+/// Content width from which the layout editor goes next to the other
+/// settings, leaving them enough room.
+const TWO_PANES_MIN_WIDTH: f32 = LAYOUT_PANE_WIDTH + 410.0;
 
 /// Height of a row in the places list.
 const PLACE_ROW_HEIGHT: f32 = 44.0;
@@ -39,6 +50,12 @@ pub struct AppModel {
     config: AppletConfig,
     /// Drag and drop state of the menu layout preview.
     layout_editor: LayoutEditor,
+    /// The keyboard shortcut opening the menu.
+    menu_shortcut: Option<Binding>,
+    /// Whether the next key press becomes the shortcut.
+    capturing_shortcut: bool,
+    /// Whether the last key press was already used by another shortcut.
+    shortcut_taken: bool,
     /// Index in the places list of the entry being reordered by dragging.
     /// Separators may repeat, so the index tells them apart.
     dragged_place: Option<usize>,
@@ -50,6 +67,12 @@ pub struct AppModel {
 #[derive(Debug, Clone)]
 pub enum Message {
     UpdateConfig(AppletConfig),
+    /// Start or stop waiting for the keys of the shortcut opening the menu.
+    ShortcutCaptureToggled,
+    ShortcutKeyPressed(Key, Modifiers),
+    /// Whether Super alone opens the menu.
+    ShortcutSuperToggled(bool),
+    ShortcutCleared,
     LaunchUrl(String),
     LayoutEditor(layout_editor::Message),
     AppletButtonStyleChanged(usize),
@@ -110,11 +133,9 @@ impl cosmic::Application for AppModel {
 
     /// Initializes the application with any given flags and startup commands.
     fn init(
-        mut core: cosmic::Core,
+        core: cosmic::Core,
         _flags: Self::Flags,
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
-        core.window.show_maximize = false;
-
         let about = cosmic::widget::about::About::default()
             .name(fl!("app-title"))
             .icon(icon::from_name(Self::APP_ID))
@@ -141,6 +162,9 @@ impl cosmic::Application for AppModel {
             // Optional configuration file for an application.
             config: AppletConfig::config(),
             layout_editor: LayoutEditor::default(),
+            menu_shortcut: shortcut::current(),
+            capturing_shortcut: false,
+            shortcut_taken: false,
             dragged_place: None,
             categories: Vec::new(),
         };
@@ -190,87 +214,36 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&'_ self) -> Element<'_, Self::Message> {
-        let layout_editor = self
-            .layout_editor
-            .view(&self.config)
-            .map(Message::LayoutEditor);
-        let applet_button_style = cosmic::widget::dropdown(
-            vec![
-                fl!("icon-only"),
-                fl!("label-only"),
-                fl!("icon-and-label"),
-                fl!("auto"),
-            ],
-            Some(self.config.applet_button_style as usize),
-            Message::AppletButtonStyleChanged,
-        );
-        let user_widget = cosmic::widget::dropdown(
-            vec![
-                fl!("username-prefered"),
-                fl!("realname-prefered"),
-                fl!("none"),
-            ],
-            Some(self.config.user_widget as usize),
-            Message::UserWidgetChanged,
-        );
-        let featured_applications = cosmic::widget::dropdown(
-            vec![fl!("featured-recently-used"), fl!("featured-favorites")],
-            Some(match self.config.featured_applications {
-                FeaturedApplications::RecentlyUsed => 0,
-                FeaturedApplications::Favorites => 1,
-            }),
-            Message::FeaturedApplicationsChanged,
-        );
-        let button_label =
-            cosmic::widget::text_input(fl!("button-label-placeholder"), &self.config.button_label)
-                .on_input(Message::ButtonLabelChanged)
-                .width(Length::Fixed(200.0));
-        let button_icon = cosmic::widget::button::text(fl!("button-icon-placeholder"))
-            .on_press(Message::OpenIconPicker);
-
-        let settings_container =
-            cosmic::widget::settings::view_column(vec![
-                cosmic::widget::settings::section()
-                    .title(fl!("layout"))
-                    .add(layout_editor)
-                    .into(),
-            ]
-            .into_iter()
-            .chain([self.app_view_section()])
-            .chain(self.start_page_section())
-            .chain(self.side_panel_section())
-            .chain([cosmic::widget::settings::section()
-                    .title(fl!("general"))
-                    .add(Self::setting_item(fl!("applet-button-style"), applet_button_style))
-                    .add(Self::setting_item(fl!("user-widget"), user_widget))
-                    // The sidebar layout shows the favorites in the sidebar.
-                    .add_maybe((!self.config.menu_layout.has_favorites()).then(|| {
-                        Self::setting_item(fl!("featured-applications"), featured_applications)
-                    }))
-                    .add(Self::setting_item(fl!("button-label"), button_label))
-                    .add(Self::setting_item(fl!("button-icon"), button_icon))
-                    .into()])
-            .collect());
-
-        // The window has a fixed height, so let the sections scroll if needed.
-        // The extra right padding keeps the scrollbar off the sections.
-        cosmic::widget::scrollable(settings_container.padding(cosmic::iced::Padding {
-            top: 5.0,
-            bottom: 5.0,
-            left: 10.0,
-            right: 20.0,
-        }))
+        // Measures the content area rather than the window, as the context
+        // drawer takes room from it as well.
+        cosmic::widget::responsive(move |size| {
+            self.view_sections(size.width >= TWO_PANES_MIN_WIDTH)
+        })
         .into()
     }
 
-    /// Listens for the mouse button release ending a drag, which may happen
-    /// outside of the dragged widget.
+    /// Listens for the mouse button release ending a drag and the moves
+    /// resizing the menu, which may happen outside of the dragged widget.
     fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
-        if self.layout_editor.is_dragging() {
+        if self.capturing_shortcut {
+            cosmic::iced::event::listen_with(|event, _status, _window| match event {
+                cosmic::iced::Event::Keyboard(cosmic::iced::keyboard::Event::KeyPressed {
+                    key,
+                    modifiers,
+                    ..
+                }) => Some(Message::ShortcutKeyPressed(key, modifiers)),
+                _ => None,
+            })
+        } else if self.layout_editor.is_dragging() {
             cosmic::iced::event::listen_with(|event, _status, _window| match event {
                 cosmic::iced::Event::Mouse(cosmic::iced::mouse::Event::ButtonReleased(
                     cosmic::iced::mouse::Button::Left,
                 )) => Some(Message::LayoutEditor(layout_editor::Message::DragEnd)),
+                cosmic::iced::Event::Mouse(cosmic::iced::mouse::Event::CursorMoved {
+                    position,
+                }) => Some(Message::LayoutEditor(layout_editor::Message::MenuResizeMove(
+                    position,
+                ))),
                 _ => None,
             })
         } else if self.dragged_place.is_some() {
@@ -328,6 +301,27 @@ impl cosmic::Application for AppModel {
                 }
                 Task::none()
             }
+            Message::ShortcutCaptureToggled => {
+                self.capturing_shortcut = !self.capturing_shortcut;
+                self.shortcut_taken = false;
+                Task::none()
+            }
+            Message::ShortcutKeyPressed(key, modifiers) => {
+                if key == Key::Named(Named::Escape) && modifiers.is_empty() {
+                    self.capturing_shortcut = false;
+                } else if let Some(binding) = shortcut::binding_for(&key, modifiers) {
+                    self.set_menu_shortcut(Some(binding));
+                }
+                Task::none()
+            }
+            Message::ShortcutSuperToggled(enabled) => {
+                self.set_menu_shortcut(enabled.then(shortcut::super_key));
+                Task::none()
+            }
+            Message::ShortcutCleared => {
+                self.set_menu_shortcut(None);
+                Task::none()
+            }
             Message::LayoutEditor(message) => {
                 let change = self.layout_editor.update(message, &self.config);
 
@@ -344,9 +338,18 @@ impl cosmic::Application for AppModel {
                         log::info!("Search field position changed to: {:?}", vertical_position);
                         self.config.search_field_position = vertical_position;
                     }
+                    Some(layout_editor::Change::FavoritesBarPosition(position)) => {
+                        log::info!("Favorites bar position changed to: {position:?}");
+                        self.config.favorites_bar_position = position;
+                    }
                     Some(layout_editor::Change::SidePanelWidth(width)) => {
                         log::info!("Side panel width changed to: {width}%");
                         self.config.side_panel_width = width;
+                    }
+                    Some(layout_editor::Change::MenuSize(width, height)) => {
+                        log::info!("Menu size changed to: {width}x{height}");
+                        self.config.menu_width = width;
+                        self.config.menu_height = height;
                     }
                     Some(layout_editor::Change::PowerMenuPosition(power_menu_position)) => {
                         log::info!("Power menu position changed to: {:?}", power_menu_position);
@@ -835,6 +838,155 @@ impl AppModel {
 
     /// A settings row whose title is cut off with an ellipsis, rather than
     /// squeezing the control, when the window is too narrow for both.
+    /// The settings, with the layout editor next to the other controls if
+    /// `two_panes`, or above them.
+    fn view_sections(&self, two_panes: bool) -> Element<'_, Message> {
+        let layout_editor = self
+            .layout_editor
+            .view(&self.config)
+            .map(Message::LayoutEditor);
+        let applet_button_style = cosmic::widget::dropdown(
+            vec![
+                fl!("icon-only"),
+                fl!("label-only"),
+                fl!("icon-and-label"),
+                fl!("auto"),
+            ],
+            Some(self.config.applet_button_style as usize),
+            Message::AppletButtonStyleChanged,
+        );
+        let user_widget = cosmic::widget::dropdown(
+            vec![
+                fl!("username-prefered"),
+                fl!("realname-prefered"),
+                fl!("none"),
+            ],
+            Some(self.config.user_widget as usize),
+            Message::UserWidgetChanged,
+        );
+        let featured_applications = cosmic::widget::dropdown(
+            vec![fl!("featured-recently-used"), fl!("featured-favorites")],
+            Some(match self.config.featured_applications {
+                FeaturedApplications::RecentlyUsed => 0,
+                FeaturedApplications::Favorites => 1,
+            }),
+            Message::FeaturedApplicationsChanged,
+        );
+        let button_label =
+            cosmic::widget::text_input(fl!("button-label-placeholder"), &self.config.button_label)
+                .on_input(Message::ButtonLabelChanged)
+                .width(Length::Fixed(200.0));
+        let button_icon = cosmic::widget::button::text(fl!("button-icon-placeholder"))
+            .on_press(Message::OpenIconPicker);
+
+        let layout_section: Element<'_, Message> = cosmic::widget::settings::section()
+            .title(fl!("layout"))
+            .add(layout_editor)
+            .into();
+        let control_sections: Vec<Element<'_, Message>> = [self.app_view_section()]
+            .into_iter()
+            .chain(self.start_page_section())
+            .chain(self.side_panel_section())
+            .chain([cosmic::widget::settings::section()
+                .title(fl!("general"))
+                .add(Self::setting_item(fl!("applet-button-style"), applet_button_style))
+                .add(Self::setting_item(fl!("user-widget"), user_widget))
+                // The sidebar layout shows the favorites in the sidebar.
+                .add_maybe((!self.config.menu_layout.has_favorites()).then(|| {
+                    Self::setting_item(fl!("featured-applications"), featured_applications)
+                }))
+                .add(Self::setting_item(fl!("button-label"), button_label))
+                .add(Self::setting_item(fl!("button-icon"), button_icon))
+                .into()])
+            .chain([self.shortcut_section()])
+            .collect();
+
+        if two_panes {
+            cosmic::iced::widget::row![
+                Self::scrolling_sections(vec![layout_section], Length::Fixed(LAYOUT_PANE_WIDTH)),
+                Self::scrolling_sections(control_sections, Length::Fill),
+            ]
+            .height(Length::Fill)
+            .into()
+        } else {
+            let sections = std::iter::once(layout_section).chain(control_sections).collect();
+            Self::scrolling_sections(sections, Length::Fill)
+        }
+    }
+
+    /// `sections` in a column that scrolls if needed. The extra right padding
+    /// keeps the scrollbar off the sections.
+    fn scrolling_sections(
+        sections: Vec<Element<'_, Message>>,
+        width: Length,
+    ) -> Element<'_, Message> {
+        cosmic::widget::scrollable(cosmic::widget::settings::view_column(sections).padding(
+            cosmic::iced::Padding {
+                top: 5.0,
+                bottom: 5.0,
+                left: 10.0,
+                right: 20.0,
+            },
+        ))
+        .width(width)
+        .height(Length::Fill)
+        .into()
+    }
+
+    /// Makes `binding` the shortcut opening the menu.
+    fn set_menu_shortcut(&mut self, binding: Option<Binding>) {
+        self.capturing_shortcut = false;
+        self.shortcut_taken = false;
+        match shortcut::set(binding.clone()) {
+            Ok(()) => self.menu_shortcut = binding,
+            Err(shortcut::Error::Taken) => self.shortcut_taken = true,
+            Err(shortcut::Error::Config(error)) => {
+                log::error!("Failed to write the keyboard shortcut: {error}");
+            }
+        }
+    }
+
+    fn shortcut_section(&self) -> Element<'_, Message> {
+        let label = if self.capturing_shortcut {
+            fl!("keyboard-shortcut-press")
+        } else {
+            self.menu_shortcut
+                .as_ref()
+                .map_or_else(|| fl!("keyboard-shortcut-none"), ToString::to_string)
+        };
+        let keys = button::standard(label)
+            .class(if self.capturing_shortcut {
+                cosmic::theme::Button::Suggested
+            } else {
+                cosmic::theme::Button::Standard
+            })
+            .on_press(Message::ShortcutCaptureToggled);
+        let clear = self.menu_shortcut.is_some().then(|| {
+            button::icon(icon::from_name("edit-clear-symbolic")).on_press(Message::ShortcutCleared)
+        });
+        let keys = cosmic::iced::widget::row![keys]
+            .push_maybe(clear)
+            .spacing(cosmic::theme::active().cosmic().space_xxs())
+            .align_y(Alignment::Center);
+
+        let is_super = self
+            .menu_shortcut
+            .as_ref()
+            .is_some_and(Binding::is_super);
+
+        cosmic::widget::settings::section()
+            .title(fl!("keyboard-shortcut"))
+            .add(Self::setting_item(fl!("keyboard-shortcut-keys"), keys))
+            .add(Self::setting_item(
+                fl!("keyboard-shortcut-super"),
+                cosmic::widget::toggler(is_super).on_toggle(Message::ShortcutSuperToggled),
+            ))
+            .add_maybe(self.shortcut_taken.then(|| -> Element<'_, Message> {
+                text::caption(fl!("keyboard-shortcut-taken")).into()
+            }))
+            .into()
+    }
+
     fn setting_item<'a>(
         title: String,
         control: impl Into<Element<'a, Message>>,
@@ -904,7 +1056,7 @@ impl AppModel {
             .open_file()
             .await
         {
-            let icon_pathbuf: PathBuf = PathBuf::from(result.0.uris()[0].path());
+            let icon_pathbuf: PathBuf = PathBuf::from(result.url().path());
             if icon_pathbuf.exists() {
                 return Some(icon_pathbuf);
             } else {

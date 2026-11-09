@@ -1,6 +1,7 @@
 cosmic-applet-button = زر كوني
 
 # الفئات
+home-page=الرئيسية
 all-applications=جميع التطبيقات
 recently-used=المستخدمة حديثا
 audio=صوت

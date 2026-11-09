@@ -12,7 +12,9 @@ i18n-embed-fl = { workspace = true }
 open = { workspace = true }
 rust-embed = { workspace = true }
 fuzzy-matcher = "0.3.7"
-zbus = "5.7.1"
+zbus = "6.2.1"
+# logind-zbus has no release for zbus 6 yet.
+zbus5 = { package = "zbus", version = "5.19.0" }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 serde = { workspace = true, features = ["derive"] }
 rustix = "1.0.5"
@@ -26,17 +28,25 @@ log = { workspace = true }
 cosmic-settings-config = { git = "https://github.com/pop-os/cosmic-settings-daemon" }
 cosmic-app-list-config = { git = "https://github.com/pop-os/cosmic-applets" }
 unicode-normalization = "0.1.25"
-dirs = "6.0.0"
-cached = "0.56.0"
+dirs = "7.0.0"
+cached = "4.1.1"
 futures = "0.3"
 i18n-embed = { workspace = true, features = ["fluent-system", "desktop-requester"] }
 xdg = "3.0.0"
-roxmltree = "0.20"
+roxmltree = "0.21"
+shlex = "2.0.1"
 
 # Only for the accessibility tree type in custom widgets; same source and
 # revision as libcosmic's own copy.
 [dependencies.iced_accessibility]
 git = "https://github.com/pop-os/libcosmic.git"
+
+# For its detached process spawning; same source and revision as libcosmic's
+# own copy.
+[dependencies.cosmic-launch]
+git = "https://github.com/pop-os/libcosmic.git"
+default-features = false
+features = ["tokio"]
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"

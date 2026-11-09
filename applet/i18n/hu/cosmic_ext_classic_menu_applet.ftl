@@ -1,6 +1,7 @@
 cosmic-applet-button = Kozmikus gomb
 
 # kategóriák
+home-page=Kezdőlap
 all-applications=Minden alkalmazás
 recently-used=Nemrég használt
 audio=Hang

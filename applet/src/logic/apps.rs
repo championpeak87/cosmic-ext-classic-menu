@@ -128,7 +128,7 @@ pub fn load_app_categories() -> Vec<ApplicationCategory> {
 /// Runs `f` on the loaded apps if they are cached, without loading them.
 /// Cheap enough for the UI thread, unlike [`load_apps`] on a cache miss.
 pub fn with_cached_apps<R>(f: impl FnOnce(&[Arc<ApplicationEntry>]) -> R) -> Option<R> {
-    APPS_CACHE.lock().unwrap().cache_get(&()).map(|apps| f(apps))
+    APPS_CACHE.write().cache_get(&()).map(|apps| f(apps))
 }
 
 /// Most launched apps first, skipping uninstalled ones.
@@ -180,6 +180,17 @@ pub fn place_favorite(favorites: &[String], app_id: &str, index: Option<usize>) 
     }
     favorites.insert(to, app_id.to_owned());
     favorites
+}
+
+/// The index to give [`place_favorite`] for `app_id` to end up where the
+/// favorite at `index` is now.
+///
+/// Dragged down the list that is after that favorite, as it moves up.
+pub fn favorite_drop_index(favorites: &[String], app_id: &str, index: usize) -> usize {
+    match favorites.iter().position(|id| id == app_id) {
+        Some(from) if from < index => index + 1,
+        _ => index,
+    }
 }
 
 pub fn get_apps_of_category(
@@ -262,10 +273,38 @@ pub fn is_app_in_favorites(app: &ApplicationEntry, config: &AppListConfig) -> bo
 }
 #[cfg(test)]
 mod tests {
-    use super::place_favorite;
+    use super::{favorite_drop_index, place_favorite};
 
     fn ids(ids: &[&str]) -> Vec<String> {
         ids.iter().map(|id| id.to_string()).collect()
+    }
+
+    fn dropped_onto(favorites: &[&str], app_id: &str, index: usize) -> Vec<String> {
+        let favorites = ids(favorites);
+        let to = favorite_drop_index(&favorites, app_id, index);
+        place_favorite(&favorites, app_id, Some(to))
+    }
+
+    #[test]
+    fn dropping_down_the_list_takes_the_place_of_the_target() {
+        assert_eq!(dropped_onto(&["a", "b", "c"], "a", 1), ids(&["b", "a", "c"]));
+        assert_eq!(dropped_onto(&["a", "b", "c"], "a", 2), ids(&["b", "c", "a"]));
+    }
+
+    #[test]
+    fn dropping_up_the_list_takes_the_place_of_the_target() {
+        assert_eq!(dropped_onto(&["a", "b", "c"], "c", 0), ids(&["c", "a", "b"]));
+        assert_eq!(dropped_onto(&["a", "b", "c"], "c", 1), ids(&["a", "c", "b"]));
+    }
+
+    #[test]
+    fn dropping_a_favorite_on_itself_changes_nothing() {
+        assert_eq!(dropped_onto(&["a", "b", "c"], "b", 1), ids(&["a", "b", "c"]));
+    }
+
+    #[test]
+    fn dropping_a_new_app_goes_before_the_target() {
+        assert_eq!(dropped_onto(&["a", "b"], "z", 1), ids(&["a", "z", "b"]));
     }
 
     #[test]

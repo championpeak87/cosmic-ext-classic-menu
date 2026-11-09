@@ -1,6 +1,7 @@
 cosmic-applet-button = कॉस्मिक बटन
 
 # श्रेणियाँ
+home-page=होम
 all-applications=सभी एप्लिकेशन
 recently-used=हाल ही में उपयोग किए गए
 audio=ऑडियो

@@ -1,6 +1,7 @@
 cosmic-applet-button = Kosmičko dugme
 
 # kategorije
+home-page=Početna
 all-applications=Sve aplikacije
 recently-used=Nedavno korišćene
 audio=Audio

@@ -1,4 +1,5 @@
 # categories
+home-page=Home
 all-applications=All applications
 back=Back
 recently-used=Recently used

@@ -1,6 +1,7 @@
 cosmic-applet-button = 宇宙按鈕
 
 # 類別
+home-page=首頁
 all-applications=所有應用程式
 recently-used=最近使用
 audio=音訊

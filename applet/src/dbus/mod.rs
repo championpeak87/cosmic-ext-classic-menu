@@ -23,8 +23,18 @@ trait AppletSignals {
 
 /// Opens the menu of the running applet, or closes it if it is open.
 pub fn toggle_popup() -> zbus::Result<()> {
-    let connection = zbus::blocking::Connection::session()?;
-    AppletSignalsProxyBlocking::new(&connection)?.toggle_popup_signal()
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| zbus::Error::Failure(error.to_string()))?;
+
+    runtime.block_on(async {
+        let connection = zbus::Connection::session().await?;
+        AppletSignalsProxy::new(&connection)
+            .await?
+            .toggle_popup_signal()
+            .await
+    })
 }
 
 pub fn dbus_service_subscription() -> Subscription<Message> {
@@ -35,25 +45,19 @@ pub fn dbus_service_subscription() -> Subscription<Message> {
             // Register the D-Bus service with the channel sender
             let service = AppletSignalsService { tx };
             
-            match zbus::connection::Builder::session() {
-                Ok(builder) => {
-                    match builder
-                        .name(SERVICE_NAME)
-                        .and_then(|b| b.serve_at(OBJECT_PATH, service))
-                        .unwrap()
-                        .build()
-                        .await
-                    {
-                        Ok(_conn) => {
-                            // Keep connection alive and listen for messages
-                            while let Some(msg) = rx.recv().await {
-                                let _ = output.send(msg).await;
-                            }
-                        }
-                        Err(e) => log::error!("Failed to setup D-Bus service: {}", e),
+            match zbus::connection::Builder::session()
+                .name(SERVICE_NAME)
+                .serve_at(OBJECT_PATH, service)
+                .build()
+                .await
+            {
+                Ok(_conn) => {
+                    // Keep connection alive and listen for messages
+                    while let Some(msg) = rx.recv().await {
+                        let _ = output.send(msg).await;
                     }
                 }
-                Err(e) => log::error!("Failed to create D-Bus builder: {}", e),
+                Err(e) => log::error!("Failed to setup D-Bus service: {}", e),
             }
         })
     })
