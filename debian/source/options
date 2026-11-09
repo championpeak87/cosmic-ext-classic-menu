@@ -1,0 +1,9 @@
+# Keep the default exclusions, e.g. of version control files, and leave
+# out build output.
+tar-ignore
+tar-ignore = target
+tar-ignore = build
+tar-ignore = build-dir
+tar-ignore = .flatpak-builder
+tar-ignore = .idea
+tar-ignore = repo

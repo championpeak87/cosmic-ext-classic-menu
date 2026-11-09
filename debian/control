@@ -1,0 +1,33 @@
+Source: cosmic-ext-classic-menu
+Section: x11
+Priority: optional
+Maintainer: Kamil Lihan <k.lihan@outlook.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ cargo (>= 1.93),
+ rustc (>= 1.93),
+ just,
+ libxkbcommon-dev,
+ pkgconf,
+Standards-Version: 4.7.0
+Homepage: https://github.com/championpeak87/cosmic-ext-classic-menu
+Vcs-Browser: https://github.com/championpeak87/cosmic-ext-classic-menu
+Vcs-Git: https://github.com/championpeak87/cosmic-ext-classic-menu.git
+Rules-Requires-Root: no
+
+Package: cosmic-ext-classic-menu
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+ libwayland-client0,
+Recommends:
+ cosmic-osd,
+Description: classic application menu applet for the COSMIC desktop
+ Classic Menu is a customizable application launcher for the COSMIC
+ desktop environment. It lists applications by category, searches them,
+ and gives access to favorite and recently used applications, places,
+ system tools and power options.
+ .
+ The menu comes with several layouts, which are arranged in a drag and
+ drop editor in its settings application.

@@ -1,0 +1,49 @@
+name: Debian package
+
+on:
+  push:
+    branches: [master]
+    tags: ['*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Testing, as the build needs Rust 1.93 or newer.
+    container: debian:testing
+    steps:
+      - name: Install packaging tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs git
+
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: mk-build-deps -i -r -t "apt-get -y --no-install-recommends" debian/control
+
+      - name: Build
+        run: |
+          dpkg-buildpackage -b -us -uc
+          mkdir dist
+          mv ../*.deb dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debian-package
+          path: dist/*.deb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: debian-package
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: '*.deb'

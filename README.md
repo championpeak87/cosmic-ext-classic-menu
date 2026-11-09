@@ -37,6 +37,18 @@ Classic Menu is a customizable application launcher for the COSMIC™ desktop en
 - Customizable applet button (icon, label) and user widget
 - Settings changes are applied to the menu immediately
 
+## Packages
+
+| Distribution | Package | Published | CI build |
+| --- | --- | --- | --- |
+| Fedora | [COPR](https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-ext-classic-menu/) | [![COPR build status](https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-ext-classic-menu/package/cosmic-ext-classic-menu/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-ext-classic-menu/package/cosmic-ext-classic-menu/) | [![Fedora package](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/fedora.yml/badge.svg)](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/fedora.yml) |
+| Debian / Ubuntu | [`debian/`](debian) | Not yet | [![Debian package](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/debian.yml/badge.svg)](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/debian.yml) |
+| Arch Linux | [`arch/PKGBUILD`](arch/PKGBUILD) | Not yet (AUR) | [![Arch Linux package](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/arch.yml/badge.svg)](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/arch.yml) |
+| NixOS | [`package.nix`](package.nix) | Not yet | [![Nix package](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/nix.yml/badge.svg)](https://github.com/championpeak87/cosmic-ext-classic-menu/actions/workflows/nix.yml) |
+| Flatpak | [`flatpak/`](flatpak) | Not yet | |
+
+The CI builds every package for each change, and attaches them to the release when a version is tagged.
+
 ## Installation 
 
 Clone the repository:
@@ -133,6 +145,36 @@ sudo dnf copr disable championpeak87/cosmic-ext-classic-menu
 More details and package versions are available on the COPR page:
 
 https://copr.fedorainfracloud.org/coprs/championpeak87/cosmic-ext-classic-menu/
+
+## Debian / Ubuntu
+
+The `debian/` directory builds a `.deb` package. It needs Rust 1.93 or newer, e.g. from Debian testing or [rustup](https://rustup.rs), in which case `dpkg-buildpackage -d` skips the check of the distribution's Rust version.
+
+```bash
+sudo apt install build-essential devscripts equivs
+sudo mk-build-deps -i -r debian/control
+dpkg-buildpackage -b -us -uc
+sudo apt install ../cosmic-ext-classic-menu_*.deb
+```
+
+The crates are vendored into `vendor.tar` first, which needs network access; the build itself runs offline.
+
+## Arch Linux
+
+`arch/PKGBUILD` builds the tagged release:
+
+```bash
+cd arch
+makepkg -si
+```
+
+## NixOS
+
+`package.nix` builds the checked out sources:
+
+```bash
+nix-build -E 'with import <nixpkgs> { }; callPackage ./package.nix { }'
+```
 
 ## Opening the menu with a keyboard shortcut
 
