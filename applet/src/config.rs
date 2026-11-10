@@ -57,6 +57,15 @@ pub struct AppletConfig {
     /// Id of the category the menu opens on, see
     /// [`AppletConfig::shows_default_category`].
     pub default_category: String,
+    /// Whether the pane next to the app list hides while searching, leaving
+    /// the room to the results.
+    pub hide_side_panel_while_searching: bool,
+    /// Whether the menu opens as a layer surface, taking the keyboard at
+    /// once also when opened by the shortcut, rather than as a popup, which
+    /// opens at the button and is frosted, see `crate::menu_surface`.
+    /// Experimental, as layer surfaces of applets are not fully supported by
+    /// cosmic-panel.
+    pub focused_menu: bool,
 }
 
 impl Default for AppletConfig {
@@ -86,6 +95,8 @@ impl Default for AppletConfig {
             grid_show_description: false,
             start_page_favorite_count: Self::DEFAULT_START_PAGE_FAVORITE_COUNT,
             default_category: ApplicationCategory::ALL.id().to_owned(),
+            hide_side_panel_while_searching: false,
+            focused_menu: false,
         }
     }
 }

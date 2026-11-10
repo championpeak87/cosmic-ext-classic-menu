@@ -51,7 +51,11 @@ impl VirtualizedAppGrid {
         let metrics = Self::metrics(&applet.config);
         let total_rows = applet.available_applications.len().div_ceil(metrics.columns);
 
-        let visible_start = (applet.scroll_offset / metrics.row_height).floor() as usize;
+        // Search results of pop-launcher lead the apps found.
+        let header_height =
+            AppletMenu::search_header_layout(applet).map_or(0., |layout| layout.height);
+        let scroll_offset = (applet.scroll_offset - header_height).max(0.);
+        let visible_start = (scroll_offset / metrics.row_height).floor() as usize;
         let viewport_height = applet.render_viewport_height().max(metrics.row_height);
         let visible_count = ((viewport_height / metrics.row_height).ceil() as usize) + 1;
 
@@ -94,7 +98,10 @@ impl VirtualizedAppGrid {
             rows.push(Self::spacer(total_rows - render_end, metrics));
         }
 
-        let grid = scrollable(column(rows).width(Length::Fill))
+        let content = column![]
+            .push_maybe(AppletMenu::search_header(applet))
+            .push(column(rows).width(Length::Fill));
+        let grid = scrollable(content)
             .height(Length::Fill)
             .width(Length::Fill)
             .id(applet.scrollable_id.clone())

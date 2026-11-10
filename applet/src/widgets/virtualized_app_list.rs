@@ -29,7 +29,7 @@ impl VirtualizedAppList {
     /// Width and height of the icon shown while dragging an app.
     pub(crate) const DRAG_PREVIEW_SIZE: f32 = 40.0;
     /// Font size of app descriptions.
-    const DESCRIPTION_SIZE: u16 = 10;
+    pub(crate) const DESCRIPTION_SIZE: u16 = 10;
 
     /// Icon size and row height of apps of `size`.
     pub fn item_metrics(size: ItemSize) -> (u16, u16) {
@@ -49,7 +49,10 @@ impl VirtualizedAppList {
     /// A scrollable element containing only the visible app items
     pub fn view(applet: &Applet) -> Element<'_, Message> {
         let item_height = f32::from(Self::item_metrics(applet.config.column_item_size).1);
-        let scroll_offset = applet.scroll_offset;
+        // Search results of pop-launcher lead the apps found.
+        let header_height =
+            AppletMenu::search_header_layout(applet).map_or(0., |layout| layout.height);
+        let scroll_offset = (applet.scroll_offset - header_height).max(0.);
         let total_items = applet.available_applications.len();
 
         // Calculate which items should be rendered based on scroll position
@@ -98,7 +101,10 @@ impl VirtualizedAppList {
             |list, item| list.add(item),
         );
 
-        let app_list = scrollable(container(app_list))
+        let content = column![]
+            .push_maybe(AppletMenu::search_header(applet))
+            .push(container(app_list));
+        let app_list = scrollable(content)
             .height(Length::Fill)
             .width(Length::Fill)
             .id(applet.scrollable_id.clone())

@@ -64,8 +64,8 @@ pub struct Applet {
     pub available_applications: Vec<Arc<ApplicationEntry>>,
     /// The list of available categories that are displayed in the menu.
     pub available_categories: Vec<ApplicationCategory>,
-    /// Whether the main menu is a layer surface rather than a popup, see
-    /// [`crate::menu_surface::hosted_by_panel`].
+    /// Whether the main menu is a layer surface rather than a popup, as
+    /// decided when it opens, see [`Applet::menu_opens_as_layer_surface`].
     pub menu_is_layer_surface: bool,
     /// Where the menu goes on its surface.
     pub menu_placement: crate::menu_surface::Placement,
@@ -83,6 +83,9 @@ pub struct Applet {
     pub current_user: Option<User>,
     /// Currently selected item
     pub selected_item_index: Option<usize>,
+    /// The result of pop-launcher highlighted with the arrow keys, by its
+    /// place among those shown, see [`Applet::shown_launcher_results`].
+    pub selected_launcher_result: Option<usize>,
     /// Scrollable ID for keyboard navigation
     pub scrollable_id: cosmic::widget::Id,
     /// List of pinned apps
@@ -276,12 +279,13 @@ impl Application for Applet {
             config: AppletConfig::config(),
             current_user: None,
             selected_item_index: None,
+            selected_launcher_result: None,
             scrollable_id: cosmic::widget::Id::unique(),
             app_list_config: Default::default(),
             available_applications: Vec::new(),
             available_categories: Vec::new(),
             popup: None,
-            menu_is_layer_surface: crate::menu_surface::hosted_by_panel(),
+            menu_is_layer_surface: false,
             menu_placement: Default::default(),
             launcher: None,
             launcher_results: Vec::new(),
@@ -406,10 +410,7 @@ impl Application for Applet {
                     return Task::none();
                 }
                 self.available_applications = items;
-                // Search results always start from the best match.
-                self.selected_item_index = (!self.search_field.is_empty()
-                    && !self.available_applications.is_empty())
-                .then_some(0);
+                self.select_first_result();
                 // Indices into the old list no longer apply.
                 self.context_menu_target = None;
                 self.context_menu = None;
@@ -436,6 +437,12 @@ impl Application for Applet {
             }
             Message::MoveSelection(step) => self.move_selection(step),
             Message::LaunchSelectedApplication => {
+                if self.selected_launcher_result.is_some()
+                    && let Some(result) = self.default_launcher_result()
+                {
+                    self.launcher_request(launcher::Request::Activate(result.id));
+                    return Task::none();
+                }
                 if let Some(index) = self.selected_item_index {
                     let selected_application =
                         self.available_applications.get(index).unwrap().clone();
@@ -745,9 +752,20 @@ impl Applet {
         }
     }
 
+    /// Whether the menu opens as a layer surface: when the user chose so, and
+    /// a panel hosts the applet, see [`crate::menu_surface::hosted_by_panel`].
+    fn menu_opens_as_layer_surface(&self) -> bool {
+        self.config.focused_menu && crate::menu_surface::hosted_by_panel()
+    }
+
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
         if let Some(p) = self.popup.take() {
             return self.destroy_surface(p);
+        }
+        // Decided on opening, so that changing the setting meanwhile does
+        // not leave the open menu closed as the wrong kind of surface.
+        if popup_type == PopupType::MainMenu {
+            self.menu_is_layer_surface = self.menu_opens_as_layer_surface();
         }
 
         // Clicking the applet's button takes the keyboard from the open menu,
@@ -768,6 +786,7 @@ impl Applet {
             self.search_field.clear();
             self.selected_category = Some(ApplicationCategory::ALL);
             self.selected_item_index = None;
+            self.selected_launcher_result = None;
             self.scroll_offset = 0.0;
             self.context_menu_target = None;
             self.context_menu = None;
@@ -881,6 +900,7 @@ impl Applet {
             // The shown list changed, so indices into it no longer apply.
             self.available_applications = self.favorite_applications.clone();
             self.selected_item_index = None;
+            self.selected_launcher_result = None;
             self.context_menu_target = None;
             self.context_menu = None;
         } else {
@@ -928,6 +948,7 @@ impl Applet {
         self.available_applications = applications;
         // Indices into the old list no longer apply.
         self.selected_item_index = None;
+        self.selected_launcher_result = None;
         self.context_menu_target = None;
         self.context_menu = None;
         true
@@ -970,6 +991,7 @@ impl Applet {
         self.start_page_favorites = Some(favorites.len());
         // Indices into the old list no longer apply.
         self.selected_item_index = None;
+        self.selected_launcher_result = None;
         self.context_menu_target = None;
         self.context_menu = None;
         true
@@ -1105,13 +1127,46 @@ impl Applet {
         }
     }
 
-    /// The result of pop-launcher that Enter activates: the first, while no
+    /// Highlights the first search result shown: the first of pop-launcher's,
+    /// which lead, or else the first app. Done whenever either changes, as
+    /// they come separately.
+    fn select_first_result(&mut self) {
+        self.selected_launcher_result = None;
+        // With none highlighted, the first of pop-launcher's results is, see
+        // `highlighted_launcher_result`.
+        self.selected_item_index = (!self.search_field.is_empty()
+            && self.shown_launcher_results().is_empty()
+            && !self.available_applications.is_empty())
+        .then_some(0);
+    }
+
+    /// The results of pop-launcher shown above the apps, in their order.
+    pub fn shown_launcher_results(&self) -> Vec<&launcher::SearchResult> {
+        if self.search_field.is_empty() {
+            return Vec::new();
+        }
+        launcher::shown(&self.launcher_results)
+    }
+
+    /// Place among the shown results of pop-launcher of the highlighted
+    /// one: the one picked with the arrow keys, or else the first while no
     /// app is highlighted.
-    pub fn default_launcher_result(&self) -> Option<&launcher::SearchResult> {
-        if self.search_field.is_empty() || self.selected_item_index.is_some() {
+    fn highlighted_launcher_result(&self) -> Option<usize> {
+        let shown = self.shown_launcher_results().len();
+        if shown == 0 {
             return None;
         }
-        self.launcher_results.first()
+        match self.selected_launcher_result {
+            Some(index) => Some(index.min(shown - 1)),
+            None => self.selected_item_index.is_none().then_some(0),
+        }
+    }
+
+    /// The result of pop-launcher that is highlighted, which Enter
+    /// activates, see [`Applet::highlighted_launcher_result`].
+    pub fn default_launcher_result(&self) -> Option<&launcher::SearchResult> {
+        let index = self.highlighted_launcher_result()?;
+        self.shown_launcher_results().get(index).copied()
     }
 
     fn handle_launcher_event(&mut self, event: launcher::Event) -> Task<Message> {
@@ -1127,12 +1182,16 @@ impl Applet {
             launcher::Event::Stopped => {
                 self.launcher = None;
                 self.launcher_results.clear();
+                if !self.search_field.is_empty() {
+                    self.select_first_result();
+                }
                 Task::none()
             }
             launcher::Event::Response(response) => match response {
                 // Late answers to a search since cleared are dropped.
                 launcher::Response::Update(results) if !self.search_field.is_empty() => {
                     self.launcher_results = launcher::non_application_results(results);
+                    self.select_first_result();
                     Task::none()
                 }
                 launcher::Response::Update(_) | launcher::Response::Context { .. } => Task::none(),
@@ -1170,6 +1229,7 @@ impl Applet {
 
     fn clear_search(&mut self) -> Task<Message> {
         self.selected_item_index = None;
+        self.selected_launcher_result = None;
         self.selected_category = Some(ApplicationCategory::ALL);
         self.search_field.clear();
         if self.show_start_page() || self.show_default_category() {
@@ -1185,6 +1245,7 @@ impl Applet {
     fn update_search_field(&mut self, input: String) -> Task<Message> {
         self.selected_category = None;
         self.selected_item_index = None;
+        self.selected_launcher_result = None;
         self.start_page_favorites = None;
 
         if input.is_empty() {
@@ -1315,6 +1376,7 @@ impl Applet {
         self.start_page_favorites = None;
         self.selected_category = Some(category.clone());
         self.selected_item_index = None;
+        self.selected_launcher_result = None;
         // Only needed, and so only copied, for the recently used and
         // favorites categories.
         let recent_applications = if category == ApplicationCategory::RECENTLY_USED {
@@ -1400,29 +1462,81 @@ impl Applet {
 
     fn move_selection(&mut self, step: SelectionStep) -> cosmic::Task<cosmic::Action<Message>> {
         let (columns, item_height) = self.app_view_metrics();
-        self.selected_item_index = step_selection(
-            self.selected_item_index,
-            step,
-            self.available_applications.len(),
-            columns,
-        );
+        let shown = self.shown_launcher_results().len();
+        let backward = matches!(step, SelectionStep::Up | SelectionStep::Left);
+
+        if let Some(index) = self.highlighted_launcher_result() {
+            // Through the results above the apps, then on to the apps.
+            if backward || index + 1 < shown || self.available_applications.is_empty() {
+                let index = if backward {
+                    index.saturating_sub(1)
+                } else {
+                    (index + 1).min(shown - 1)
+                };
+                self.selected_launcher_result = Some(index);
+                return self.scroll_launcher_result_into_view(index);
+            }
+            self.selected_launcher_result = None;
+            self.selected_item_index = Some(0);
+        } else {
+            // From the first row of apps up to the last result above them.
+            let leaves_apps = shown > 0
+                && backward
+                && self.selected_item_index.is_none_or(|index| match step {
+                    SelectionStep::Up => index < columns,
+                    _ => columns > 1 && index == 0,
+                });
+            if leaves_apps {
+                self.selected_launcher_result = Some(shown - 1);
+                self.selected_item_index = None;
+                return self.scroll_launcher_result_into_view(shown - 1);
+            }
+            self.selected_item_index = step_selection(
+                self.selected_item_index,
+                step,
+                self.available_applications.len(),
+                columns,
+            );
+        }
 
         let Some(index) = self.selected_item_index else {
             return Task::none();
         };
+        // Below the results of pop-launcher, if any.
+        let header_height =
+            AppletMenu::search_header_layout(self).map_or(0., |layout| layout.height);
+        self.scroll_into_view(header_height + (index / columns) as f32 * item_height, item_height)
+    }
 
-        // Keep the selection scrolled into view.
-        let viewport_height = self.scroll_viewport_height.max(item_height);
+    /// Scrolls the shown result of pop-launcher at `index` into view.
+    fn scroll_launcher_result_into_view(
+        &self,
+        index: usize,
+    ) -> cosmic::Task<cosmic::Action<Message>> {
+        let Some(top) = AppletMenu::search_header_layout(self)
+            .and_then(|layout| layout.result_tops.get(index).copied())
+        else {
+            return Task::none();
+        };
+        let (_, item_height) =
+            crate::widgets::VirtualizedAppList::item_metrics(self.config.column_item_size);
+        // From the first, its heading too.
+        let top = if index == 0 { 0. } else { top };
+        self.scroll_into_view(top, f32::from(item_height))
+    }
+
+    /// Scrolls the apps' list so that the part `height` high at `top` of it
+    /// is in view, if it is not.
+    fn scroll_into_view(&self, top: f32, height: f32) -> cosmic::Task<cosmic::Action<Message>> {
+        let viewport_height = self.scroll_viewport_height.max(height);
         let visible_top = self.scroll_offset;
         let visible_bottom = visible_top + viewport_height;
+        let bottom = top + height;
 
-        let selected_top = (index / columns) as f32 * item_height;
-        let selected_bottom = selected_top + item_height;
-
-        let target_offset = if selected_top < visible_top {
-            selected_top
-        } else if selected_bottom > visible_bottom {
-            selected_bottom - viewport_height + 16.0
+        let target_offset = if top < visible_top {
+            top
+        } else if bottom > visible_bottom {
+            bottom - viewport_height + 16.0
         } else {
             return Task::none();
         };

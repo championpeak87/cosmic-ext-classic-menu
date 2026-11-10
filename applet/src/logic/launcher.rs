@@ -113,6 +113,33 @@ pub fn grouped(results: &[SearchResult]) -> Vec<(ResultGroup, Vec<&SearchResult>
     groups
 }
 
+/// Most results shown, the best ones.
+pub const MAX_SHOWN: usize = 5;
+
+/// The results shown, in the order they appear: the best ones, by group as
+/// [`grouped`] orders them.
+pub fn shown(results: &[SearchResult]) -> Vec<&SearchResult> {
+    grouped(&results[..results.len().min(MAX_SHOWN)])
+        .into_iter()
+        .flat_map(|(_, members)| members)
+        .collect()
+}
+
+/// `results`, already in the order [`shown`] gives, by their group.
+pub fn grouped_refs<'a>(
+    results: &[&'a SearchResult],
+) -> Vec<(ResultGroup, Vec<&'a SearchResult>)> {
+    let mut groups: Vec<(ResultGroup, Vec<&'a SearchResult>)> = Vec::new();
+    for result in results {
+        let group = result.group();
+        match groups.iter_mut().find(|(other, _)| *other == group) {
+            Some((_, members)) => members.push(result),
+            None => groups.push((group, vec![result])),
+        }
+    }
+    groups
+}
+
 /// A response of pop-launcher.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub enum Response {
@@ -303,6 +330,21 @@ mod tests {
                 (ResultGroup::Files, vec!["fire.txt"]),
             ]
         );
+    }
+
+    #[test]
+    fn shown_results_are_the_best_in_the_order_of_their_groups() {
+        let results = vec![
+            from_plugin("Firefox", "focus-windows-symbolic"),
+            from_plugin("ddg fire", "system-search"),
+            from_plugin("Files", "focus-windows-symbolic"),
+            from_plugin("a", "system-file-manager"),
+            from_plugin("b", "system-file-manager"),
+            from_plugin("c", "system-file-manager"),
+        ];
+
+        let names: Vec<&str> = shown(&results).iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, vec!["Firefox", "Files", "ddg fire", "a", "b"]);
     }
 
     #[test]

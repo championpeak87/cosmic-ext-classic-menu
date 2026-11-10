@@ -91,6 +91,10 @@ pub enum Message {
     /// [`AppModel::default_category_options`].
     DefaultCategoryChanged(usize),
     SidePanelChanged(usize),
+    /// Whether the side panel hides while searching.
+    HideSidePanelWhileSearchingToggled(bool),
+    /// Whether the menu opens focused, as a layer surface.
+    FocusedMenuToggled(bool),
     PlaceToggled(Place, bool),
     /// The enabled place at this index was grabbed.
     PlaceDragStart(usize),
@@ -374,6 +378,21 @@ impl cosmic::Application for AppModel {
 
                 self.save_config();
 
+                Task::none()
+            }
+            Message::FocusedMenuToggled(focused) => {
+                self.config.focused_menu = focused;
+                self.save_config();
+                // Without it, the menu opened by the shortcut could not be
+                // typed in, so the shortcut goes with it.
+                if !focused && self.menu_shortcut.is_some() {
+                    self.set_menu_shortcut(None);
+                }
+                Task::none()
+            }
+            Message::HideSidePanelWhileSearchingToggled(hide) => {
+                self.config.hide_side_panel_while_searching = hide;
+                self.save_config();
                 Task::none()
             }
             Message::SidePanelChanged(index) => {
@@ -681,7 +700,12 @@ impl AppModel {
 
         let mut section = cosmic::widget::settings::section()
             .title(fl!("side-panel"))
-            .add(Self::setting_item(fl!("side-panel-content"), content));
+            .add(Self::setting_item(fl!("side-panel-content"), content))
+            .add(Self::setting_item(
+                fl!("side-panel-hide-while-searching"),
+                cosmic::widget::toggler(self.config.hide_side_panel_while_searching)
+                    .on_toggle(Message::HideSidePanelWhileSearchingToggled),
+            ));
 
         // Shown once the categories are loaded.
         let options = self.default_category_options();
@@ -898,7 +922,7 @@ impl AppModel {
                 .add(Self::setting_item(fl!("button-label"), button_label))
                 .add(Self::setting_item(fl!("button-icon"), button_icon))
                 .into()])
-            .chain([self.shortcut_section()])
+            .chain([self.shortcut_section(), self.experimental_section()])
             .collect();
 
         if two_panes {
@@ -946,6 +970,18 @@ impl AppModel {
         }
     }
 
+    /// Options that may not work well yet.
+    fn experimental_section(&self) -> Element<'_, Message> {
+        cosmic::widget::settings::section()
+            .title(fl!("experimental"))
+            .add(
+                cosmic::widget::settings::item::builder(fl!("focused-menu"))
+                    .description(fl!("focused-menu-description"))
+                    .toggler(self.config.focused_menu, Message::FocusedMenuToggled),
+            )
+            .into()
+    }
+
     fn shortcut_section(&self) -> Element<'_, Message> {
         let label = if self.capturing_shortcut {
             fl!("keyboard-shortcut-press")
@@ -954,15 +990,18 @@ impl AppModel {
                 .as_ref()
                 .map_or_else(|| fl!("keyboard-shortcut-none"), ToString::to_string)
         };
+        // Only the focused menu can be typed in when opened by the shortcut.
+        let enabled = self.config.focused_menu;
         let keys = button::standard(label)
             .class(if self.capturing_shortcut {
                 cosmic::theme::Button::Suggested
             } else {
                 cosmic::theme::Button::Standard
             })
-            .on_press(Message::ShortcutCaptureToggled);
+            .on_press_maybe(enabled.then_some(Message::ShortcutCaptureToggled));
         let clear = self.menu_shortcut.is_some().then(|| {
-            button::icon(icon::from_name("edit-clear-symbolic")).on_press(Message::ShortcutCleared)
+            button::icon(icon::from_name("edit-clear-symbolic"))
+                .on_press_maybe(enabled.then_some(Message::ShortcutCleared))
         });
         let keys = cosmic::iced::widget::row![keys]
             .push_maybe(clear)
@@ -979,8 +1018,12 @@ impl AppModel {
             .add(Self::setting_item(fl!("keyboard-shortcut-keys"), keys))
             .add(Self::setting_item(
                 fl!("keyboard-shortcut-super"),
-                cosmic::widget::toggler(is_super).on_toggle(Message::ShortcutSuperToggled),
+                cosmic::widget::toggler(is_super)
+                    .on_toggle_maybe(enabled.then_some(Message::ShortcutSuperToggled)),
             ))
+            .add_maybe((!enabled).then(|| -> Element<'_, Message> {
+                text::caption(fl!("keyboard-shortcut-needs-focused-menu")).into()
+            }))
             .add_maybe(self.shortcut_taken.then(|| -> Element<'_, Message> {
                 text::caption(fl!("keyboard-shortcut-taken")).into()
             }))

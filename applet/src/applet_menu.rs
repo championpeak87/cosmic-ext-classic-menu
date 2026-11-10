@@ -7,7 +7,7 @@ use cosmic::iced::{
     widget::{column, row},
 };
 use cosmic::iced::core::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
-use cosmic::iced::{Background, ContentFit, Font, Limits};
+use cosmic::iced::{Background, ContentFit, Font, Limits, Padding};
 use cosmic::widget::text;
 use cosmic::iced::clipboard::dnd::DndAction;
 use cosmic::iced::widget::scrollable::{Direction, Scrollbar};
@@ -119,17 +119,22 @@ fn banner_button_class() -> cosmic::theme::Button {
     }
 }
 
-/// The menu on its transparent surface, solid as it is not blurred.
+/// The menu on its transparent surface.
+///
+/// Translucent when the theme frosts applets, but not blurred: cosmic-panel
+/// does not pass a blur of the menu on to the compositor, and the surface's
+/// own blur would cover all of it rather than just the menu.
 fn menu_surface_style(theme: &cosmic::Theme) -> container::Style {
     let cosmic = theme.cosmic();
+    let background = cosmic.background(cosmic.frosted_applets);
     container::Style {
-        text_color: Some(cosmic.background(false).on.into()),
-        icon_color: Some(cosmic.background(false).on.into()),
-        background: Some(Background::Color(cosmic.background(false).base.into())),
+        text_color: Some(background.on.into()),
+        icon_color: Some(background.on.into()),
+        background: Some(Background::Color(background.base.into())),
         border: cosmic::iced::Border {
             radius: cosmic.corner_radii.radius_m.into(),
             width: 1.0,
-            color: cosmic.background(false).divider.into(),
+            color: background.divider.into(),
         },
         ..Default::default()
     }
@@ -661,6 +666,9 @@ impl AppletMenu {
     fn create_dual_pane(applet: &Applet, tinted: bool) -> Element<'_, Message> {
         let side_panel_portion = applet.config.pane_portions().1;
         let app_list = AppletMenu::create_app_list(applet);
+        if applet.config.hide_side_panel_while_searching && !applet.search_field.is_empty() {
+            return app_list;
+        }
         let categories_pane = AppletMenu::create_categories_pane(applet);
         let categories_pane: Element<'_, Message> = if tinted {
             container(categories_pane)
@@ -761,18 +769,6 @@ impl AppletMenu {
             AppView::Column => VirtualizedAppList::view(applet),
             AppView::Grid => VirtualizedAppGrid::view(applet),
         };
-        // The other results lead, apps found follow under a heading.
-        if let Some(results) = AppletMenu::launcher_results(applet) {
-            let mut list = column![results];
-            if !applet.available_applications.is_empty() {
-                list = list.push(text::heading(fl!("search-applications")));
-            }
-            return list
-                .push(view)
-                .spacing(theme::active().cosmic().space_xxs())
-                .height(Length::Fill)
-                .into();
-        }
         // Search results are left by clearing the search. The button takes
         // the place of the one leading here, at the bottom.
         if applet.config.menu_layout.has_start_page() && applet.search_field.is_empty() {
@@ -789,34 +785,69 @@ impl AppletMenu {
         }
     }
 
-    /// Most results of pop-launcher's plugins shown above the apps found.
-    const MAX_LAUNCHER_RESULTS: usize = 5;
+    /// Height of the headings of the search results.
+    const SEARCH_HEADING_HEIGHT: f32 = 28.0;
+    /// Height of the dividers between the rows of a list.
+    const LIST_DIVIDER_HEIGHT: f32 = 1.0;
+
+    /// Where the parts of [`AppletMenu::search_header`] are, if shown: tops
+    /// of the results of pop-launcher, in their order, and the height of the
+    /// whole, after which the apps found follow. The apps' lists use it to
+    /// tell which apps are in view, and the arrow keys to scroll to them.
+    pub(crate) fn search_header_layout(applet: &Applet) -> Option<SearchHeaderLayout> {
+        let shown = applet.shown_launcher_results();
+        if shown.is_empty() {
+            return None;
+        }
+        let spacing = f32::from(theme::active().cosmic().space_xxs());
+        let item_height = f32::from(VirtualizedAppList::item_metrics(applet.config.column_item_size).1);
+
+        let mut result_tops = Vec::with_capacity(shown.len());
+        let mut y = 0.;
+        for (_, results) in crate::logic::launcher::grouped_refs(&shown) {
+            y += Self::SEARCH_HEADING_HEIGHT + spacing;
+            for _ in &results {
+                result_tops.push(y);
+                y += item_height + Self::LIST_DIVIDER_HEIGHT;
+            }
+            y += spacing - Self::LIST_DIVIDER_HEIGHT;
+        }
+        if !applet.available_applications.is_empty() {
+            y += Self::SEARCH_HEADING_HEIGHT + spacing;
+        }
+        Some(SearchHeaderLayout {
+            result_tops,
+            height: y,
+        })
+    }
 
     /// Results of pop-launcher's plugins for the search, such as the
     /// calculator, files, open windows or web searches, each kind under a
-    /// heading of its own.
-    fn launcher_results<'a>(applet: &'a Applet) -> Option<Element<'a, Message>> {
-        if applet.search_field.is_empty() || applet.launcher_results.is_empty() {
+    /// heading of its own, and the heading of the apps found below. Shown at
+    /// the top of the apps' list, scrolling with it, and laid out as
+    /// [`AppletMenu::search_header_layout`] tells.
+    pub(crate) fn search_header<'a>(applet: &'a Applet) -> Option<Element<'a, Message>> {
+        let shown = applet.shown_launcher_results();
+        if shown.is_empty() {
             return None;
         }
-        let Spacing { space_xxs, space_xs, space_s, .. } = theme::active().cosmic().spacing;
+        let Spacing { space_xxs, space_s, .. } = theme::active().cosmic().spacing;
         let (icon_size, item_height) =
             VirtualizedAppList::item_metrics(applet.config.column_item_size);
         let highlighted = applet.default_launcher_result().map(|result| result.id);
 
-        // The best results, grouped once picked.
-        let best = &applet.launcher_results
-            [..applet.launcher_results.len().min(Self::MAX_LAUNCHER_RESULTS)];
+        // As the apps' rows look, see `VirtualizedAppList::create_app_button`.
         let row = |result: &'a crate::logic::launcher::SearchResult| -> Element<'a, Message> {
             let description = (!result.description.is_empty()).then(|| {
                 text(&result.description)
-                    .size(10)
+                    .size(VirtualizedAppList::DESCRIPTION_SIZE)
                     .wrapping(Wrapping::None)
                     .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
             });
             cosmic::widget::button::custom(
                 row![
                     AppletMenu::launcher_icon(result, icon_size),
+                    cosmic::widget::Space::new().width(5).height(Length::Fill),
                     column![
                         text(&result.name)
                             .wrapping(Wrapping::None)
@@ -824,7 +855,6 @@ impl AppletMenu {
                     ]
                     .push_maybe(description),
                 ]
-                .spacing(5)
                 .align_y(Alignment::Center),
             )
             .on_press(Message::LauncherResultActivated(result.id))
@@ -838,14 +868,28 @@ impl AppletMenu {
             .height(item_height)
             .into()
         };
-
-        let groups = crate::logic::launcher::grouped(best).into_iter().map(|(group, results)| {
-            column![text::heading(AppletMenu::result_group_name(group))]
-                .extend(results.into_iter().map(row))
-                .spacing(space_xxs)
+        let heading = |title: String| -> Element<'a, Message> {
+            container(text::heading(title))
+                .height(Length::Fixed(Self::SEARCH_HEADING_HEIGHT))
+                .align_y(Alignment::Center)
                 .into()
-        });
-        Some(column(groups).spacing(space_xs).into())
+        };
+
+        let mut header = column![].spacing(space_xxs);
+        for (group, results) in crate::logic::launcher::grouped_refs(&shown) {
+            let list = results.into_iter().fold(
+                cosmic::widget::list_column().list_item_padding(0),
+                |list, result| list.add(row(result)),
+            );
+            header = header
+                .push(heading(AppletMenu::result_group_name(group)))
+                .push(list);
+        }
+        if !applet.available_applications.is_empty() {
+            header = header.push(heading(fl!("search-applications")));
+        }
+        // Spaced from the apps as its parts are from each other.
+        Some(container(header).padding(Padding { bottom: f32::from(space_xxs), ..Padding::ZERO }).into())
     }
 
     /// Heading of a kind of results of pop-launcher.
@@ -1318,4 +1362,13 @@ impl AppletMenu {
             cosmic::widget::Space::new().width(0).height(0).into()
         }
     }
+}
+
+/// Where the parts of the search results above the apps are, see
+/// [`AppletMenu::search_header_layout`].
+pub(crate) struct SearchHeaderLayout {
+    /// Tops of the shown results of pop-launcher, in their order.
+    pub result_tops: Vec<f32>,
+    /// Height of the whole, including the apps' heading.
+    pub height: f32,
 }

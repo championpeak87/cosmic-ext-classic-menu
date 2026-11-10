@@ -62,11 +62,7 @@ impl Default for Placement {
 pub fn placement(panel: PanelAnchor, applet_id: &str, thickness: i32) -> Placement {
     let config = panel_config();
     let section = config.as_ref().map_or(PanelSection::Start, |config| {
-        section_in(
-            config.expand_to_edges,
-            config.plugins_wings.as_ref(),
-            applet_id,
-        )
+        section_in(config.plugins_wings.as_ref(), applet_id)
     });
     let (align_x, align_y) = alignments(panel, section);
     // Panels reserving their space are already clear of the surface.
@@ -124,14 +120,14 @@ fn panel_config() -> Option<CosmicPanelConfig> {
     Some(CosmicPanelConfig::get_entry(&config).unwrap_or_else(|(_errors, config)| config))
 }
 
-/// A panel not reaching the screen's edges is around its center, whichever
-/// wing holds the applet.
-fn section_in(
-    expands_to_edges: bool,
-    wings: Option<&(Vec<String>, Vec<String>)>,
-    applet_id: &str,
-) -> PanelSection {
-    let Some((start, end)) = wings.filter(|_| expands_to_edges) else {
+/// The section of the panel holding the applet, which picks the corner the
+/// menu opens in.
+///
+/// Also in a dock, which shows its sections as one row in the middle of the
+/// screen: an applet in its start section opens the menu in the corner on
+/// that side, like one at the start of a panel.
+fn section_in(wings: Option<&(Vec<String>, Vec<String>)>, applet_id: &str) -> PanelSection {
+    let Some((start, end)) = wings else {
         return PanelSection::Center;
     };
     if start.iter().any(|id| id == applet_id) {
@@ -170,14 +166,10 @@ mod tests {
     #[test]
     fn section_follows_the_applets_wing() {
         let wings = wings();
-        assert_eq!(section_in(true, Some(&wings), "start"), PanelSection::Start);
-        assert_eq!(section_in(true, Some(&wings), "end"), PanelSection::End);
-        assert_eq!(section_in(true, Some(&wings), "other"), PanelSection::Center);
-    }
-
-    #[test]
-    fn panels_not_reaching_the_edges_center_the_menu() {
-        assert_eq!(section_in(false, Some(&wings()), "start"), PanelSection::Center);
+        assert_eq!(section_in(Some(&wings), "start"), PanelSection::Start);
+        assert_eq!(section_in(Some(&wings), "end"), PanelSection::End);
+        assert_eq!(section_in(Some(&wings), "other"), PanelSection::Center);
+        assert_eq!(section_in(None, "start"), PanelSection::Center);
     }
 
     #[test]
