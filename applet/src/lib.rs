@@ -2,6 +2,7 @@ pub mod applet;
 pub mod i18n;
 pub mod config;
 pub mod logic;
+pub mod menu_surface;
 pub mod power_options;
 pub mod cosmic_session;
 pub mod dbus;

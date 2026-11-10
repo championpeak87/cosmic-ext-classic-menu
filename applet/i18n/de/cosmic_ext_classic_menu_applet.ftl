@@ -1,6 +1,7 @@
 cosmic-applet-button = Kosmische Taste
 
 # Kategorien
+home-page=Startseite
 all-applications=Alle Anwendungen
 recently-used=Kürzlich verwendet
 audio=Audio
@@ -46,3 +47,15 @@ place-store=App Store
 place-system-monitor=Systemmonitor
 place-disks=Laufwerke
 place-separator=Trennlinie
+
+favorites=Favoriten
+favorites-empty=Apps hierher ziehen oder über ihr Kontextmenü hinzufügen
+back=Zurück
+search-applications=Anwendungen
+search-calculator=Rechner
+search-windows=Fenster
+search-files=Dateien
+search-web=Websuche
+search-commands=Befehle
+search-sound=Ton
+search-other=Weitere Ergebnisse

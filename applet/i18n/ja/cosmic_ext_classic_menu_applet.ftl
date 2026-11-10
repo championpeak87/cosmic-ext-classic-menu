@@ -1,6 +1,7 @@
 cosmic-applet-button = コズミックボタン
 
 # カテゴリ
+home-page=ホーム
 all-applications=すべてのアプリケーション
 recently-used=最近使用したもの
 audio=オーディオ
@@ -46,3 +47,15 @@ place-store=アプリストア
 place-system-monitor=システムモニター
 place-disks=ディスク
 place-separator=区切り線
+
+favorites=お気に入り
+favorites-empty=ここにアプリをドラッグするか、コンテキストメニューから追加してください
+back=戻る
+search-applications=アプリケーション
+search-calculator=電卓
+search-windows=ウィンドウ
+search-files=ファイル
+search-web=ウェブ検索
+search-commands=コマンド
+search-sound=サウンド
+search-other=その他の結果

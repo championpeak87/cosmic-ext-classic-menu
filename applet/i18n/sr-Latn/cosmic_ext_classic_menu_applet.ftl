@@ -1,6 +1,7 @@
 cosmic-applet-button = Kosmičko dugme
 
 # kategorije
+home-page=Početna
 all-applications=Sve aplikacije
 recently-used=Nedavno korišćene
 audio=Audio
@@ -46,3 +47,15 @@ place-store=Prodavnica aplikacija
 place-system-monitor=Nadgledanje sistema
 place-disks=Diskovi
 place-separator=Razdvajač
+
+favorites=Omiljene
+favorites-empty=Prevucite aplikacije ovde ili ih dodajte iz njihovog kontekstnog menija
+back=Nazad
+search-applications=Aplikacije
+search-calculator=Kalkulator
+search-windows=Prozori
+search-files=Datoteke
+search-web=Pretraga veba
+search-commands=Naredbe
+search-sound=Zvuk
+search-other=Ostali rezultati

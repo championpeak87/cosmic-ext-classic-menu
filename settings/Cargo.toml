@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-ext-classic-menu-settings"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 authors = ["Kamil Lihan <k.lihan@outlook.com>"]
 license = "GPL-3.0-only"
@@ -21,6 +21,7 @@ cosmic-ext-classic-menu-applet = { path = "../applet" }
 simple_logger = { workspace = true }
 log = { workspace = true }
 i18n-embed = { workspace = true, features = ["fluent-system", "desktop-requester"] }
+cosmic-settings-config = { git = "https://github.com/pop-os/cosmic-settings-daemon" }
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"

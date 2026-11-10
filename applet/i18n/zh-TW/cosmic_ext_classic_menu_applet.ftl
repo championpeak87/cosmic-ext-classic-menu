@@ -1,6 +1,7 @@
 cosmic-applet-button = 宇宙按鈕
 
 # 類別
+home-page=首頁
 all-applications=所有應用程式
 recently-used=最近使用
 audio=音訊
@@ -46,3 +47,15 @@ place-store=應用程式商店
 place-system-monitor=系統監控
 place-disks=磁碟
 place-separator=分隔線
+
+favorites=我的最愛
+favorites-empty=將應用程式拖曳到這裡，或從其右鍵選單加入
+back=返回
+search-applications=應用程式
+search-calculator=計算機
+search-windows=視窗
+search-files=檔案
+search-web=網路搜尋
+search-commands=指令
+search-sound=聲音
+search-other=其他結果

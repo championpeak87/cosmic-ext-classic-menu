@@ -1,6 +1,7 @@
 cosmic-applet-button = Kozmik Düğme
 
 # kategoriler
+home-page=Ana Sayfa
 all-applications=Tüm uygulamalar
 recently-used=Son kullanılanlar
 audio=Ses
@@ -46,3 +47,15 @@ place-store=Uygulama mağazası
 place-system-monitor=Sistem izleyici
 place-disks=Diskler
 place-separator=Ayırıcı
+
+favorites=Sık kullanılanlar
+favorites-empty=Uygulamaları buraya sürükleyin veya bağlam menülerinden ekleyin
+back=Geri
+search-applications=Uygulamalar
+search-calculator=Hesap makinesi
+search-windows=Pencereler
+search-files=Dosyalar
+search-web=Web araması
+search-commands=Komutlar
+search-sound=Ses
+search-other=Diğer sonuçlar

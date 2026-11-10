@@ -1,6 +1,7 @@
 cosmic-applet-button = Kozmikus gomb
 
 # kategóriák
+home-page=Kezdőlap
 all-applications=Minden alkalmazás
 recently-used=Nemrég használt
 audio=Hang
@@ -46,3 +47,15 @@ place-store=Alkalmazásbolt
 place-system-monitor=Rendszerfigyelő
 place-disks=Lemezek
 place-separator=Elválasztó
+
+favorites=Kedvencek
+favorites-empty=Húzza ide az alkalmazásokat, vagy adja hozzá őket a helyi menüjükből
+back=Vissza
+search-applications=Alkalmazások
+search-calculator=Számológép
+search-windows=Ablakok
+search-files=Fájlok
+search-web=Webes keresés
+search-commands=Parancsok
+search-sound=Hang
+search-other=További találatok

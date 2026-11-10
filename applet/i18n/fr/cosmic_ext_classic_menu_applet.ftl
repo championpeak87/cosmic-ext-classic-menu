@@ -1,6 +1,7 @@
 cosmic-applet-button = Bouton Cosmique
 
 # catégories
+home-page=Accueil
 all-applications=Toutes les applications
 recently-used=Récemment utilisées
 audio=Audio
@@ -46,3 +47,15 @@ place-store=Logithèque
 place-system-monitor=Moniteur système
 place-disks=Disques
 place-separator=Séparateur
+
+favorites=Favoris
+favorites-empty=Faites glisser des applications ici ou ajoutez-les depuis leur menu contextuel
+back=Retour
+search-applications=Applications
+search-calculator=Calculatrice
+search-windows=Fenêtres
+search-files=Fichiers
+search-web=Recherche web
+search-commands=Commandes
+search-sound=Son
+search-other=Autres résultats

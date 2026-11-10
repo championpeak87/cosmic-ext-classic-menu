@@ -1,6 +1,16 @@
 [Desktop Entry]
 Name=Classic Menu
 Name[cs]=Klasické menu
+Comment=A launcher applet for the COSMIC™ Desktop
+Comment[cs]=Applet spouštěče pro plochu COSMIC™
+Comment[de]=Ein Starter-Applet für den COSMIC™ Desktop
+Comment[fr]=Une applette de lancement pour le bureau COSMIC™
+Comment[es]=Un applet de lanzador para el Escritorio COSMIC™
+Comment[ru]=Апплет запуска для рабочего стола COSMIC™
+Comment[ja]=COSMIC™ デスクトップ用のランチャーアプレット
+Comment[hu]=Indító applet a COSMIC™ asztali környezethez
+Comment[pl]=Aplet uruchamiający dla pulpitu COSMIC™
+Comment[sk]=Spúšťací applet pre plochu COSMIC™
 Exec=cosmic-ext-classic-menu-applet
 Terminal=false
 Type=Application

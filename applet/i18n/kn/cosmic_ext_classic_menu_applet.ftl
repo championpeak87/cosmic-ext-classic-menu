@@ -1,6 +1,7 @@
 cosmic-applet-button = ಕಾಸ್ಮಿಕ್ ಬಟನ್
 
 # ವರ್ಗಗಳು
+home-page=ಮುಖಪುಟ
 all-applications=ಎಲ್ಲಾ ಅಪ್ಲಿಕೇಶನ್‌ಗಳು
 recently-used=ಇತ್ತೀಚೆಗೆ ಬಳಸಿದವು
 audio=ಆಡಿಯೋ
@@ -46,3 +47,15 @@ place-store=ಅಪ್ಲಿಕೇಶನ್ ಸ್ಟೋರ್
 place-system-monitor=ಸಿಸ್ಟಮ್ ಮಾನಿಟರ್
 place-disks=ಡಿಸ್ಕ್‌ಗಳು
 place-separator=ವಿಭಾಜಕ
+
+favorites=ಮೆಚ್ಚಿನವುಗಳು
+favorites-empty=ಅಪ್ಲಿಕೇಶನ್‌ಗಳನ್ನು ಇಲ್ಲಿಗೆ ಎಳೆಯಿರಿ ಅಥವಾ ಅವುಗಳ ಸಂದರ್ಭ ಮೆನುವಿನಿಂದ ಸೇರಿಸಿ
+back=ಹಿಂದೆ
+search-applications=ಅಪ್ಲಿಕೇಶನ್‌ಗಳು
+search-calculator=ಕ್ಯಾಲ್ಕುಲೇಟರ್
+search-windows=ವಿಂಡೋಗಳು
+search-files=ಫೈಲ್‌ಗಳು
+search-web=ವೆಬ್ ಹುಡುಕಾಟ
+search-commands=ಆಜ್ಞೆಗಳು
+search-sound=ಧ್ವನಿ
+search-other=ಇತರ ಫಲಿತಾಂಶಗಳು

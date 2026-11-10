@@ -1,6 +1,7 @@
 cosmic-applet-button = Kosmiczny Przycisk
 
 # kategorie
+home-page=Strona główna
 all-applications=Wszystkie aplikacje
 recently-used=Ostatnio używane
 audio=Audio
@@ -46,3 +47,15 @@ place-store=Sklep z aplikacjami
 place-system-monitor=Monitor systemu
 place-disks=Dyski
 place-separator=Separator
+
+favorites=Ulubione
+favorites-empty=Przeciągnij tu aplikacje lub dodaj je z ich menu kontekstowego
+back=Wstecz
+search-applications=Aplikacje
+search-calculator=Kalkulator
+search-windows=Okna
+search-files=Pliki
+search-web=Wyszukiwanie w sieci
+search-commands=Polecenia
+search-sound=Dźwięk
+search-other=Inne wyniki

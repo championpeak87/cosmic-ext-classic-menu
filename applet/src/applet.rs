@@ -7,31 +7,41 @@ use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner
     Anchor, Gravity,
 };
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
-use cosmic::iced::event::listen_raw;
+use crate::logic::selection::{SelectionStep, step_selection};
+use cosmic::iced::event::{Status, listen_raw};
 use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::widget::operation::AbsoluteOffset;
 use cosmic::iced::widget::scrollable::{RelativeOffset, Viewport};
 use cosmic::iced::{
     Alignment,
-    platform_specific::shell::commands::popup::destroy_popup,
+    event::{PlatformSpecific, wayland},
+    platform_specific::shell::commands::{
+        layer_surface::destroy_layer_surface, popup::destroy_popup,
+    },
     widget::{column, row},
     window::Id,
 };
-use cosmic::iced::{Subscription, keyboard};
+use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};
+use cosmic::iced::{Point, Subscription, keyboard};
 use cosmic::surface::Action;
-use cosmic::surface::action::{LiveSettings, app_popup};
+use cosmic::surface::action::{LiveSettings, app_layer_shell, app_popup};
 use cosmic::{Application, Element};
 use cosmic_app_list_config::AppListConfig;
 use std::process;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::applet_button::AppletButton;
 use crate::applet_menu::AppletMenu;
-use crate::config::{AppletButtonStyle, AppletConfig, RecentApplication};
+use crate::config::{
+    AppView, AppletButtonStyle, AppletConfig, FeaturedApplications, RecentApplication,
+};
 use crate::fl;
 use crate::logic::apps::{Event, desktop_files, load_apps};
+use crate::logic::launcher;
 use crate::model::application_category::ApplicationCategory;
 use crate::model::application_entry::{ApplicationEntry, DesktopAction};
+use crate::model::dragged_app::DraggedApp;
 use crate::model::popup_type::PopupType;
 use crate::model::power_action::PowerAction;
 use crate::model::system_tool::SystemTool;
@@ -54,6 +64,17 @@ pub struct Applet {
     pub available_applications: Vec<Arc<ApplicationEntry>>,
     /// The list of available categories that are displayed in the menu.
     pub available_categories: Vec<ApplicationCategory>,
+    /// Whether the main menu is a layer surface rather than a popup, as
+    /// decided when it opens, see [`Applet::menu_opens_as_layer_surface`].
+    pub menu_is_layer_surface: bool,
+    /// Where the menu goes on its surface.
+    pub menu_placement: crate::menu_surface::Placement,
+    /// Takes requests to pop-launcher while it runs.
+    pub launcher: Option<tokio::sync::mpsc::UnboundedSender<launcher::Request>>,
+    /// Results of pop-launcher's plugins for the search, other than apps.
+    pub launcher_results: Vec<launcher::SearchResult>,
+    /// When the menu last closed because it lost the keyboard.
+    pub menu_unfocused_at: Option<Instant>,
     /// The popup type that is used to determine which popup to display.
     pub popup_type: PopupType,
     /// The selected category that is used to filter the applications.
@@ -62,6 +83,9 @@ pub struct Applet {
     pub current_user: Option<User>,
     /// Currently selected item
     pub selected_item_index: Option<usize>,
+    /// The result of pop-launcher highlighted with the arrow keys, by its
+    /// place among those shown, see [`Applet::shown_launcher_results`].
+    pub selected_launcher_result: Option<usize>,
     /// Scrollable ID for keyboard navigation
     pub scrollable_id: cosmic::widget::Id,
     /// List of pinned apps
@@ -80,9 +104,75 @@ pub struct Applet {
     /// Index of the app in `available_applications` whose context menu is
     /// shown on right click.
     pub context_menu_target: Option<usize>,
+    /// Whether the context menu of an app is showing.
+    pub context_menu_open: bool,
     /// Whether an app claimed the current right click, see
     /// [`Message::ContextMenuRightPress`].
     context_menu_target_claimed: bool,
+    /// Where an app dragged over the favorites would be dropped.
+    pub favorites_drop_target: Option<FavoritesDropTarget>,
+    /// The app being dragged, if any.
+    pub app_drag: Option<AppDrag>,
+    /// Number of favorites leading `available_applications` while it holds
+    /// the start page of layouts having one, `None` otherwise.
+    pub start_page_favorites: Option<usize>,
+}
+
+/// Where an app dropped on the favorites goes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FavoritesDropTarget {
+    /// At the end, unless it is a favorite already. Dropped on the
+    /// favorites category, the favorites row of the modern layout or the
+    /// sidebar.
+    Add,
+    /// First, moved there if it is a favorite already. Dropped on the start
+    /// page, which shows only the first favorites.
+    First,
+    /// Moved to, or added at, the end. Dropped below the favorites.
+    End,
+    /// Takes the place of the favorite at `index`.
+    Onto {
+        index: usize,
+        region: FavoritesRegion,
+    },
+}
+
+/// Where a favorite is shown. It can be in several of them at once, and
+/// every drop target needs an id of its own.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FavoritesRegion {
+    /// The sidebar or the favorites row.
+    Bar,
+    /// The app view.
+    List,
+}
+
+/// An app being dragged out of the menu.
+#[derive(Clone, Debug)]
+pub struct AppDrag {
+    pub app_id: String,
+    pub icon: Option<crate::model::application_entry::IconHandle>,
+    /// Where it is on the menu's surface, if it is over it.
+    pub position: Option<Point>,
+}
+
+impl FavoritesDropTarget {
+    /// Drag id of the drop target, which must stay the same between views
+    /// for drag events to reach it.
+    pub fn drag_id(self) -> u64 {
+        match self {
+            FavoritesDropTarget::Add => u64::MAX - 1,
+            FavoritesDropTarget::First => u64::MAX - 2,
+            FavoritesDropTarget::End => u64::MAX - 3,
+            FavoritesDropTarget::Onto { index, region } => {
+                let region = match region {
+                    FavoritesRegion::Bar => 0,
+                    FavoritesRegion::List => 1,
+                };
+                u64::MAX - 4 - 2 * index as u64 - region
+            }
+        }
+    }
 }
 
 /// This is the enum that contains all the possible variants that your application will need to transmit messages.
@@ -105,10 +195,19 @@ pub enum Message {
     UpdateAvailableApplications(Vec<Arc<ApplicationEntry>>),
     /// All apps and their categories, loaded in the background.
     ApplicationsLoaded(Vec<Arc<ApplicationEntry>>, Vec<ApplicationCategory>),
-    SelectPreviousApp,
-    SelectNextApp,
+    MoveSelection(crate::logic::selection::SelectionStep),
     LaunchSelectedApplication,
     SuperKeyPressed,
+    /// The empty part of the menu's surface was clicked.
+    CloseMenu,
+    /// The menu itself was clicked, which must not close it.
+    MenuPressed,
+    /// A layer surface lost the keyboard, e.g. by clicking elsewhere.
+    SurfaceUnfocused(Id),
+    /// News from pop-launcher, see [`launcher`].
+    Launcher(launcher::Event),
+    /// A result of pop-launcher was clicked, by its id.
+    LauncherResultActivated(u32),
     AppListConfigUpdated(AppListConfig),
     ContextMenuAction(Action<Message>),
     LaunchApplicationAt(usize),
@@ -119,9 +218,27 @@ pub enum Message {
     ContextMenuTarget(usize),
     /// Adds or removes the app at this index from the favorites.
     ToggleFavoriteAt(usize),
+    /// An app was dropped on the favorites.
+    FavoriteDropped(Option<DraggedApp>, FavoritesDropTarget),
+    /// An app is dragged onto a drop target of the favorites.
+    FavoritesDragEntered(FavoritesDropTarget),
+    /// An app is dragged off a drop target of the favorites.
+    FavoritesDragLeft(FavoritesDropTarget),
+    /// Dragging an app out of the menu started.
+    AppDragStarted(String, Option<crate::model::application_entry::IconHandle>),
+    /// A drag moved on the menu's surface, or left it.
+    DragMoved(Option<Point>),
+    /// Dragging an app out of the app view was finished or cancelled.
+    AppDragEnded,
+    /// Leaves the start page for the list of all apps.
+    ShowAllApplications,
+    /// Returns to the start page.
+    ShowStartPage,
     OpenPlace(crate::model::place::Place),
     /// Right press anywhere in the app view.
     ContextMenuRightPress,
+    /// The context menu of an app was shown or dismissed.
+    ContextMenuOpenChanged(bool),
 }
 
 /// Implement the `Application` trait for your application.
@@ -162,18 +279,28 @@ impl Application for Applet {
             config: AppletConfig::config(),
             current_user: None,
             selected_item_index: None,
+            selected_launcher_result: None,
             scrollable_id: cosmic::widget::Id::unique(),
             app_list_config: Default::default(),
             available_applications: Vec::new(),
             available_categories: Vec::new(),
             popup: None,
+            menu_is_layer_surface: false,
+            menu_placement: Default::default(),
+            launcher: None,
+            launcher_results: Vec::new(),
+            menu_unfocused_at: None,
             context_menu: None,
             scroll_offset: 0.0,
             scroll_viewport_height: 0.0,
             favorite_applications: Vec::new(),
             recent_applications: Vec::new(),
             context_menu_target: None,
+            context_menu_open: false,
             context_menu_target_claimed: false,
+            favorites_drop_target: None,
+            app_drag: None,
+            start_page_favorites: None,
         };
 
         // fetch current user asynchronously
@@ -271,11 +398,19 @@ impl Application for Applet {
                 // context menu show.
                 self.update_featured_applications();
                 self.update_context_menu();
+                if self.start_page_favorites.is_some() {
+                    self.show_start_page();
+                }
 
                 Task::none()
             }
             Message::UpdateAvailableApplications(items) => {
+                // A category or search left for the start page while loading.
+                if self.start_page_favorites.is_some() {
+                    return Task::none();
+                }
                 self.available_applications = items;
+                self.select_first_result();
                 // Indices into the old list no longer apply.
                 self.context_menu_target = None;
                 self.context_menu = None;
@@ -285,7 +420,8 @@ impl Application for Applet {
             Message::ApplicationsLoaded(applications, categories) => {
                 self.available_categories = categories;
                 // Leave search results and other categories in place.
-                if self.search_field.is_empty()
+                if self.start_page_favorites.is_none()
+                    && self.search_field.is_empty()
                     && self.selected_category == Some(ApplicationCategory::ALL)
                 {
                     self.available_applications = applications;
@@ -293,22 +429,55 @@ impl Application for Applet {
                     self.context_menu = None;
                 }
                 self.update_featured_applications();
+                if self.start_page_favorites.is_some() {
+                    self.show_start_page();
+                }
 
                 Task::none()
             }
-            Message::SelectPreviousApp => self.select_previous_app(),
-            Message::SelectNextApp => self.select_next_app(),
+            Message::MoveSelection(step) => self.move_selection(step),
             Message::LaunchSelectedApplication => {
+                if self.selected_launcher_result.is_some()
+                    && let Some(result) = self.default_launcher_result()
+                {
+                    self.launcher_request(launcher::Request::Activate(result.id));
+                    return Task::none();
+                }
                 if let Some(index) = self.selected_item_index {
                     let selected_application =
                         self.available_applications.get(index).unwrap().clone();
 
                     return self.launch_application(selected_application, None);
                 }
+                // With no app found, e.g. for "= 2+3", Enter takes the first
+                // of the other results.
+                if let Some(result) = self.default_launcher_result() {
+                    self.launcher_request(launcher::Request::Activate(result.id));
+                }
 
                 Task::none()
             }
+            Message::Launcher(event) => self.handle_launcher_event(event),
+            Message::LauncherResultActivated(id) => {
+                self.launcher_request(launcher::Request::Activate(id));
+                Task::none()
+            }
             Message::SuperKeyPressed => self.toggle_popup(PopupType::MainMenu),
+            Message::CloseMenu => {
+                if let Some(p) = self.popup.take() {
+                    return self.destroy_surface(p);
+                }
+                Task::none()
+            }
+            Message::MenuPressed => Task::none(),
+            Message::SurfaceUnfocused(id) => {
+                if self.popup == Some(id) && self.opens_layer_surface() {
+                    self.popup = None;
+                    self.menu_unfocused_at = Some(Instant::now());
+                    return destroy_layer_surface(id);
+                }
+                Task::none()
+            }
             Message::LaunchApplicationAt(index) => {
                 if let Some(app) = self.available_applications.get(index).cloned() {
                     return self.launch_application(app, None);
@@ -349,27 +518,93 @@ impl Application for Applet {
                     let mut favorites = self.config.favorite_applications.clone();
                     if let Some(position) = favorites.iter().position(|id| *id == app.id) {
                         favorites.remove(position);
+                    } else if self.config.menu_layout.has_start_page() {
+                        // The start page shows only the first favorites.
+                        favorites.insert(0, app.id.clone());
                     } else {
                         favorites.push(app.id.clone());
                     }
-
-                    // Write only this key, see `update_recent_applications`.
-                    if let Err(err) = self.config.set_favorite_applications(
-                        AppletConfig::config_handler().as_ref().unwrap(),
-                        favorites,
-                    ) {
-                        log::error!("Failed to write favorite applications: {err}");
-                    }
-                    self.update_featured_applications();
-                    self.update_context_menu();
+                    self.set_favorite_applications(favorites);
                 }
 
                 Task::none()
             }
+            Message::FavoriteDropped(dragged_app, target) => {
+                self.favorites_drop_target = None;
+                self.app_drag = None;
+                if let Some(DraggedApp { app_id, .. }) = dragged_app {
+                    let index = match target {
+                        FavoritesDropTarget::Add => None,
+                        FavoritesDropTarget::First => Some(0),
+                        FavoritesDropTarget::End => Some(self.config.favorite_applications.len()),
+                        FavoritesDropTarget::Onto { index, .. } => {
+                            Some(crate::logic::apps::favorite_drop_index(
+                                &self.config.favorite_applications,
+                                &app_id,
+                                index,
+                            ))
+                        }
+                    };
+                    let favorites = crate::logic::apps::place_favorite(
+                        &self.config.favorite_applications,
+                        &app_id,
+                        index,
+                    );
+                    if favorites != self.config.favorite_applications {
+                        self.set_favorite_applications(favorites);
+                    }
+                }
+
+                Task::none()
+            }
+            Message::FavoritesDragEntered(target) => {
+                self.favorites_drop_target = Some(target);
+                Task::none()
+            }
+            Message::FavoritesDragLeft(target) => {
+                // Moving between targets may enter the next before leaving
+                // the last.
+                if self.favorites_drop_target == Some(target) {
+                    self.favorites_drop_target = None;
+                }
+                Task::none()
+            }
+            Message::AppDragStarted(app_id, icon) => {
+                self.app_drag = Some(AppDrag {
+                    app_id,
+                    icon,
+                    position: None,
+                });
+                Task::none()
+            }
+            Message::DragMoved(position) => {
+                if let Some(drag) = self.app_drag.as_mut() {
+                    drag.position = position;
+                }
+                Task::none()
+            }
+            Message::AppDragEnded => {
+                self.favorites_drop_target = None;
+                self.app_drag = None;
+                Task::none()
+            }
+            Message::ShowAllApplications => {
+                self.start_page_favorites = None;
+                self.select_category(ApplicationCategory::ALL)
+            }
+            Message::ShowStartPage => {
+                // The home entry can be used while searching.
+                self.search_field.clear();
+                self.show_start_page();
+                cosmic::iced::widget::operation::snap_to(
+                    self.scrollable_id.clone(),
+                    RelativeOffset { x: 0., y: 0. },
+                )
+            }
             Message::OpenPlace(place) => {
                 place.open();
                 if let Some(p) = self.popup.take() {
-                    return destroy_popup(p);
+                    return self.destroy_surface(p);
                 }
                 Task::none()
             }
@@ -387,6 +622,10 @@ impl Application for Applet {
                 self.context_menu_target = Some(index);
                 self.context_menu_target_claimed = true;
                 self.update_context_menu();
+                Task::none()
+            }
+            Message::ContextMenuOpenChanged(open) => {
+                self.context_menu_open = open;
                 Task::none()
             }
             Message::ContextMenuRightPress => {
@@ -413,15 +652,29 @@ impl Application for Applet {
     fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch(vec![
             desktop_files().map(Message::FileEvent),
-            listen_raw(|event, _, _| {
+            listen_raw(|event, status, _| {
                 return match event {
+                    cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
+                        wayland::Event::Layer(wayland::LayerEvent::Unfocused, _, id),
+                    )) => Some(Message::SurfaceUnfocused(id)),
+                    cosmic::iced::Event::Dnd(DndEvent::Offer(
+                        _,
+                        OfferEvent::Enter { x, y, .. } | OfferEvent::Motion { x, y },
+                    )) => Some(Message::DragMoved(Some(Point::new(x as f32, y as f32)))),
+                    cosmic::iced::Event::Dnd(DndEvent::Offer(_, OfferEvent::Leave)) => {
+                        Some(Message::DragMoved(None))
+                    }
                     cosmic::iced::Event::Keyboard(keyboard::Event::KeyPressed {
                         key: keyboard::Key::Named(key),
                         ..
                     }) => match key {
-                        Named::ArrowUp => Some(Message::SelectPreviousApp),
-                        Named::ArrowDown => Some(Message::SelectNextApp),
+                        Named::ArrowUp => Some(Message::MoveSelection(SelectionStep::Up)),
+                        Named::ArrowDown => Some(Message::MoveSelection(SelectionStep::Down)),
+                        Named::ArrowLeft => Some(Message::MoveSelection(SelectionStep::Left)),
+                        Named::ArrowRight => Some(Message::MoveSelection(SelectionStep::Right)),
                         Named::Enter => Some(Message::LaunchSelectedApplication),
+                        // Captured when it dismissed the context menu instead.
+                        Named::Escape if status == Status::Ignored => Some(Message::CloseMenu),
 
                         _ => None,
                     },
@@ -447,6 +700,7 @@ impl Application for Applet {
                 }),
             // DBUS subscription
             crate::dbus::dbus_service_subscription().map(|msg| msg),
+            launcher::subscription().map(Message::Launcher),
             self.core
                 .watch_config::<cosmic_app_list_config::AppListConfig>(
                     cosmic_app_list_config::APP_ID,
@@ -463,16 +717,65 @@ impl Applet {
                 // Invalidate the cache and reload it right away in the
                 // background, so opening the menu does not have to.
                 log::debug!("App list has been updated, invalidating cache and loading new list!");
-                crate::logic::apps::APPS_CACHE.lock().unwrap().cache_reset();
+                crate::logic::apps::APPS_CACHE.write().cache_reset();
 
                 Applet::load_applications()
             }
         }
     }
 
+    /// How long after losing the keyboard the menu stays closed.
+    const MENU_REOPEN_DELAY: Duration = Duration::from_millis(300);
+
+    /// Thickness of the panel, without its gap to the screen's edge.
+    fn panel_thickness(&self) -> i32 {
+        let (width, height) = self.core.applet.suggested_size(true);
+        let (_, padding) = self.core.applet.suggested_padding(true);
+        let thickness = match self.core.applet.anchor {
+            PanelAnchor::Top | PanelAnchor::Bottom => height,
+            PanelAnchor::Left | PanelAnchor::Right => width,
+        };
+        i32::from(thickness) + 2 * i32::from(padding)
+    }
+
+    /// Whether the current surface is a layer surface rather than a popup.
+    fn opens_layer_surface(&self) -> bool {
+        self.popup_type == PopupType::MainMenu && self.menu_is_layer_surface
+    }
+
+    /// Closes the open surface.
+    fn destroy_surface(&self, id: Id) -> Task<Message> {
+        if self.opens_layer_surface() {
+            destroy_layer_surface(id)
+        } else {
+            destroy_popup(id)
+        }
+    }
+
+    /// Whether the menu opens as a layer surface: when the user chose so, and
+    /// a panel hosts the applet, see [`crate::menu_surface::hosted_by_panel`].
+    fn menu_opens_as_layer_surface(&self) -> bool {
+        self.config.focused_menu && crate::menu_surface::hosted_by_panel()
+    }
+
     fn toggle_popup(&mut self, popup_type: PopupType) -> Task<Message> {
         if let Some(p) = self.popup.take() {
-            return destroy_popup(p);
+            return self.destroy_surface(p);
+        }
+        // Decided on opening, so that changing the setting meanwhile does
+        // not leave the open menu closed as the wrong kind of surface.
+        if popup_type == PopupType::MainMenu {
+            self.menu_is_layer_surface = self.menu_opens_as_layer_surface();
+        }
+
+        // Clicking the applet's button takes the keyboard from the open menu,
+        // closing it just before the click would toggle it.
+        if popup_type == PopupType::MainMenu
+            && self
+                .menu_unfocused_at
+                .is_some_and(|at| at.elapsed() < Self::MENU_REOPEN_DELAY)
+        {
+            return Task::none();
         }
 
         let mut tasks = vec![];
@@ -483,15 +786,27 @@ impl Applet {
             self.search_field.clear();
             self.selected_category = Some(ApplicationCategory::ALL);
             self.selected_item_index = None;
+            self.selected_launcher_result = None;
             self.scroll_offset = 0.0;
             self.context_menu_target = None;
             self.context_menu = None;
+            self.context_menu_open = false;
+            self.favorites_drop_target = None;
+            self.app_drag = None;
             match crate::logic::apps::with_cached_apps(<[_]>::to_vec) {
                 Some(applications) => {
                     self.available_applications = applications;
                     self.update_featured_applications();
+                    if !self.show_start_page() {
+                        self.show_default_category();
+                    }
                 }
-                None => tasks.push(Applet::load_applications()),
+                None => {
+                    // Shown once the apps are loaded.
+                    self.start_page_favorites =
+                        self.config.menu_layout.has_start_page().then_some(0);
+                    tasks.push(Applet::load_applications());
+                }
             }
         }
 
@@ -500,30 +815,50 @@ impl Applet {
             self.popup.replace(new_id);
             // Open the popup as a libcosmic surface (rather than a raw iced
             // popup) so libcosmic tracks it and applies the frosted glass blur.
-            let popup = app_popup::<Applet>(
-                |_| LiveSettings::default(),
-                move |state: &mut Applet| {
-                    let mut popup_settings = state.core.applet.get_popup_settings(
-                        state.core.main_window_id().unwrap(),
-                        new_id,
-                        None,
-                        None,
-                        None,
-                    );
-                    let (anchor, gravity) = match state.core.applet.anchor {
-                        PanelAnchor::Left => (Anchor::TopRight, Gravity::BottomRight),
-                        PanelAnchor::Right => (Anchor::TopLeft, Gravity::BottomLeft),
-                        PanelAnchor::Top => (Anchor::BottomLeft, Gravity::BottomRight),
-                        PanelAnchor::Bottom => (Anchor::TopLeft, Gravity::TopRight),
-                    };
-                    popup_settings.positioner.anchor = anchor;
-                    popup_settings.positioner.gravity = gravity;
-                    popup_settings
-                },
-                None,
-            );
+            let surface = if self.opens_layer_surface() {
+                self.menu_placement = crate::menu_surface::placement(
+                    self.core.applet.anchor,
+                    Self::APP_ID,
+                    self.panel_thickness(),
+                );
+                let placement = self.menu_placement;
+                app_layer_shell::<Applet>(
+                    // A blur would cover all of the surface, not just the menu.
+                    |_| LiveSettings {
+                        blur: Some(false),
+                        ..Default::default()
+                    },
+                    move |_: &mut Applet| {
+                        crate::menu_surface::settings(new_id, Self::APP_ID.to_owned(), &placement)
+                    },
+                    None,
+                )
+            } else {
+                app_popup::<Applet>(
+                    |_| LiveSettings::default(),
+                    move |state: &mut Applet| {
+                        let mut popup_settings = state.core.applet.get_popup_settings(
+                            state.core.main_window_id().unwrap(),
+                            new_id,
+                            None,
+                            None,
+                            None,
+                        );
+                        let (anchor, gravity) = match state.core.applet.anchor {
+                            PanelAnchor::Left => (Anchor::TopRight, Gravity::BottomRight),
+                            PanelAnchor::Right => (Anchor::TopLeft, Gravity::BottomLeft),
+                            PanelAnchor::Top => (Anchor::BottomLeft, Gravity::BottomRight),
+                            PanelAnchor::Bottom => (Anchor::TopLeft, Gravity::TopRight),
+                        };
+                        popup_settings.positioner.anchor = anchor;
+                        popup_settings.positioner.gravity = gravity;
+                        popup_settings
+                    },
+                    None,
+                )
+            };
 
-            tasks.push(cosmic::task::message(cosmic::Action::Surface(popup)));
+            tasks.push(cosmic::task::message(cosmic::Action::Surface(surface)));
             Task::batch(tasks)
         }
     }
@@ -548,12 +883,129 @@ impl Applet {
         )
     }
 
+    /// Writes the favorites and updates everything showing them.
+    fn set_favorite_applications(&mut self, favorites: Vec<String>) {
+        // Write only this key, see `update_recent_applications`.
+        if let Err(err) = self.config.set_favorite_applications(
+            AppletConfig::config_handler().as_ref().unwrap(),
+            favorites,
+        ) {
+            log::error!("Failed to write favorite applications: {err}");
+        }
+        self.update_featured_applications();
+
+        if self.start_page_favorites.is_some() {
+            self.show_start_page();
+        } else if self.selected_category == Some(ApplicationCategory::FAVORITES) {
+            // The shown list changed, so indices into it no longer apply.
+            self.available_applications = self.favorite_applications.clone();
+            self.selected_item_index = None;
+            self.selected_launcher_result = None;
+            self.context_menu_target = None;
+            self.context_menu = None;
+        } else {
+            self.update_context_menu();
+        }
+    }
+
+    /// The category the menu opens on, falling back to all apps when the
+    /// configured one is not shown or no longer exists.
+    fn default_category(&self) -> ApplicationCategory {
+        if !self.config.shows_default_category() {
+            return ApplicationCategory::ALL;
+        }
+
+        let id = self.config.default_category_id();
+        // Favorites are not among the loaded categories, see
+        // `FeaturedApplications`.
+        if id == ApplicationCategory::FAVORITES.id() {
+            return ApplicationCategory::FAVORITES;
+        }
+        self.available_categories
+            .iter()
+            .find(|category| category.id() == id)
+            .cloned()
+            .unwrap_or(ApplicationCategory::ALL)
+    }
+
+    /// Shows the apps of the default category, if the apps are cached.
+    /// Returns whether they are shown.
+    fn show_default_category(&mut self) -> bool {
+        let category = self.default_category();
+        let config = &self.config;
+        let Some(applications) = crate::logic::apps::with_cached_apps(|apps| {
+            crate::logic::apps::apps_of_category(
+                &category,
+                &config.recent_applications,
+                &config.favorite_applications,
+                apps,
+            )
+        }) else {
+            return false;
+        };
+
+        self.selected_category = Some(category);
+        self.available_applications = applications;
+        // Indices into the old list no longer apply.
+        self.selected_item_index = None;
+        self.selected_launcher_result = None;
+        self.context_menu_target = None;
+        self.context_menu = None;
+        true
+    }
+
+    /// Height of the app view to render apps for. Lists too short to scroll
+    /// never report it, so until then all apps that may fit are rendered.
+    pub fn render_viewport_height(&self) -> f32 {
+        if self.scroll_viewport_height > 0.0 {
+            self.scroll_viewport_height
+        } else {
+            f32::from(self.config.menu_size().1)
+        }
+    }
+
+    /// Recently used apps shown on the start page, below the favorites.
+    const START_PAGE_RECENT_APPLICATIONS: usize = 8;
+
+    /// Shows the start page of the first favorites, then the recently used
+    /// apps that are not among them, in layouts having one. Returns whether
+    /// it is shown.
+    fn show_start_page(&mut self) -> bool {
+        if !self.config.menu_layout.has_start_page() {
+            self.start_page_favorites = None;
+            return false;
+        }
+
+        let count = self.config.start_page_favorite_count.clamp(
+            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.start(),
+            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.end(),
+        );
+        let shown = self.favorite_applications.len().min(usize::from(count));
+        let favorites = &self.favorite_applications[..shown];
+        let recent = self
+            .recent_applications
+            .iter()
+            .filter(|app| !favorites.iter().any(|favorite| favorite.id == app.id))
+            .take(Self::START_PAGE_RECENT_APPLICATIONS);
+        self.available_applications = favorites.iter().chain(recent).cloned().collect();
+        self.start_page_favorites = Some(favorites.len());
+        // Indices into the old list no longer apply.
+        self.selected_item_index = None;
+        self.selected_launcher_result = None;
+        self.context_menu_target = None;
+        self.context_menu = None;
+        true
+    }
+
     /// Updates the recent and favorite apps, if the layout shows them.
     fn update_featured_applications(&mut self) {
         let layout = self.config.menu_layout;
-        let show_favorites = layout.has_favorites();
-        // Recent apps also stand in for missing favorites.
-        let show_recent = layout == crate::config::MenuLayout::Modern || show_favorites;
+        let show_favorites = self.config.shows_favorites();
+        // Recent apps also stand in for missing favorites in the sidebar.
+        let show_recent = layout.has_favorites()
+            || (layout == crate::config::MenuLayout::Modern
+                && self.config.effective_featured_applications()
+                    == FeaturedApplications::RecentlyUsed);
 
         let config = &self.config;
         let featured = crate::logic::apps::with_cached_apps(|apps| {
@@ -572,12 +1024,7 @@ impl Applet {
 
         // Without cached apps, they are updated once the apps are loaded.
         if let Some((recent, favorites)) = featured {
-            // Keep the favorites bar useful until the user adds favorites.
-            self.favorite_applications = if show_favorites && favorites.is_empty() {
-                recent.iter().take(6).cloned().collect()
-            } else {
-                favorites
-            };
+            self.favorite_applications = favorites;
             self.recent_applications = recent;
         }
     }
@@ -617,8 +1064,8 @@ impl Applet {
             ),
         ];
 
-        // Only offered where the layout shows the favorites.
-        if self.config.menu_layout.has_favorites() {
+        // Only offered where the favorites are shown.
+        if self.config.shows_favorites() {
             context_menu_buttons.push(Item::CheckBox(
                 crate::fl!("add-to-favorites"),
                 None,
@@ -643,16 +1090,132 @@ impl Applet {
         cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons)
     }
 
-    /// Items per row and row height of the app view in the current layout,
-    /// used to move the selection and keep it scrolled into view.
+    /// Whether the app view shows the favorites, in their order.
+    pub fn app_view_shows_favorites(&self) -> bool {
+        self.start_page_favorites.is_some()
+            || (self.search_field.is_empty()
+                && self.selected_category == Some(ApplicationCategory::FAVORITES))
+    }
+
+    /// Items per row and row height of the app view, used to move the
+    /// selection and keep it scrolled into view.
     fn app_view_metrics(&self) -> (usize, f32) {
-        if self.config.menu_layout == crate::config::MenuLayout::Modern {
-            (
-                crate::widgets::VirtualizedAppGrid::COLUMNS,
-                crate::widgets::VirtualizedAppGrid::ROW_HEIGHT,
-            )
+        // The start page is a list whatever the app view is.
+        let view = if self.start_page_favorites.is_some() {
+            AppView::Column
         } else {
-            (1, cosmic::theme::active().cosmic().spacing.space_xl as f32)
+            self.config.effective_app_view()
+        };
+        match view {
+            AppView::Grid => {
+                let metrics = crate::widgets::VirtualizedAppGrid::metrics(&self.config);
+                (metrics.columns, metrics.row_height)
+            }
+            AppView::Column => {
+                let (_, item_height) = crate::widgets::VirtualizedAppList::item_metrics(
+                    self.config.column_item_size,
+                );
+                (1, f32::from(item_height))
+            }
+        }
+    }
+
+    /// Sends `request` to pop-launcher, if it runs.
+    fn launcher_request(&self, request: launcher::Request) {
+        if let Some(launcher) = &self.launcher {
+            let _ = launcher.send(request);
+        }
+    }
+
+    /// Highlights the first search result shown: the first of pop-launcher's,
+    /// which lead, or else the first app. Done whenever either changes, as
+    /// they come separately.
+    fn select_first_result(&mut self) {
+        self.selected_launcher_result = None;
+        // With none highlighted, the first of pop-launcher's results is, see
+        // `highlighted_launcher_result`.
+        self.selected_item_index = (!self.search_field.is_empty()
+            && self.shown_launcher_results().is_empty()
+            && !self.available_applications.is_empty())
+        .then_some(0);
+    }
+
+    /// The results of pop-launcher shown above the apps, in their order.
+    pub fn shown_launcher_results(&self) -> Vec<&launcher::SearchResult> {
+        if self.search_field.is_empty() {
+            return Vec::new();
+        }
+        launcher::shown(&self.launcher_results)
+    }
+
+    /// Place among the shown results of pop-launcher of the highlighted
+    /// one: the one picked with the arrow keys, or else the first while no
+    /// app is highlighted.
+    fn highlighted_launcher_result(&self) -> Option<usize> {
+        let shown = self.shown_launcher_results().len();
+        if shown == 0 {
+            return None;
+        }
+        match self.selected_launcher_result {
+            Some(index) => Some(index.min(shown - 1)),
+            None => self.selected_item_index.is_none().then_some(0),
+        }
+    }
+
+    /// The result of pop-launcher that is highlighted, which Enter
+    /// activates, see [`Applet::highlighted_launcher_result`].
+    pub fn default_launcher_result(&self) -> Option<&launcher::SearchResult> {
+        let index = self.highlighted_launcher_result()?;
+        self.shown_launcher_results().get(index).copied()
+    }
+
+    fn handle_launcher_event(&mut self, event: launcher::Event) -> Task<Message> {
+        match event {
+            launcher::Event::Started(requests) => {
+                self.launcher = Some(requests);
+                // A search typed while it was starting.
+                if !self.search_field.is_empty() {
+                    self.launcher_request(launcher::Request::Search(self.search_field.clone()));
+                }
+                Task::none()
+            }
+            launcher::Event::Stopped => {
+                self.launcher = None;
+                self.launcher_results.clear();
+                if !self.search_field.is_empty() {
+                    self.select_first_result();
+                }
+                Task::none()
+            }
+            launcher::Event::Response(response) => match response {
+                // Late answers to a search since cleared are dropped.
+                launcher::Response::Update(results) if !self.search_field.is_empty() => {
+                    self.launcher_results = launcher::non_application_results(results);
+                    self.select_first_result();
+                    Task::none()
+                }
+                launcher::Response::Update(_) | launcher::Response::Context { .. } => Task::none(),
+                // The plugin did what the result is for, e.g. focused a window.
+                launcher::Response::Close => match self.popup.take() {
+                    Some(popup) => self.destroy_surface(popup),
+                    None => Task::none(),
+                },
+                // E.g. a completed path, searched for in turn.
+                launcher::Response::Fill(query) => self.update_search_field(query),
+                launcher::Response::DesktopEntry { path } => {
+                    let app = crate::logic::apps::with_cached_apps(|apps| {
+                        apps.iter().find(|app| app.path.as_ref() == Some(&path)).cloned()
+                    })
+                    .flatten();
+                    match app {
+                        Some(app) => self.launch_application(app, None),
+                        None => {
+                            log::warn!("pop-launcher opened an unknown app: {}", path.display());
+                            Task::none()
+                        }
+                    }
+                }
+            },
         }
     }
 
@@ -665,8 +1228,13 @@ impl Applet {
     }
 
     fn clear_search(&mut self) -> Task<Message> {
+        self.selected_item_index = None;
+        self.selected_launcher_result = None;
         self.selected_category = Some(ApplicationCategory::ALL);
         self.search_field.clear();
+        if self.show_start_page() || self.show_default_category() {
+            return Task::none();
+        }
 
         match crate::logic::apps::with_cached_apps(<[_]>::to_vec) {
             Some(applications) => self.update(Message::UpdateAvailableApplications(applications)),
@@ -677,11 +1245,14 @@ impl Applet {
     fn update_search_field(&mut self, input: String) -> Task<Message> {
         self.selected_category = None;
         self.selected_item_index = None;
+        self.selected_launcher_result = None;
+        self.start_page_favorites = None;
 
         if input.is_empty() {
             return self.clear_search();
         }
         self.search_field.clone_from(&input);
+        self.launcher_request(launcher::Request::Search(input.clone()));
 
         Task::batch([
             // reset scroll position
@@ -728,7 +1299,7 @@ impl Applet {
         }
 
         if let Some(p) = self.popup.take() {
-            return destroy_popup(p);
+            return self.destroy_surface(p);
         }
 
         Task::none()
@@ -750,7 +1321,6 @@ impl Applet {
             .collect::<Vec<_>>()
             .join(" ");
         let env_vars: Vec<(String, String)> = std::env::vars().collect();
-        let app_id = Some(app.id.clone());
         let mut is_terminal = app.is_terminal;
 
         let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
@@ -769,14 +1339,13 @@ impl Applet {
         }
 
         tokio::spawn(async move {
-            cosmic::desktop::spawn_desktop_exec(app_exec, env_vars, app_id.as_deref(), is_terminal)
-                .await;
+            crate::model::system_tool::spawn_exec(app_exec, is_terminal, env_vars).await;
         });
 
         self.update_recent_applications(app);
 
         if let Some(p) = self.popup.take() {
-            return destroy_popup(p);
+            return self.destroy_surface(p);
         }
         Task::none()
     }
@@ -804,11 +1373,19 @@ impl Applet {
 
     fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
         self.search_field.clear();
+        self.start_page_favorites = None;
         self.selected_category = Some(category.clone());
         self.selected_item_index = None;
-        // Only needed, and so only copied, for the recently used category.
+        self.selected_launcher_result = None;
+        // Only needed, and so only copied, for the recently used and
+        // favorites categories.
         let recent_applications = if category == ApplicationCategory::RECENTLY_USED {
             self.config.recent_applications.clone()
+        } else {
+            Vec::new()
+        };
+        let favorite_applications = if category == ApplicationCategory::FAVORITES {
+            self.config.favorite_applications.clone()
         } else {
             Vec::new()
         };
@@ -821,7 +1398,11 @@ impl Applet {
             ),
             Task::perform(
                 tokio::task::spawn_blocking(move || {
-                    crate::logic::apps::get_apps_of_category(category, &recent_applications)
+                    crate::logic::apps::get_apps_of_category(
+                        category,
+                        &recent_applications,
+                        &favorite_applications,
+                    )
                 }),
                 |res| cosmic::Action::App(Message::UpdateAvailableApplications(res.unwrap())),
             ),
@@ -831,7 +1412,7 @@ impl Applet {
     fn launch_tool(&mut self, tool: SystemTool) -> Task<Message> {
         tool.perform();
         if let Some(p) = self.popup.take() {
-            return destroy_popup(p);
+            return self.destroy_surface(p);
         }
         Task::none()
     }
@@ -879,83 +1460,90 @@ impl Applet {
         self.core.applet.popup_container(context_menu).into()
     }
 
-    fn select_previous_app(&mut self) -> cosmic::Task<cosmic::Action<Message>> {
-        if self.selected_item_index.is_none() {
-            return Task::none();
-        }
-
+    fn move_selection(&mut self, step: SelectionStep) -> cosmic::Task<cosmic::Action<Message>> {
         let (columns, item_height) = self.app_view_metrics();
+        let shown = self.shown_launcher_results().len();
+        let backward = matches!(step, SelectionStep::Up | SelectionStep::Left);
 
-        if let Some(index) = self.selected_item_index {
-            if index >= columns {
-                self.selected_item_index = Some(index - columns);
+        if let Some(index) = self.highlighted_launcher_result() {
+            // Through the results above the apps, then on to the apps.
+            if backward || index + 1 < shown || self.available_applications.is_empty() {
+                let index = if backward {
+                    index.saturating_sub(1)
+                } else {
+                    (index + 1).min(shown - 1)
+                };
+                self.selected_launcher_result = Some(index);
+                return self.scroll_launcher_result_into_view(index);
             }
+            self.selected_launcher_result = None;
+            self.selected_item_index = Some(0);
+        } else {
+            // From the first row of apps up to the last result above them.
+            let leaves_apps = shown > 0
+                && backward
+                && self.selected_item_index.is_none_or(|index| match step {
+                    SelectionStep::Up => index < columns,
+                    _ => columns > 1 && index == 0,
+                });
+            if leaves_apps {
+                self.selected_launcher_result = Some(shown - 1);
+                self.selected_item_index = None;
+                return self.scroll_launcher_result_into_view(shown - 1);
+            }
+            self.selected_item_index = step_selection(
+                self.selected_item_index,
+                step,
+                self.available_applications.len(),
+                columns,
+            );
         }
 
-        if let Some(index) = self.selected_item_index {
-            let viewport_height = self.scroll_viewport_height.max(item_height);
-            let visible_top = self.scroll_offset;
-            let visible_bottom = visible_top + viewport_height;
-
-            let selected_top = (index / columns) as f32 * item_height;
-            let selected_bottom = selected_top + item_height;
-
-            if selected_top >= visible_top && selected_bottom <= visible_bottom {
-                return Task::none();
-            }
-
-            let target_offset = if selected_top < visible_top {
-                selected_top
-            } else {
-                selected_bottom - viewport_height
-            };
-
-            return Task::batch([cosmic::iced::widget::operation::scroll_to(
-                self.scrollable_id.clone(),
-                AbsoluteOffset { x: 0., y: target_offset },
-            )]);
-        }
-
-        Task::none()
+        let Some(index) = self.selected_item_index else {
+            return Task::none();
+        };
+        // Below the results of pop-launcher, if any.
+        let header_height =
+            AppletMenu::search_header_layout(self).map_or(0., |layout| layout.height);
+        self.scroll_into_view(header_height + (index / columns) as f32 * item_height, item_height)
     }
 
-    fn select_next_app(&mut self) -> cosmic::Task<cosmic::Action<Message>> {
-        let (columns, item_height) = self.app_view_metrics();
+    /// Scrolls the shown result of pop-launcher at `index` into view.
+    fn scroll_launcher_result_into_view(
+        &self,
+        index: usize,
+    ) -> cosmic::Task<cosmic::Action<Message>> {
+        let Some(top) = AppletMenu::search_header_layout(self)
+            .and_then(|layout| layout.result_tops.get(index).copied())
+        else {
+            return Task::none();
+        };
+        let (_, item_height) =
+            crate::widgets::VirtualizedAppList::item_metrics(self.config.column_item_size);
+        // From the first, its heading too.
+        let top = if index == 0 { 0. } else { top };
+        self.scroll_into_view(top, f32::from(item_height))
+    }
 
-        if self.selected_item_index.is_none() && !self.available_applications.is_empty() {
-            self.selected_item_index = Some(0);
-        } else if let Some(index) = self.selected_item_index {
-            // In a grid, move down a row, stopping at the last app.
-            let last = self.available_applications.len().saturating_sub(1);
-            if index < last {
-                self.selected_item_index = Some((index + columns).min(last));
-            }
-        }
+    /// Scrolls the apps' list so that the part `height` high at `top` of it
+    /// is in view, if it is not.
+    fn scroll_into_view(&self, top: f32, height: f32) -> cosmic::Task<cosmic::Action<Message>> {
+        let viewport_height = self.scroll_viewport_height.max(height);
+        let visible_top = self.scroll_offset;
+        let visible_bottom = visible_top + viewport_height;
+        let bottom = top + height;
 
-        if let Some(index) = self.selected_item_index {
-            let viewport_height = self.scroll_viewport_height.max(item_height);
-            let visible_top = self.scroll_offset;
-            let visible_bottom = visible_top + viewport_height;
+        let target_offset = if top < visible_top {
+            top
+        } else if bottom > visible_bottom {
+            bottom - viewport_height + 16.0
+        } else {
+            return Task::none();
+        };
 
-            let selected_top = (index / columns) as f32 * item_height;
-            let selected_bottom = selected_top + item_height;
-
-            if selected_top >= visible_top && selected_bottom <= visible_bottom {
-                return Task::none();
-            }
-
-            let target_offset = if selected_top < visible_top {
-                selected_top
-            } else {
-                selected_bottom - viewport_height
-            };
-
-            return Task::batch([cosmic::iced::widget::operation::scroll_to(
-                self.scrollable_id.clone(),
-                AbsoluteOffset { x: 0., y: target_offset + 16.0 },
-            )]);
-        }
-
-        Task::none()
+        cosmic::iced::widget::operation::scroll_to(
+            self.scrollable_id.clone(),
+            AbsoluteOffset { x: 0., y: target_offset },
+        )
     }
 }

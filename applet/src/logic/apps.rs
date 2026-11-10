@@ -128,7 +128,7 @@ pub fn load_app_categories() -> Vec<ApplicationCategory> {
 /// Runs `f` on the loaded apps if they are cached, without loading them.
 /// Cheap enough for the UI thread, unlike [`load_apps`] on a cache miss.
 pub fn with_cached_apps<R>(f: impl FnOnce(&[Arc<ApplicationEntry>]) -> R) -> Option<R> {
-    APPS_CACHE.lock().unwrap().cache_get(&()).map(|apps| f(apps))
+    APPS_CACHE.write().cache_get(&()).map(|apps| f(apps))
 }
 
 /// Most launched apps first, skipping uninstalled ones.
@@ -157,20 +157,66 @@ pub fn get_favorite_applications(
         .collect()
 }
 
+/// `favorites` with `app_id` moved to, or added at, `index`, clamped to
+/// the end. Without an `index`, `app_id` is added at the end unless it is
+/// a favorite already.
+pub fn place_favorite(favorites: &[String], app_id: &str, index: Option<usize>) -> Vec<String> {
+    let mut favorites = favorites.to_vec();
+    let from = favorites.iter().position(|id| id == app_id);
+    let Some(index) = index else {
+        if from.is_none() {
+            favorites.push(app_id.to_owned());
+        }
+        return favorites;
+    };
+
+    let mut to = index.min(favorites.len());
+    if let Some(from) = from {
+        favorites.remove(from);
+        // The favorites after it moved up.
+        if from < to {
+            to -= 1;
+        }
+    }
+    favorites.insert(to, app_id.to_owned());
+    favorites
+}
+
+/// The index to give [`place_favorite`] for `app_id` to end up where the
+/// favorite at `index` is now.
+///
+/// Dragged down the list that is after that favorite, as it moves up.
+pub fn favorite_drop_index(favorites: &[String], app_id: &str, index: usize) -> usize {
+    match favorites.iter().position(|id| id == app_id) {
+        Some(from) if from < index => index + 1,
+        _ => index,
+    }
+}
+
 pub fn get_apps_of_category(
     category: ApplicationCategory,
     recent_applications: &[RecentApplication],
+    favorite_applications: &[String],
 ) -> Vec<Arc<ApplicationEntry>> {
     log::info!("Getting apps of category: {}", category.mime_name);
-    if category == ApplicationCategory::ALL {
-        load_apps()
-    } else if category == ApplicationCategory::RECENTLY_USED {
-        get_recent_applications(recent_applications, &load_apps())
+    apps_of_category(&category, recent_applications, favorite_applications, &load_apps())
+}
+
+/// The apps among `apps` in `category`.
+pub fn apps_of_category(
+    category: &ApplicationCategory,
+    recent_applications: &[RecentApplication],
+    favorite_applications: &[String],
+    apps: &[Arc<ApplicationEntry>],
+) -> Vec<Arc<ApplicationEntry>> {
+    if *category == ApplicationCategory::ALL {
+        apps.to_vec()
+    } else if *category == ApplicationCategory::RECENTLY_USED {
+        get_recent_applications(recent_applications, apps)
+    } else if *category == ApplicationCategory::FAVORITES {
+        get_favorite_applications(favorite_applications, apps)
     } else {
-        load_apps()
-            .into_iter()
-            .filter(|app| category.matches(app))
-            .collect()
+        apps.iter().filter(|app| category.matches(app)).cloned().collect()
     }
 }
 
@@ -224,4 +270,80 @@ pub fn desktop_files() -> cosmic::iced::Subscription<Event> {
 
 pub fn is_app_in_favorites(app: &ApplicationEntry, config: &AppListConfig) -> bool {
     config.favorites.iter().any(|app_id| app.id.eq(app_id))
+}
+#[cfg(test)]
+mod tests {
+    use super::{favorite_drop_index, place_favorite};
+
+    fn ids(ids: &[&str]) -> Vec<String> {
+        ids.iter().map(|id| id.to_string()).collect()
+    }
+
+    fn dropped_onto(favorites: &[&str], app_id: &str, index: usize) -> Vec<String> {
+        let favorites = ids(favorites);
+        let to = favorite_drop_index(&favorites, app_id, index);
+        place_favorite(&favorites, app_id, Some(to))
+    }
+
+    #[test]
+    fn dropping_down_the_list_takes_the_place_of_the_target() {
+        assert_eq!(dropped_onto(&["a", "b", "c"], "a", 1), ids(&["b", "a", "c"]));
+        assert_eq!(dropped_onto(&["a", "b", "c"], "a", 2), ids(&["b", "c", "a"]));
+    }
+
+    #[test]
+    fn dropping_up_the_list_takes_the_place_of_the_target() {
+        assert_eq!(dropped_onto(&["a", "b", "c"], "c", 0), ids(&["c", "a", "b"]));
+        assert_eq!(dropped_onto(&["a", "b", "c"], "c", 1), ids(&["a", "c", "b"]));
+    }
+
+    #[test]
+    fn dropping_a_favorite_on_itself_changes_nothing() {
+        assert_eq!(dropped_onto(&["a", "b", "c"], "b", 1), ids(&["a", "b", "c"]));
+    }
+
+    #[test]
+    fn dropping_a_new_app_goes_before_the_target() {
+        assert_eq!(dropped_onto(&["a", "b"], "z", 1), ids(&["a", "z", "b"]));
+    }
+
+    #[test]
+    fn adds_a_new_favorite_at_the_end() {
+        assert_eq!(place_favorite(&ids(&["a", "b"]), "c", None), ids(&["a", "b", "c"]));
+    }
+
+    #[test]
+    fn keeps_an_existing_favorite_in_place_without_an_index() {
+        assert_eq!(place_favorite(&ids(&["a", "b"]), "a", None), ids(&["a", "b"]));
+    }
+
+    #[test]
+    fn inserts_a_new_favorite_before_the_index() {
+        assert_eq!(place_favorite(&ids(&["a", "b"]), "c", Some(1)), ids(&["a", "c", "b"]));
+    }
+
+    #[test]
+    fn moves_a_favorite_down_before_the_index() {
+        assert_eq!(
+            place_favorite(&ids(&["a", "b", "c"]), "a", Some(2)),
+            ids(&["b", "a", "c"])
+        );
+        assert_eq!(
+            place_favorite(&ids(&["a", "b", "c"]), "a", Some(3)),
+            ids(&["b", "c", "a"])
+        );
+    }
+
+    #[test]
+    fn moves_a_favorite_up_before_the_index() {
+        assert_eq!(
+            place_favorite(&ids(&["a", "b", "c"]), "c", Some(0)),
+            ids(&["c", "a", "b"])
+        );
+    }
+
+    #[test]
+    fn clamps_the_index_to_the_end() {
+        assert_eq!(place_favorite(&ids(&["a"]), "b", Some(5)), ids(&["a", "b"]));
+    }
 }

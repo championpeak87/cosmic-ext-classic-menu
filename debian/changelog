@@ -1,0 +1,14 @@
+cosmic-ext-classic-menu (1.1.0) unstable; urgency=medium
+
+  * New Whistler layout: a start page with favorite and recently used
+    applications, leading to all applications.
+  * Quick launcher type: favorites can be shown in place of the recently
+    used apps.
+  * Choose the category the menu opens on.
+  * Column or grid view of applications in any layout.
+  * Drag applications onto the favorites, or into the dock to pin them.
+  * --toggle option to open or close the menu.
+  * Fixed icons given as a path to a PNG image, and a crash with PNG based
+    icon themes.
+
+ -- Kamil Lihan <k.lihan@outlook.com>  Sat, 17 Oct 2026 12:00:00 +0200

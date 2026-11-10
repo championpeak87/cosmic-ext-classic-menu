@@ -1,6 +1,7 @@
 cosmic-applet-button = 코즈믹 버튼
 
 # 카테고리
+home-page=홈
 all-applications=모든 응용 프로그램
 recently-used=최근 사용됨
 audio=오디오
@@ -46,3 +47,15 @@ place-store=앱 스토어
 place-system-monitor=시스템 모니터
 place-disks=디스크
 place-separator=구분선
+
+favorites=즐겨찾기
+favorites-empty=앱을 여기로 끌어오거나 컨텍스트 메뉴에서 추가하세요
+back=뒤로
+search-applications=애플리케이션
+search-calculator=계산기
+search-windows=창
+search-files=파일
+search-web=웹 검색
+search-commands=명령
+search-sound=소리
+search-other=기타 결과

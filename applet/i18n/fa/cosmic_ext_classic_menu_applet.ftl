@@ -1,6 +1,7 @@
 cosmic-applet-button = دکمه کیهانی
 
 # دسته‌ها
+home-page=خانه
 all-applications=تمام برنامه‌ها
 recently-used=استفاده شده اخیراً
 audio=صوت
@@ -46,3 +47,15 @@ place-store=فروشگاه برنامه
 place-system-monitor=پایشگر سیستم
 place-disks=دیسک‌ها
 place-separator=جداکننده
+
+favorites=علاقه‌مندی‌ها
+favorites-empty=برنامه‌ها را به اینجا بکشید یا از منوی زمینه آن‌ها اضافه کنید
+back=بازگشت
+search-applications=برنامه‌ها
+search-calculator=ماشین حساب
+search-windows=پنجره‌ها
+search-files=پرونده‌ها
+search-web=جستجوی وب
+search-commands=فرمان‌ها
+search-sound=صدا
+search-other=نتایج دیگر

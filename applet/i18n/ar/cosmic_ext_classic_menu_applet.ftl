@@ -1,6 +1,7 @@
 cosmic-applet-button = زر كوني
 
 # الفئات
+home-page=الرئيسية
 all-applications=جميع التطبيقات
 recently-used=المستخدمة حديثا
 audio=صوت
@@ -46,3 +47,15 @@ place-store=متجر التطبيقات
 place-system-monitor=مراقب النظام
 place-disks=الأقراص
 place-separator=فاصل
+
+favorites=المفضلة
+favorites-empty=اسحب التطبيقات إلى هنا أو أضفها من قائمتها السياقية
+back=رجوع
+search-applications=التطبيقات
+search-calculator=الآلة الحاسبة
+search-windows=النوافذ
+search-files=الملفات
+search-web=البحث في الويب
+search-commands=الأوامر
+search-sound=الصوت
+search-other=نتائج أخرى

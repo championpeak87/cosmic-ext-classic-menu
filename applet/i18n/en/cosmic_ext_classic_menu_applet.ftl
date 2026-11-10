@@ -1,6 +1,9 @@
 # categories
+home-page=Home
 all-applications=All applications
+back=Back
 recently-used=Recently used
+favorites=Favorites
 audio=Audio
 video=Video
 development=Development
@@ -29,6 +32,7 @@ menu-label=Menu
 launch=Launch
 pin-to-panel=Pin to panel
 add-to-favorites=Add to favorites
+favorites-empty=Drag apps here or add them from their context menu
 
 
 # places
@@ -45,3 +49,11 @@ place-store=App Store
 place-system-monitor=System Monitor
 place-disks=Disks
 place-separator=Separator
+search-applications=Applications
+search-calculator=Calculator
+search-windows=Windows
+search-files=Files
+search-web=Web search
+search-commands=Commands
+search-sound=Sound
+search-other=Other results

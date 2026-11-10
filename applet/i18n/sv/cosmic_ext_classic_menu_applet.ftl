@@ -1,6 +1,7 @@
 cosmic-applet-button = Kosmisk knapp
 
 # kategorier
+home-page=Hem
 all-applications=Alla applikationer
 recently-used=Senast använda
 audio=Ljud
@@ -46,3 +47,15 @@ place-store=Programbutik
 place-system-monitor=Systemövervakare
 place-disks=Diskar
 place-separator=Avgränsare
+
+favorites=Favoriter
+favorites-empty=Dra hit program eller lägg till dem från deras snabbmeny
+back=Tillbaka
+search-applications=Program
+search-calculator=Kalkylator
+search-windows=Fönster
+search-files=Filer
+search-web=Webbsökning
+search-commands=Kommandon
+search-sound=Ljud
+search-other=Övriga resultat

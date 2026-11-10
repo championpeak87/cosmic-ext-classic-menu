@@ -1,6 +1,7 @@
 cosmic-applet-button = Pulsante Cosmico
 
 # categorie
+home-page=Home
 all-applications=Tutte le applicazioni
 recently-used=Usate di recente
 audio=Audio
@@ -46,3 +47,15 @@ place-store=Negozio di app
 place-system-monitor=Monitor di sistema
 place-disks=Dischi
 place-separator=Separatore
+
+favorites=Preferiti
+favorites-empty=Trascina qui le app o aggiungile dal loro menu contestuale
+back=Indietro
+search-applications=Applicazioni
+search-calculator=Calcolatrice
+search-windows=Finestre
+search-files=File
+search-web=Ricerca web
+search-commands=Comandi
+search-sound=Audio
+search-other=Altri risultati

@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+export DESTDIR = debian/cosmic-ext-classic-menu
+
+%:
+	dh $@
+
+# Builds run offline, so the crates are vendored into vendor.tar when the
+# source package is made, which needs network access. Builds in a chroot,
+# e.g. by sbuild, use the vendored crates of the source package.
+override_dh_auto_clean:
+	if ! ischroot && test ! -f vendor.tar; then just vendor; fi
+
+override_dh_auto_build:
+	just build-vendored
+
+# The tests run as part of development, not packaging.
+override_dh_auto_test:
+
+override_dh_auto_install:
+	just rootdir=$(DESTDIR) install

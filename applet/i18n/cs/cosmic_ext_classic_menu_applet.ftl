@@ -1,4 +1,5 @@
 # kategorie
+home-page=Domů
 all-applications=Všechny aplikace
 recently-used=Nedávno použité
 audio=Zvuk
@@ -44,3 +45,15 @@ place-store=Obchod s aplikacemi
 place-system-monitor=Sledování systému
 place-disks=Disky
 place-separator=Oddělovač
+
+favorites=Oblíbené
+favorites-empty=Přetáhněte sem aplikace nebo je přidejte z jejich kontextové nabídky
+back=Zpět
+search-applications=Aplikace
+search-calculator=Kalkulačka
+search-windows=Okna
+search-files=Soubory
+search-web=Hledání na webu
+search-commands=Příkazy
+search-sound=Zvuk
+search-other=Další výsledky

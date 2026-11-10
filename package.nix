@@ -1,69 +1,66 @@
-{ lib
-, fetchFromGitHub
-, rustPlatform
-, pkg-config
-, just
-, stdenv
-, glib
-, gtk3
-, libcosmicAppHook
+# Builds the checked out sources, e.g. with
+#   nix-build -E 'with import <nixpkgs> { }; callPackage ./package.nix { }'
+{
+  lib,
+  stdenv,
+  rustPlatform,
+  just,
+  libcosmicAppHook,
 }:
 
-rustPlatform.buildRustPackage rec {
+let
+  target = "target/${stdenv.hostPlatform.rust.cargoShortTarget}/release";
+in
+rustPlatform.buildRustPackage {
   pname = "cosmic-ext-classic-menu";
-  version = "0.0.11"; # Update this based on the latest release or tag
+  version = "1.1.0";
 
-  src = fetchFromGitHub {
-    owner = "championpeak87";
-    repo = "cosmic-classic-menu";
-    rev = "master"; # Or a specific tag like "v0.1.0"
-    hash = "sha256-xiM9O37lZEv8Jfc3cBp31zKRXmUa+Xy9oipjAeFdPjE="; # See note below
+  # Only what the build needs, leaving out e.g. build output.
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = lib.fileset.unions [
+      ./Cargo.toml
+      ./Cargo.lock
+      ./justfile
+      ./LICENSE
+      ./applet
+      ./settings
+      ./res
+    ];
   };
 
-  # This is required for Rust projects that don't have a vendor folder
-  # You can use 'lib.fakeHash' initially to get the correct hash from the error message
-  cargoHash = "sha256-xflF6v6pDtEHydC5YM+mHBjf+GFgDXgIzo4ntPQac7w=";
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+    # Fetches the git dependencies, e.g. libcosmic, without listing their
+    # hashes here.
+    allowBuiltinFetchGit = true;
+  };
 
   nativeBuildInputs = [
-    pkg-config
     just
     libcosmicAppHook
   ];
 
-  buildInputs = [
-    glib
-    gtk3
-  ];
-
-  # COSMIC applets usually use 'just' for specific install tasks
-  # but buildRustPackage handles the cargo build automatically.
-  # If the applet needs specific RON files moved to /share/cosmic, 
-  # you might need a postInstall hook.  
-  dontCargoBuild = true;
-  buildPhase = ''
-    runHook preBuild
-    just build-release
-    runHook postBuild
-  '';
-
-  # Override the default cargo build to use 'just'
+  # Cargo builds the binaries, just installs them with the other files.
+  dontUseJustBuild = true;
+  dontUseJustCheck = true;
   justFlags = [
     "--set"
     "prefix"
     (placeholder "out")
     "--set"
     "bin-src"
-    "target/release/cosmic-ext-classic-menu-applet"
+    "${target}/cosmic-ext-classic-menu-applet"
     "--set"
     "settings-bin-src"
-    "target/release/cosmic-ext-classic-menu-settings"
+    "${target}/cosmic-ext-classic-menu-settings"
   ];
-  
-  meta = with lib; {
-    description = "A classic-style application menu for the COSMIC Desktop";
+
+  meta = {
+    description = "Classic application menu applet for the COSMIC desktop";
     homepage = "https://github.com/championpeak87/cosmic-ext-classic-menu";
-    license = licenses.gpl3Only;
-    maintainers = [ ];
-    platforms = platforms.linux;
+    license = lib.licenses.gpl3Only;
+    mainProgram = "cosmic-ext-classic-menu-applet";
+    platforms = lib.platforms.linux;
   };
 }

@@ -2,17 +2,20 @@
 
 use std::sync::Arc;
 
-use cosmic::cosmic_theme::Spacing;
+use cosmic::iced::core::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
 use cosmic::iced::widget::{column, row};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Alignment, ContentFit, Length};
+use cosmic::iced::{Alignment, Background, ContentFit, Length, Vector};
 use cosmic::widget::text;
-use cosmic::widget::{ListColumn, container, scrollable};
+use cosmic::widget::{DndSource, ListColumn, container, scrollable};
 use cosmic::{Element, theme};
 
-use crate::applet::{Applet, Message};
+use crate::applet::{Applet, FavoritesRegion, Message};
+use crate::applet_menu::{AppletMenu, FavoriteSlotAxis};
+use crate::config::ItemSize;
 use crate::widgets::right_release_guard::RightReleaseGuard;
-use crate::model::application_entry::ApplicationEntry;
+use crate::model::application_entry::{ApplicationEntry, IconHandle};
+use crate::model::dragged_app::DraggedApp;
 
 /// A virtualized app list widget that only renders visible items for performance.
 ///
@@ -23,6 +26,19 @@ pub struct VirtualizedAppList;
 impl VirtualizedAppList {
     /// Buffer items to render above/below viewport for smooth scrolling
     const RENDER_BUFFER: usize = 2;
+    /// Width and height of the icon shown while dragging an app.
+    pub(crate) const DRAG_PREVIEW_SIZE: f32 = 40.0;
+    /// Font size of app descriptions.
+    pub(crate) const DESCRIPTION_SIZE: u16 = 10;
+
+    /// Icon size and row height of apps of `size`.
+    pub fn item_metrics(size: ItemSize) -> (u16, u16) {
+        match size {
+            ItemSize::Small => (24, 36),
+            ItemSize::Medium => (32, 48),
+            ItemSize::Large => (48, 64),
+        }
+    }
 
     /// Creates a virtualized app list element
     ///
@@ -32,20 +48,16 @@ impl VirtualizedAppList {
     /// # Returns
     /// A scrollable element containing only the visible app items
     pub fn view(applet: &Applet) -> Element<'_, Message> {
-        let Spacing {
-            space_s,
-            space_xl,
-            ..
-        } = theme::active().cosmic().spacing;
-
-        // Use actual button height from theme spacing
-        let item_height = space_xl as f32;
-        let scroll_offset = applet.scroll_offset;
+        let item_height = f32::from(Self::item_metrics(applet.config.column_item_size).1);
+        // Search results of pop-launcher lead the apps found.
+        let header_height =
+            AppletMenu::search_header_layout(applet).map_or(0., |layout| layout.height);
+        let scroll_offset = (applet.scroll_offset - header_height).max(0.);
         let total_items = applet.available_applications.len();
 
         // Calculate which items should be rendered based on scroll position
         let visible_start = (scroll_offset / item_height).floor() as usize;
-        let viewport_height = applet.scroll_viewport_height.max(item_height);
+        let viewport_height = applet.render_viewport_height().max(item_height);
         let visible_count = ((viewport_height / item_height).ceil() as usize) + 1;
 
         // Add buffer for smooth scrolling
@@ -82,14 +94,17 @@ impl VirtualizedAppList {
             items.push(cosmic::widget::Space::new().width(Length::Fill).height(remaining_height).into());
         }
 
-        // Build list column from items
+        // Build list column from items. The buttons pad their content
+        // themselves, so their highlight reaches the list's edges.
         let app_list: ListColumn<Message> = items.into_iter().fold(
-            cosmic::widget::list_column()
-                .list_item_padding([0., space_s as f32]),
+            cosmic::widget::list_column().list_item_padding(0),
             |list, item| list.add(item),
         );
 
-        let app_list = scrollable(container(app_list))
+        let content = column![]
+            .push_maybe(AppletMenu::search_header(applet))
+            .push(container(app_list));
+        let app_list = scrollable(content)
             .height(Length::Fill)
             .width(Length::Fill)
             .id(applet.scrollable_id.clone())
@@ -109,33 +124,33 @@ impl VirtualizedAppList {
     ///
     /// # Returns
     /// An element containing a button with context menu
-    fn create_app_button<'a>(
+    pub(crate) fn create_app_button<'a>(
         applet: &'a Applet,
         index: usize,
-        app: &'a Arc<ApplicationEntry>
+        app: &'a Arc<ApplicationEntry>,
     ) -> Element<'a, Message> {
-        let Spacing {
-            space_l,
-            space_xl,
-            ..
-        } = theme::active().cosmic().spacing;
-
-        // Show comment only if item height is sufficient (at least 60 pixels)
-        let show_comment = space_xl >= 40;
+        let (icon_size, item_height) = Self::item_metrics(applet.config.column_item_size);
+        let description = app
+            .comment
+            .as_deref()
+            .filter(|_| applet.config.column_show_description)
+            .map(|comment| {
+                text(comment)
+                    .size(Self::DESCRIPTION_SIZE)
+                    .wrapping(Wrapping::None)
+                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
+            });
 
         let button = cosmic::widget::button::custom(
             row![
-                Self::create_icon_widget(app, space_l),
+                Self::create_icon_widget(app, icon_size),
                 cosmic::widget::Space::new().width(5).height(Length::Fill),
-                if show_comment {
-                    column![
-                        text(&app.name),
-                        text(app.comment.as_deref().unwrap_or_default()).size(8.0),
-                    ]
-                    .padding([0, 0])
-                } else {
-                    column![text(&app.name)].padding([0, 0])
-                },
+                column![
+                    text(&app.name)
+                        .wrapping(Wrapping::None)
+                        .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1))),
+                ]
+                .push_maybe(description),
             ]
             .align_y(Alignment::Center),
         )
@@ -148,14 +163,113 @@ impl VirtualizedAppList {
                 cosmic::theme::Button::AppletMenu
             },
         )
+        .padding([0, theme::active().cosmic().space_s()])
         .width(Length::Fill)
-        .height(space_xl);
+        .height(item_height);
 
         // The context menu itself wraps the whole scrollable, see
         // `with_context_menu`; this only marks which app it is for.
-        cosmic::widget::mouse_area(button)
-            .on_right_press(Message::ContextMenuTarget(index))
+        let row = Self::drag_source(
+            applet,
+            app,
+            cosmic::widget::mouse_area(button).on_right_press(Message::ContextMenuTarget(index)),
+        );
+
+        if applet.app_view_shows_favorites() {
+            AppletMenu::favorite_slot(
+                applet,
+                app,
+                FavoritesRegion::List,
+                FavoriteSlotAxis::Vertical,
+                (Length::Fill, Length::Shrink),
+                row,
+            )
+        } else {
+            row
+        }
+    }
+
+    /// Lets `app` be dragged out of `content`, e.g. into the favorites or
+    /// the dock, which pins it.
+    pub(crate) fn drag_source<'a>(
+        applet: &Applet,
+        app: &ApplicationEntry,
+        content: impl Into<Element<'a, Message>>,
+    ) -> Element<'a, Message> {
+        let dragged_app = DraggedApp {
+            app_id: app.id.clone(),
+            desktop_file: app.path.clone(),
+        };
+        let drag_icon = app.icon.clone();
+
+        let source = DndSource::new(content)
+            .window(applet.popup.unwrap_or(Id::NONE))
+            .drag_threshold(16.)
+            .drag_content(move || dragged_app.clone())
+            .on_start(Some(Message::AppDragStarted(
+                app.id.clone(),
+                drag_icon.clone(),
+            )))
+            .on_cancel(Some(Message::AppDragEnded))
+            .on_finish(Some(Message::AppDragEnded));
+
+        // On a layer surface the menu draws it itself, see `drag_preview`:
+        // the panel doesn't show the icons of the drags it forwards.
+        if applet.menu_is_layer_surface {
+            return source.into();
+        }
+
+        source
+            .drag_icon(move |_| {
+                (
+                    Self::drag_preview(drag_icon.as_ref()),
+                    cosmic::iced::core::widget::tree::State::None,
+                    // Center the icon on the pointer.
+                    Vector::new(-Self::DRAG_PREVIEW_SIZE / 2., -Self::DRAG_PREVIEW_SIZE / 2.),
+                )
+            })
             .into()
+    }
+
+    /// The icon of a dragged app, with a small plus at its corner.
+    pub(crate) fn drag_preview<'a, M: Clone + 'static>(
+        icon: Option<&IconHandle>,
+    ) -> Element<'a, M> {
+        const ICON_SIZE: u16 = 32;
+        const BADGE_SIZE: f32 = 14.0;
+
+        let badge = container(text::caption("+"))
+            .width(Length::Fixed(BADGE_SIZE))
+            .height(Length::Fixed(BADGE_SIZE))
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center)
+            .class(cosmic::theme::Container::custom(|theme| {
+                let cosmic = theme.cosmic();
+                container::Style {
+                    background: Some(Background::Color(cosmic.accent_color().into())),
+                    text_color: Some(cosmic.on_accent_color().into()),
+                    border: cosmic::iced::Border {
+                        radius: (BADGE_SIZE / 2.).into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            }));
+
+        let size = Length::Fixed(Self::DRAG_PREVIEW_SIZE);
+        cosmic::iced::widget::stack![
+            container(Self::icon_widget(icon, ICON_SIZE))
+                .width(size)
+                .height(size)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center),
+            container(badge)
+                .width(size)
+                .height(size)
+                .align_x(Alignment::End)
+                .align_y(Alignment::End),
+        ]
+        .into()
     }
 
     /// Creates the icon widget for an application
@@ -166,19 +280,24 @@ impl VirtualizedAppList {
     ///
     /// # Returns
     /// A container element with the app icon
-    pub(crate) fn create_icon_widget(app: &Arc<ApplicationEntry>, space_l: u16) -> Element<'_, Message> {
-        let default_icon = crate::model::application_entry::IconHandle::default();
-        let icon_handle = app.icon.as_ref().unwrap_or(&default_icon);
+    pub(crate) fn create_icon_widget<'a, M: 'a>(app: &ApplicationEntry, space_l: u16) -> Element<'a, M> {
+        Self::icon_widget(app.icon.as_ref(), space_l)
+    }
+
+    /// Icon widget for `icon`, or the default icon without one.
+    fn icon_widget<'a, M: 'a>(icon: Option<&IconHandle>, space_l: u16) -> Element<'a, M> {
+        let default_icon = IconHandle::default();
+        let icon_handle = icon.unwrap_or(&default_icon);
 
         match icon_handle {
-            crate::model::application_entry::IconHandle::SvgHandle(handle) => container(
+            IconHandle::SvgHandle(handle) => container(
                 cosmic::widget::svg(handle.clone())
                     .width(Length::Fixed(space_l.into()))
                     .height(Length::Fixed(space_l.into()))
                     .content_fit(ContentFit::Contain),
             )
             .into(),
-            crate::model::application_entry::IconHandle::RasterHandle(handle) => container(
+            IconHandle::RasterHandle(handle) => container(
                 cosmic::widget::image(handle.clone())
                     .width(Length::Fixed(space_l.into()))
                     .height(Length::Fixed(space_l.into()))
@@ -211,9 +330,19 @@ impl VirtualizedAppList {
         // the guard keeps it from opening when no app was right clicked.
         let context_menu = cosmic::widget::context_menu(content, Some(context_menu.unwrap_or_default()))
             .close_on_escape(true)
+            .on_open(Message::ContextMenuOpenChanged(true))
+            .on_close(Message::ContextMenuOpenChanged(false))
             .on_surface_action(Message::ContextMenuAction)
-            .window_id(applet.popup.unwrap_or(Id::NONE));
+            // No window on a layer surface, so it is drawn in the menu: the
+            // panel cannot attach popups to them.
+            .window_id(if applet.menu_is_layer_surface {
+                Id::NONE
+            } else {
+                applet.popup.unwrap_or(Id::NONE)
+            });
 
-        RightReleaseGuard::new(context_menu, !has_target).into()
+        RightReleaseGuard::new(context_menu, !has_target)
+            .capture_escape(applet.context_menu_open)
+            .into()
     }
 }

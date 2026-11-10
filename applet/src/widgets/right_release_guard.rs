@@ -3,16 +3,20 @@
 use cosmic::iced::advanced::layout::{self, Layout};
 use cosmic::iced::advanced::widget::{Operation, Tree};
 use cosmic::iced::advanced::{Clipboard, Shell, Widget, overlay, renderer};
-use cosmic::iced::{Event, Length, Rectangle, Size, Vector, mouse};
+use cosmic::iced::{Event, Length, Rectangle, Size, Vector, keyboard, mouse};
 use cosmic::{Element, Renderer, Theme};
 
 /// Swallows right button releases over its content while `blocked`.
 ///
 /// libcosmic's context menu opens on right release and cannot be left
 /// without a menu, so this keeps it shut when nothing was right clicked.
+///
+/// It also captures the Escape that dismisses the context menu, which the
+/// context menu leaves uncaptured, so that key doesn't close the whole menu.
 pub struct RightReleaseGuard<'a, Message> {
     content: Element<'a, Message>,
     blocked: bool,
+    capture_escape: bool,
 }
 
 impl<'a, Message> RightReleaseGuard<'a, Message> {
@@ -20,7 +24,14 @@ impl<'a, Message> RightReleaseGuard<'a, Message> {
         Self {
             content: content.into(),
             blocked,
+            capture_escape: false,
         }
+    }
+
+    /// Captures Escape, for while the context menu is open.
+    pub fn capture_escape(mut self, capture_escape: bool) -> Self {
+        self.capture_escape = capture_escape;
+        self
     }
 }
 
@@ -92,6 +103,18 @@ impl<Message> Widget<Message, Theme, Renderer> for RightReleaseGuard<'_, Message
             shell,
             viewport,
         );
+
+        if self.capture_escape
+            && matches!(
+                event,
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::Escape),
+                    ..
+                })
+            )
+        {
+            shell.capture_event();
+        }
     }
 
     fn mouse_interaction(

@@ -7,6 +7,7 @@ use cosmic::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::model::application_category::ApplicationCategory;
 pub use crate::model::place::Place;
 
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
@@ -15,6 +16,8 @@ pub use crate::model::place::Place;
 pub struct AppletConfig {
     pub menu_layout: MenuLayout,
     pub app_menu_position: HorizontalPosition,
+    /// Side of the panes the favorites column is on, in layouts having one.
+    pub favorites_bar_position: HorizontalPosition,
     pub search_field_position: VerticalPosition,
     pub power_menu_position: PowerMenuPosition,
     pub applet_button_style: AppletButtonStyle,
@@ -26,10 +29,43 @@ pub struct AppletConfig {
     pub side_panel: SidePanel,
     /// Share of the panes' width taken by the side panel, in percent.
     pub side_panel_width: u16,
+    /// Width of the menu popup in pixels, see [`AppletConfig::menu_size`].
+    pub menu_width: u16,
+    /// Height of the menu popup in pixels, see [`AppletConfig::menu_size`].
+    pub menu_height: u16,
     /// Places shown when `side_panel` is [`SidePanel::Places`], in order.
     pub places: Vec<Place>,
-    /// Ids of apps added to favorites, shown in layouts with a favorites bar.
+    /// Ids of apps added to favorites, shown in layouts with a favorites bar
+    /// and when `featured_applications` is [`FeaturedApplications::Favorites`].
     pub favorite_applications: Vec<String>,
+    /// Which apps the "Recently used" category and recommendations show.
+    pub featured_applications: FeaturedApplications,
+    /// How apps are shown; `None` uses the layout's own view, see
+    /// [`AppletConfig::effective_app_view`].
+    pub app_view: Option<AppView>,
+    /// Size of the apps in the column view.
+    pub column_item_size: ItemSize,
+    /// Whether the column view shows app descriptions.
+    pub column_show_description: bool,
+    /// Size of the apps in the grid view.
+    pub grid_item_size: ItemSize,
+    /// Whether the grid view shows app descriptions.
+    pub grid_show_description: bool,
+    /// How many of the first favorites the start page shows, see
+    /// [`MenuLayout::has_start_page`].
+    pub start_page_favorite_count: u16,
+    /// Id of the category the menu opens on, see
+    /// [`AppletConfig::shows_default_category`].
+    pub default_category: String,
+    /// Whether the pane next to the app list hides while searching, leaving
+    /// the room to the results.
+    pub hide_side_panel_while_searching: bool,
+    /// Whether the menu opens as a layer surface, taking the keyboard at
+    /// once also when opened by the shortcut, rather than as a popup, which
+    /// opens at the button and is frosted, see `crate::menu_surface`.
+    /// Experimental, as layer surfaces of applets are not fully supported by
+    /// cosmic-panel.
+    pub focused_menu: bool,
 }
 
 impl Default for AppletConfig {
@@ -37,6 +73,7 @@ impl Default for AppletConfig {
         AppletConfig {
             menu_layout: MenuLayout::default(),
             app_menu_position: HorizontalPosition::default(),
+            favorites_bar_position: HorizontalPosition::default(),
             search_field_position: VerticalPosition::default(),
             power_menu_position: PowerMenuPosition::default(),
             applet_button_style: AppletButtonStyle::default(),
@@ -46,8 +83,20 @@ impl Default for AppletConfig {
             recent_applications: vec![],
             side_panel: SidePanel::default(),
             side_panel_width: Self::DEFAULT_SIDE_PANEL_WIDTH,
+            menu_width: Self::DEFAULT_MENU_WIDTH,
+            menu_height: Self::DEFAULT_MENU_HEIGHT,
             places: Place::DEFAULT.to_vec(),
             favorite_applications: vec![],
+            featured_applications: FeaturedApplications::default(),
+            app_view: None,
+            column_item_size: ItemSize::default(),
+            column_show_description: true,
+            grid_item_size: ItemSize::default(),
+            grid_show_description: false,
+            start_page_favorite_count: Self::DEFAULT_START_PAGE_FAVORITE_COUNT,
+            default_category: ApplicationCategory::ALL.id().to_owned(),
+            hide_side_panel_while_searching: false,
+            focused_menu: false,
         }
     }
 }
@@ -58,6 +107,19 @@ impl AppletConfig {
     /// Bounds of `side_panel_width`, keeping both panes usable.
     pub const SIDE_PANEL_WIDTH_RANGE: std::ops::RangeInclusive<u16> = 20..=60;
 
+    pub const DEFAULT_MENU_WIDTH: u16 = 600;
+    pub const DEFAULT_MENU_HEIGHT: u16 = 700;
+    /// Bounds of `menu_width`. The upper one is the widest menu whose
+    /// preview fits the settings window.
+    pub const MENU_WIDTH_RANGE: std::ops::RangeInclusive<u16> = 500..=960;
+    /// Bounds of `menu_height`.
+    pub const MENU_HEIGHT_RANGE: std::ops::RangeInclusive<u16> = 400..=1000;
+
+    /// Favorites on the start page, leaving room for recently used apps.
+    pub const DEFAULT_START_PAGE_FAVORITE_COUNT: u16 = 2;
+    /// Bounds of `start_page_favorite_count`.
+    pub const START_PAGE_FAVORITE_COUNT_RANGE: std::ops::RangeInclusive<u16> = 1..=10;
+
     /// `FillPortion`s of the app list and the side panel.
     pub fn pane_portions(&self) -> (u16, u16) {
         let side_panel = self.side_panel_width.clamp(
@@ -65,6 +127,16 @@ impl AppletConfig {
             *Self::SIDE_PANEL_WIDTH_RANGE.end(),
         );
         (100 - side_panel, side_panel)
+    }
+
+    /// Width and height of the menu popup in pixels.
+    pub fn menu_size(&self) -> (u16, u16) {
+        (
+            self.menu_width
+                .clamp(*Self::MENU_WIDTH_RANGE.start(), *Self::MENU_WIDTH_RANGE.end()),
+            self.menu_height
+                .clamp(*Self::MENU_HEIGHT_RANGE.start(), *Self::MENU_HEIGHT_RANGE.end()),
+        )
     }
 
     pub fn config_handler() -> Option<Config> {
@@ -90,10 +162,53 @@ impl AppletConfig {
         }
     }
 
+    /// Which apps the "Recently used" category and recommendations show.
+    /// Layouts showing the favorites elsewhere keep the recently used apps.
+    pub fn effective_featured_applications(&self) -> FeaturedApplications {
+        if self.menu_layout.has_favorites() {
+            FeaturedApplications::RecentlyUsed
+        } else {
+            self.featured_applications
+        }
+    }
+
+    /// Whether the menu opens on `default_category`: only next to the
+    /// categories, so another one can be chosen, and without a start page.
+    pub fn shows_default_category(&self) -> bool {
+        self.menu_layout.has_side_panel()
+            && self.side_panel == SidePanel::Categories
+            && !self.menu_layout.has_start_page()
+    }
+
+    /// Id of the category the menu opens on. Favorites and recently used
+    /// apps take each other's place, see `featured_applications`, so either
+    /// stands for the one shown.
+    pub fn default_category_id(&self) -> String {
+        let featured = [ApplicationCategory::RECENTLY_USED, ApplicationCategory::FAVORITES];
+        if featured.iter().any(|category| category.id() == self.default_category) {
+            self.effective_featured_applications().category().id().to_owned()
+        } else {
+            self.default_category.clone()
+        }
+    }
+
+    /// Whether favorites are shown anywhere, so apps can be added to them.
+    pub fn shows_favorites(&self) -> bool {
+        self.menu_layout.has_favorites()
+            || self.featured_applications == FeaturedApplications::Favorites
+    }
+
+    /// How apps are shown, given the layout when none was chosen.
+    pub fn effective_app_view(&self) -> AppView {
+        self.app_view.unwrap_or(self.menu_layout.default_app_view())
+    }
+
     /// Switches to `layout` and resets the element positions to the ones
     /// that best resemble it.
     pub fn apply_layout(&mut self, layout: MenuLayout) {
         self.menu_layout = layout;
+        self.app_view = None;
+        self.favorites_bar_position = HorizontalPosition::Left;
         match layout {
             MenuLayout::Classic => {
                 self.app_menu_position = HorizontalPosition::Left;
@@ -101,7 +216,7 @@ impl AppletConfig {
                 self.power_menu_position = PowerMenuPosition::Categories;
                 self.side_panel = SidePanel::Categories;
             }
-            MenuLayout::Retro => {
+            MenuLayout::Retro | MenuLayout::Whistler => {
                 self.app_menu_position = HorizontalPosition::Left;
                 self.search_field_position = VerticalPosition::Bottom;
                 self.power_menu_position = PowerMenuPosition::Footer;
@@ -137,6 +252,9 @@ pub enum MenuLayout {
     /// App grid with recently used apps below and user and power controls
     /// in the footer.
     Modern,
+    /// Colored header and footer bars around a start page of favorite and
+    /// recently used apps, which leads to all apps, next to places.
+    Whistler,
 }
 
 impl Default for MenuLayout {
@@ -146,12 +264,13 @@ impl Default for MenuLayout {
 }
 
 impl MenuLayout {
-    pub const ALL: [MenuLayout; 5] = [
+    pub const ALL: [MenuLayout; 6] = [
         MenuLayout::Classic,
         MenuLayout::Retro,
         MenuLayout::Compact,
         MenuLayout::Cinnamon,
         MenuLayout::Modern,
+        MenuLayout::Whistler,
     ];
 
     /// Power controls positions this layout supports. The last one is the
@@ -162,6 +281,13 @@ impl MenuLayout {
                 PowerMenuPosition::Header,
                 PowerMenuPosition::AppList,
                 PowerMenuPosition::Categories,
+                PowerMenuPosition::Footer,
+            ],
+            MenuLayout::Whistler => &[
+                PowerMenuPosition::Header,
+                PowerMenuPosition::AppList,
+                PowerMenuPosition::Categories,
+                PowerMenuPosition::Search,
                 PowerMenuPosition::Footer,
             ],
             MenuLayout::Compact | MenuLayout::Modern => {
@@ -178,9 +304,69 @@ impl MenuLayout {
         self != MenuLayout::Modern
     }
 
-    /// Whether the layout shows the favorite apps.
+    /// Whether the layout shows the favorite apps itself, rather than in
+    /// a category.
     pub fn has_favorites(self) -> bool {
-        self == MenuLayout::Cinnamon
+        matches!(self, MenuLayout::Cinnamon | MenuLayout::Whistler)
+    }
+
+    /// Whether the app list starts with the favorite and recently used
+    /// apps, leading to all apps.
+    pub fn has_start_page(self) -> bool {
+        self == MenuLayout::Whistler
+    }
+
+    /// How the layout shows apps unless another view is chosen.
+    pub fn default_app_view(self) -> AppView {
+        if self == MenuLayout::Modern {
+            AppView::Grid
+        } else {
+            AppView::Column
+        }
+    }
+}
+
+/// How the apps are shown.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum AppView {
+    /// One app per row, with its name next to its icon.
+    Column,
+    /// Several apps per row, with their names below their icons.
+    Grid,
+}
+
+/// Size of the apps in the app view.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ItemSize {
+    Small,
+    #[default]
+    Medium,
+    Large,
+}
+
+impl ItemSize {
+    pub const ALL: [ItemSize; 3] = [ItemSize::Small, ItemSize::Medium, ItemSize::Large];
+}
+
+/// Apps shown in the category next to "All applications" and below the app
+/// grid of the modern layout.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub enum FeaturedApplications {
+    /// Most launched apps.
+    #[default]
+    RecentlyUsed,
+    /// Apps the user added to favorites.
+    Favorites,
+}
+
+impl FeaturedApplications {
+    /// The category listing these apps.
+    pub fn category(self) -> crate::model::application_category::ApplicationCategory {
+        use crate::model::application_category::ApplicationCategory;
+        match self {
+            FeaturedApplications::RecentlyUsed => ApplicationCategory::RECENTLY_USED,
+            FeaturedApplications::Favorites => ApplicationCategory::FAVORITES,
+        }
     }
 }
 
@@ -247,6 +433,8 @@ pub enum PowerMenuPosition {
     AppList,
     /// Below the categories pane.
     Categories,
+    /// In one row with the search field.
+    Search,
     /// Full-width row at the bottom of the menu.
     Footer,
 }
@@ -271,4 +459,103 @@ pub enum SidePanel {
 pub struct RecentApplication {
     pub app_id: String,
     pub launch_count: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config(menu_layout: MenuLayout, app_view: Option<AppView>) -> AppletConfig {
+        AppletConfig {
+            menu_layout,
+            app_view,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn app_view_defaults_to_the_layouts_own() {
+        assert_eq!(config(MenuLayout::Classic, None).effective_app_view(), AppView::Column);
+        assert_eq!(config(MenuLayout::Modern, None).effective_app_view(), AppView::Grid);
+        assert_eq!(
+            config(MenuLayout::Modern, Some(AppView::Column)).effective_app_view(),
+            AppView::Column
+        );
+    }
+
+    #[test]
+    fn picking_a_layout_puts_the_favorites_bar_back_on_the_left() {
+        let mut config = config(MenuLayout::Cinnamon, None);
+        config.favorites_bar_position = HorizontalPosition::Right;
+
+        config.apply_layout(MenuLayout::Cinnamon);
+
+        assert_eq!(config.favorites_bar_position, HorizontalPosition::Left);
+    }
+
+    #[test]
+    fn default_category_only_next_to_the_categories() {
+        let mut config = config(MenuLayout::Classic, None);
+        config.side_panel = SidePanel::Categories;
+        assert!(config.shows_default_category());
+
+        config.side_panel = SidePanel::Places;
+        assert!(!config.shows_default_category());
+
+        config.side_panel = SidePanel::Categories;
+        config.menu_layout = MenuLayout::Modern;
+        assert!(!config.shows_default_category());
+
+        config.menu_layout = MenuLayout::Whistler;
+        assert!(!config.shows_default_category());
+    }
+
+    #[test]
+    fn default_category_follows_the_featured_applications() {
+        let mut config = config(MenuLayout::Classic, None);
+        config.default_category = "recently-used".to_owned();
+        config.featured_applications = FeaturedApplications::Favorites;
+        assert_eq!(config.default_category_id(), "favorites");
+
+        config.default_category = "favorites".to_owned();
+        config.featured_applications = FeaturedApplications::RecentlyUsed;
+        assert_eq!(config.default_category_id(), "recently-used");
+
+        config.default_category = "office".to_owned();
+        assert_eq!(config.default_category_id(), "office");
+    }
+
+    #[test]
+    fn only_whistler_shares_a_row_with_the_search_field() {
+        let mut config = config(MenuLayout::Whistler, None);
+        config.power_menu_position = PowerMenuPosition::Search;
+        assert_eq!(
+            config.effective_power_menu_position(),
+            Some(PowerMenuPosition::Search)
+        );
+
+        config.menu_layout = MenuLayout::Retro;
+        assert_eq!(
+            config.effective_power_menu_position(),
+            Some(PowerMenuPosition::Footer)
+        );
+    }
+
+    #[test]
+    fn menu_size_stays_within_its_bounds() {
+        let mut config = config(MenuLayout::Classic, None);
+        assert_eq!(config.menu_size(), (600, 700));
+
+        config.menu_width = 1;
+        config.menu_height = u16::MAX;
+        assert_eq!(config.menu_size(), (500, 1000));
+    }
+
+    #[test]
+    fn applying_a_layout_resets_the_app_view() {
+        let mut config = config(MenuLayout::Classic, Some(AppView::Grid));
+        config.apply_layout(MenuLayout::Retro);
+
+        assert_eq!(config.effective_app_view(), AppView::Column);
+    }
 }

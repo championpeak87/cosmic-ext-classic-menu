@@ -1,6 +1,7 @@
 cosmic-applet-button  =  Cosmic Button
 
 # categories
+home-page = Domov
 all-applications = Všetky aplikácie
 recently-used = Nedávne
 audio = Audio
@@ -46,3 +47,15 @@ place-store=Obchod s aplikáciami
 place-system-monitor=Monitor systému
 place-disks=Disky
 place-separator=Oddeľovač
+
+favorites=Obľúbené
+favorites-empty=Presuňte sem aplikácie alebo ich pridajte z ich kontextovej ponuky
+back=Späť
+search-applications=Aplikácie
+search-calculator=Kalkulačka
+search-windows=Okná
+search-files=Súbory
+search-web=Hľadanie na webe
+search-commands=Príkazy
+search-sound=Zvuk
+search-other=Ďalšie výsledky

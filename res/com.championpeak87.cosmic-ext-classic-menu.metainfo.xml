@@ -41,8 +41,6 @@
       <li>Change menu and search field position</li>
       <li>Multi-language support (localization)</li>
       <li>Modern design and theme compatibility</li>
-    </ul>
-    <ul xml:lang="cs">
       <li xml:lang="cs">Procházet a spouštět nainstalované aplikace pomocí přehledného menu</li>
       <li xml:lang="cs">Vyhledávat aplikace podle názvu nebo kategorie</li>
       <li xml:lang="cs">Přizpůsobit vzhled tlačítka (ikona, popisek, kombinace, automatický styl)</li>
@@ -50,8 +48,6 @@
       <li xml:lang="cs">Možnost změny pozice menu a vyhledávacího pole</li>
       <li xml:lang="cs">Podpora více jazyků (lokalizace)</li>
       <li xml:lang="cs">Moderní design a kompatibilita s různými motivy</li>
-    </ul>
-    <ul xml:lang="de">
       <li xml:lang="de">Installierte Anwendungen über ein übersichtliches Menü durchsuchen und starten</li>
       <li xml:lang="de">Apps nach Name oder Kategorie suchen</li>
       <li xml:lang="de">Button-Design anpassen (Icon, Text, Kombination, automatisch)</li>
@@ -59,8 +55,6 @@
       <li xml:lang="de">Position des Menüs und Suchfelds ändern</li>
       <li xml:lang="de">Mehrsprachige Unterstützung (Lokalisierung)</li>
       <li xml:lang="de">Modernes Design und Theme-Kompatibilität</li>
-    </ul>
-    <ul xml:lang="fr">
       <li xml:lang="fr">Parcourir et lancer les applications installées via un menu clair</li>
       <li xml:lang="fr">Rechercher des applications par nom ou catégorie</li>
       <li xml:lang="fr">Personnaliser l'apparence du bouton (icône, texte, combinaison, style automatique)</li>
@@ -68,8 +62,6 @@
       <li xml:lang="fr">Changer la position du menu et du champ de recherche</li>
       <li xml:lang="fr">Support multilingue (localisation)</li>
       <li xml:lang="fr">Design moderne et compatibilité avec les thèmes</li>
-    </ul>
-    <ul xml:lang="es">
       <li xml:lang="es">Explora y lanza aplicaciones instaladas mediante un menú claro</li>
       <li xml:lang="es">Busca aplicaciones por nombre o categoría</li>
       <li xml:lang="es">Personaliza la apariencia del botón (icono, etiqueta, combinación, estilo automático)</li>
@@ -77,8 +69,6 @@
       <li xml:lang="es">Cambia la posición del menú y del campo de búsqueda</li>
       <li xml:lang="es">Soporte multilingüe (localización)</li>
       <li xml:lang="es">Diseño moderno y compatibilidad con temas</li>
-    </ul>
-    <ul xml:lang="ru">
       <li xml:lang="ru">Просмотр и запуск установленных приложений через удобное меню</li>
       <li xml:lang="ru">Поиск приложений по названию или категории</li>
       <li xml:lang="ru">Настройка внешнего вида кнопки (иконка, подпись, комбинация, авто)</li>
@@ -86,8 +76,6 @@
       <li xml:lang="ru">Изменение положения меню и поля поиска</li>
       <li xml:lang="ru">Многоязычная поддержка (локализация)</li>
       <li xml:lang="ru">Современный дизайн и совместимость с темами</li>
-    </ul>
-    <ul xml:lang="ja">
       <li xml:lang="ja">分かりやすいメニューでインストール済みアプリを閲覧・起動</li>
       <li xml:lang="ja">名前やカテゴリでアプリを検索</li>
       <li xml:lang="ja">ボタンの外観をカスタマイズ（アイコン、ラベル、組み合わせ、自動スタイル）</li>
@@ -95,8 +83,6 @@
       <li xml:lang="ja">メニューや検索フィールドの位置を変更</li>
       <li xml:lang="ja">多言語対応（ローカライズ）</li>
       <li xml:lang="ja">モダンなデザインとテーマ互換性</li>
-    </ul>
-    <ul xml:lang="hu">
       <li xml:lang="hu">Telepített alkalmazások böngészése és indítása egy átlátható menün keresztül</li>
       <li xml:lang="hu">Alkalmazások keresése név vagy kategória alapján</li>
       <li xml:lang="hu">Gomb megjelenésének testreszabása (ikon, címke, kombináció, automatikus stílus)</li>
@@ -104,8 +90,6 @@
       <li xml:lang="hu">Menü és keresőmező pozíciójának megváltoztatása</li>
       <li xml:lang="hu">Többnyelvű támogatás (honosítás)</li>
       <li xml:lang="hu">Modern design és téma kompatibilitás</li>
-    </ul>
-    <ul xml:lang="pl">
       <li xml:lang="pl">Przeglądanie i uruchamianie zainstalowanych aplikacji za pomocą przejrzystego menu</li>
       <li xml:lang="pl">Wyszukiwanie aplikacji według nazwy lub kategorii</li>
       <li xml:lang="pl">Dostosowanie wyglądu przycisku (ikona, etykieta, kombinacja, styl automatyczny)</li>
@@ -113,8 +97,6 @@
       <li xml:lang="pl">Zmiana pozycji menu i pola wyszukiwania</li>
       <li xml:lang="pl">Obsługa wielu języków (lokalizacja)</li>
       <li xml:lang="pl">Nowoczesny design i kompatybilność z motywami</li>
-    </ul>
-    <ul xml:lang="sk">
       <li xml:lang="sk">Prechádzanie a spúšťanie nainštalovaných aplikácií cez prehľadné menu</li>
       <li xml:lang="sk">Vyhľadávanie aplikácií podľa názvu alebo kategórie</li>
       <li xml:lang="sk">Prispôsobenie vzhľadu tlačidla (ikona, popis, kombinácia, automatický štýl)</li>
@@ -140,19 +122,37 @@
   <icon type="stock">com.championpeak87.cosmic-ext-classic-menu.svg</icon>
   <screenshots>
     <screenshot type="default">
-      <image>
-        https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/cosmic-ext-classic-menu-applet.png
-      </image>
-      <caption>Main menu screenshot</caption>
-      <caption xml:lang="cs">Hlavní menu</caption>
-     </screenshot>
-     <screenshot type="default">
-      <image>
-        https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/cosmic-ext-classic-menu-settings.png
-      </image>
-      <caption>Applet settings</caption>
-      <caption xml:lang="cs">Nastavení appletu</caption>
-     </screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-classic.png</image>
+      <caption>Classic layout with applications and categories side by side</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-retro.png</image>
+      <caption>Retro layout with colored bars and places</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-compact.png</image>
+      <caption>Compact layout with categories on the left</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-sidebar.png</image>
+      <caption>Sidebar layout with favorites and power controls</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-modern.png</image>
+      <caption>Modern layout with an application grid and favorites</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/layout-whistler.png</image>
+      <caption>Whistler layout with a start page of favorite and recently used applications</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/grid-view.png</image>
+      <caption>Grid view of applications with the favorites category</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/championpeak87/cosmic-ext-classic-menu/refs/heads/master/screenshots/settings.png</image>
+      <caption>Settings with the drag and drop layout editor</caption>
+    </screenshot>
   </screenshots>
   <provides>
     <id>com.system76.CosmicApplet</id>
@@ -166,6 +166,41 @@
     <category>Desktop</category>
   </categories>
   <releases>
+    <release version="1.1.0" date="2026-11-09">
+      <description>
+        <h1>What's changed</h1>
+        <ul>
+          <li>New Whistler layout: a start page with favorite and recently used applications, leading to all applications</li>
+          <li>Quick launcher type: favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout</li>
+          <li>Choose the category the menu opens on</li>
+          <li>Column or grid view of applications in any layout, with a choice of size and of showing application descriptions, on hover in the grid</li>
+          <li>Add applications to the favorites by dragging them onto the favorites</li>
+          <li>Drag applications from the menu into the dock to pin them</li>
+          <li>--toggle option to open or close the menu, e.g. from a keyboard shortcut</li>
+          <li>The menu takes the keyboard when opened from the panel or a shortcut, so search and arrow keys work right away</li>
+          <li>Keyboard shortcut for opening the menu, Super or any key combination, set in the settings</li>
+          <li>Resize the menu by dragging it in the layout editor, with its size shown in pixels</li>
+          <li>Whistler layout: Home category to return to the start page, and the search field and power controls in one row</li>
+          <li>Sidebar layout: favorites column on either side, scrolling when it is full</li>
+          <li>Reorder favorites by dragging them, with a line showing where they end up, and a plus badge on dragged applications</li>
+          <li>Escape closes the menu</li>
+          <li>The first search result is highlighted, and is launched by Enter</li>
+          <li>Left and right arrow keys in the grid view, continuing on the next or previous row</li>
+          <li>System monitor opens the COSMIC one when installed, or else another one found</li>
+          <li>Larger, resizable settings window with the layout editor next to the other settings</li>
+          <li>Updated libcosmic and the other dependencies</li>
+          <li>Applet description shown in COSMIC Settings</li>
+          <li>New settings translated into all languages</li>
+          <li>New screenshots of all layouts</li>
+          <li>Fixed icons given as a path to a PNG image, e.g. of Citrix applications, showing the default icon</li>
+          <li>Fixed applet crashing with PNG based icon themes</li>
+          <li>Fixed short application lists showing only their first four applications</li>
+          <li>Fixed the highlight of applications in the column view not reaching the edges of the list</li>
+          <li>Fixed the highlighted category when switching to all applications in the Whistler layout</li>
+          <li>Fixed uneven padding in the menu layouts</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-10-08">
       <description>
         <h1>What's changed</h1>

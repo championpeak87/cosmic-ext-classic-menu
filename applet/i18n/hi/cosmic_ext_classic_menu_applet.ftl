@@ -1,6 +1,7 @@
 cosmic-applet-button = कॉस्मिक बटन
 
 # श्रेणियाँ
+home-page=होम
 all-applications=सभी एप्लिकेशन
 recently-used=हाल ही में उपयोग किए गए
 audio=ऑडियो
@@ -46,3 +47,15 @@ place-store=ऐप स्टोर
 place-system-monitor=सिस्टम मॉनिटर
 place-disks=डिस्क
 place-separator=विभाजक
+
+favorites=पसंदीदा
+favorites-empty=ऐप्स को यहाँ खींचें या उनके संदर्भ मेनू से जोड़ें
+back=वापस
+search-applications=ऐप्लिकेशन
+search-calculator=कैलकुलेटर
+search-windows=विंडो
+search-files=फ़ाइलें
+search-web=वेब खोज
+search-commands=कमांड
+search-sound=ध्वनि
+search-other=अन्य परिणाम

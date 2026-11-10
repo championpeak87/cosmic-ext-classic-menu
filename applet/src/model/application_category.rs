@@ -45,6 +45,16 @@ impl ApplicationCategory {
         include_categories: Vec::new(),
         include_filenames: Vec::new(),
     };
+    pub const FAVORITES: ApplicationCategory = ApplicationCategory {
+        display_name: Cow::Borrowed("favorites"),
+        icon: CategoryIcon::Bundled(Cow::Borrowed(include_bytes!(
+            "../../../res/icons/bundled/starred-symbolic.svg"
+        ))),
+        mime_name: Cow::Borrowed(""),
+        permanent: true,
+        include_categories: Vec::new(),
+        include_filenames: Vec::new(),
+    };
     pub const AUDIO: ApplicationCategory = ApplicationCategory {
         display_name: Cow::Borrowed("audio"),
         icon: CategoryIcon::Bundled(Cow::Borrowed(include_bytes!(
@@ -156,10 +166,17 @@ impl ApplicationCategory {
         include_filenames: Vec::new(),
     };
 
+    /// Identifies the category in the config: the translation key of
+    /// built-in categories, or the name of custom ones.
+    pub fn id(&self) -> &str {
+        &self.display_name
+    }
+
     pub fn get_display_name(&self) -> String {
         match self.display_name {
             std::borrow::Cow::Borrowed("all-applications") => fl!("all-applications"),
             std::borrow::Cow::Borrowed("recently-used") => fl!("recently-used"),
+            std::borrow::Cow::Borrowed("favorites") => fl!("favorites"),
             std::borrow::Cow::Borrowed("audio") => fl!("audio"),
             std::borrow::Cow::Borrowed("video") => fl!("video"),
             std::borrow::Cow::Borrowed("development") => fl!("development"),
