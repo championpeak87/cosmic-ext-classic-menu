@@ -41,8 +41,6 @@
       <li>Change menu and search field position</li>
       <li>Multi-language support (localization)</li>
       <li>Modern design and theme compatibility</li>
-    </ul>
-    <ul xml:lang="cs">
       <li xml:lang="cs">Procházet a spouštět nainstalované aplikace pomocí přehledného menu</li>
       <li xml:lang="cs">Vyhledávat aplikace podle názvu nebo kategorie</li>
       <li xml:lang="cs">Přizpůsobit vzhled tlačítka (ikona, popisek, kombinace, automatický styl)</li>
@@ -50,8 +48,6 @@
       <li xml:lang="cs">Možnost změny pozice menu a vyhledávacího pole</li>
       <li xml:lang="cs">Podpora více jazyků (lokalizace)</li>
       <li xml:lang="cs">Moderní design a kompatibilita s různými motivy</li>
-    </ul>
-    <ul xml:lang="de">
       <li xml:lang="de">Installierte Anwendungen über ein übersichtliches Menü durchsuchen und starten</li>
       <li xml:lang="de">Apps nach Name oder Kategorie suchen</li>
       <li xml:lang="de">Button-Design anpassen (Icon, Text, Kombination, automatisch)</li>
@@ -59,8 +55,6 @@
       <li xml:lang="de">Position des Menüs und Suchfelds ändern</li>
       <li xml:lang="de">Mehrsprachige Unterstützung (Lokalisierung)</li>
       <li xml:lang="de">Modernes Design und Theme-Kompatibilität</li>
-    </ul>
-    <ul xml:lang="fr">
       <li xml:lang="fr">Parcourir et lancer les applications installées via un menu clair</li>
       <li xml:lang="fr">Rechercher des applications par nom ou catégorie</li>
       <li xml:lang="fr">Personnaliser l'apparence du bouton (icône, texte, combinaison, style automatique)</li>
@@ -68,8 +62,6 @@
       <li xml:lang="fr">Changer la position du menu et du champ de recherche</li>
       <li xml:lang="fr">Support multilingue (localisation)</li>
       <li xml:lang="fr">Design moderne et compatibilité avec les thèmes</li>
-    </ul>
-    <ul xml:lang="es">
       <li xml:lang="es">Explora y lanza aplicaciones instaladas mediante un menú claro</li>
       <li xml:lang="es">Busca aplicaciones por nombre o categoría</li>
       <li xml:lang="es">Personaliza la apariencia del botón (icono, etiqueta, combinación, estilo automático)</li>
@@ -77,8 +69,6 @@
       <li xml:lang="es">Cambia la posición del menú y del campo de búsqueda</li>
       <li xml:lang="es">Soporte multilingüe (localización)</li>
       <li xml:lang="es">Diseño moderno y compatibilidad con temas</li>
-    </ul>
-    <ul xml:lang="ru">
       <li xml:lang="ru">Просмотр и запуск установленных приложений через удобное меню</li>
       <li xml:lang="ru">Поиск приложений по названию или категории</li>
       <li xml:lang="ru">Настройка внешнего вида кнопки (иконка, подпись, комбинация, авто)</li>
@@ -86,8 +76,6 @@
       <li xml:lang="ru">Изменение положения меню и поля поиска</li>
       <li xml:lang="ru">Многоязычная поддержка (локализация)</li>
       <li xml:lang="ru">Современный дизайн и совместимость с темами</li>
-    </ul>
-    <ul xml:lang="ja">
       <li xml:lang="ja">分かりやすいメニューでインストール済みアプリを閲覧・起動</li>
       <li xml:lang="ja">名前やカテゴリでアプリを検索</li>
       <li xml:lang="ja">ボタンの外観をカスタマイズ（アイコン、ラベル、組み合わせ、自動スタイル）</li>
@@ -95,8 +83,6 @@
       <li xml:lang="ja">メニューや検索フィールドの位置を変更</li>
       <li xml:lang="ja">多言語対応（ローカライズ）</li>
       <li xml:lang="ja">モダンなデザインとテーマ互換性</li>
-    </ul>
-    <ul xml:lang="hu">
       <li xml:lang="hu">Telepített alkalmazások böngészése és indítása egy átlátható menün keresztül</li>
       <li xml:lang="hu">Alkalmazások keresése név vagy kategória alapján</li>
       <li xml:lang="hu">Gomb megjelenésének testreszabása (ikon, címke, kombináció, automatikus stílus)</li>
@@ -104,8 +90,6 @@
       <li xml:lang="hu">Menü és keresőmező pozíciójának megváltoztatása</li>
       <li xml:lang="hu">Többnyelvű támogatás (honosítás)</li>
       <li xml:lang="hu">Modern design és téma kompatibilitás</li>
-    </ul>
-    <ul xml:lang="pl">
       <li xml:lang="pl">Przeglądanie i uruchamianie zainstalowanych aplikacji za pomocą przejrzystego menu</li>
       <li xml:lang="pl">Wyszukiwanie aplikacji według nazwy lub kategorii</li>
       <li xml:lang="pl">Dostosowanie wyglądu przycisku (ikona, etykieta, kombinacja, styl automatyczny)</li>
@@ -113,8 +97,6 @@
       <li xml:lang="pl">Zmiana pozycji menu i pola wyszukiwania</li>
       <li xml:lang="pl">Obsługa wielu języków (lokalizacja)</li>
       <li xml:lang="pl">Nowoczesny design i kompatybilność z motywami</li>
-    </ul>
-    <ul xml:lang="sk">
       <li xml:lang="sk">Prechádzanie a spúšťanie nainštalovaných aplikácií cez prehľadné menu</li>
       <li xml:lang="sk">Vyhľadávanie aplikácií podľa názvu alebo kategórie</li>
       <li xml:lang="sk">Prispôsobenie vzhľadu tlačidla (ikona, popis, kombinácia, automatický štýl)</li>

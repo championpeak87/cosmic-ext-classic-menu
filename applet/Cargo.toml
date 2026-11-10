@@ -15,8 +15,9 @@ fuzzy-matcher = "0.3.7"
 zbus = "6.2.1"
 # logind-zbus has no release for zbus 6 yet.
 zbus5 = { package = "zbus", version = "5.19.0" }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time"] }
 serde = { workspace = true, features = ["derive"] }
+serde_json = "1.0.154"
 rustix = "1.0.5"
 logind-zbus = "5.3.2"
 once_cell = "1.21.3"

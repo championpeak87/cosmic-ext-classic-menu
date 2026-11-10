@@ -38,6 +38,7 @@ use crate::config::{
 };
 use crate::fl;
 use crate::logic::apps::{Event, desktop_files, load_apps};
+use crate::logic::launcher;
 use crate::model::application_category::ApplicationCategory;
 use crate::model::application_entry::{ApplicationEntry, DesktopAction};
 use crate::model::dragged_app::DraggedApp;
@@ -68,6 +69,10 @@ pub struct Applet {
     pub menu_is_layer_surface: bool,
     /// Where the menu goes on its surface.
     pub menu_placement: crate::menu_surface::Placement,
+    /// Takes requests to pop-launcher while it runs.
+    pub launcher: Option<tokio::sync::mpsc::UnboundedSender<launcher::Request>>,
+    /// Results of pop-launcher's plugins for the search, other than apps.
+    pub launcher_results: Vec<launcher::SearchResult>,
     /// When the menu last closed because it lost the keyboard.
     pub menu_unfocused_at: Option<Instant>,
     /// The popup type that is used to determine which popup to display.
@@ -196,6 +201,10 @@ pub enum Message {
     MenuPressed,
     /// A layer surface lost the keyboard, e.g. by clicking elsewhere.
     SurfaceUnfocused(Id),
+    /// News from pop-launcher, see [`launcher`].
+    Launcher(launcher::Event),
+    /// A result of pop-launcher was clicked, by its id.
+    LauncherResultActivated(u32),
     AppListConfigUpdated(AppListConfig),
     ContextMenuAction(Action<Message>),
     LaunchApplicationAt(usize),
@@ -274,6 +283,8 @@ impl Application for Applet {
             popup: None,
             menu_is_layer_surface: crate::menu_surface::hosted_by_panel(),
             menu_placement: Default::default(),
+            launcher: None,
+            launcher_results: Vec::new(),
             menu_unfocused_at: None,
             context_menu: None,
             scroll_offset: 0.0,
@@ -431,7 +442,17 @@ impl Application for Applet {
 
                     return self.launch_application(selected_application, None);
                 }
+                // With no app found, e.g. for "= 2+3", Enter takes the first
+                // of the other results.
+                if let Some(result) = self.default_launcher_result() {
+                    self.launcher_request(launcher::Request::Activate(result.id));
+                }
 
+                Task::none()
+            }
+            Message::Launcher(event) => self.handle_launcher_event(event),
+            Message::LauncherResultActivated(id) => {
+                self.launcher_request(launcher::Request::Activate(id));
                 Task::none()
             }
             Message::SuperKeyPressed => self.toggle_popup(PopupType::MainMenu),
@@ -672,6 +693,7 @@ impl Application for Applet {
                 }),
             // DBUS subscription
             crate::dbus::dbus_service_subscription().map(|msg| msg),
+            launcher::subscription().map(Message::Launcher),
             self.core
                 .watch_config::<cosmic_app_list_config::AppListConfig>(
                     cosmic_app_list_config::APP_ID,
@@ -1076,6 +1098,68 @@ impl Applet {
         }
     }
 
+    /// Sends `request` to pop-launcher, if it runs.
+    fn launcher_request(&self, request: launcher::Request) {
+        if let Some(launcher) = &self.launcher {
+            let _ = launcher.send(request);
+        }
+    }
+
+    /// The result of pop-launcher that Enter activates: the first, while no
+    /// app is highlighted.
+    pub fn default_launcher_result(&self) -> Option<&launcher::SearchResult> {
+        if self.search_field.is_empty() || self.selected_item_index.is_some() {
+            return None;
+        }
+        self.launcher_results.first()
+    }
+
+    fn handle_launcher_event(&mut self, event: launcher::Event) -> Task<Message> {
+        match event {
+            launcher::Event::Started(requests) => {
+                self.launcher = Some(requests);
+                // A search typed while it was starting.
+                if !self.search_field.is_empty() {
+                    self.launcher_request(launcher::Request::Search(self.search_field.clone()));
+                }
+                Task::none()
+            }
+            launcher::Event::Stopped => {
+                self.launcher = None;
+                self.launcher_results.clear();
+                Task::none()
+            }
+            launcher::Event::Response(response) => match response {
+                // Late answers to a search since cleared are dropped.
+                launcher::Response::Update(results) if !self.search_field.is_empty() => {
+                    self.launcher_results = launcher::non_application_results(results);
+                    Task::none()
+                }
+                launcher::Response::Update(_) | launcher::Response::Context { .. } => Task::none(),
+                // The plugin did what the result is for, e.g. focused a window.
+                launcher::Response::Close => match self.popup.take() {
+                    Some(popup) => self.destroy_surface(popup),
+                    None => Task::none(),
+                },
+                // E.g. a completed path, searched for in turn.
+                launcher::Response::Fill(query) => self.update_search_field(query),
+                launcher::Response::DesktopEntry { path } => {
+                    let app = crate::logic::apps::with_cached_apps(|apps| {
+                        apps.iter().find(|app| app.path.as_ref() == Some(&path)).cloned()
+                    })
+                    .flatten();
+                    match app {
+                        Some(app) => self.launch_application(app, None),
+                        None => {
+                            log::warn!("pop-launcher opened an unknown app: {}", path.display());
+                            Task::none()
+                        }
+                    }
+                }
+            },
+        }
+    }
+
     fn close_popup(&mut self, id: Id) -> Task<Message> {
         if self.popup.as_ref() == Some(&id) {
             self.popup = None;
@@ -1107,6 +1191,7 @@ impl Applet {
             return self.clear_search();
         }
         self.search_field.clone_from(&input);
+        self.launcher_request(launcher::Request::Search(input.clone()));
 
         Task::batch([
             // reset scroll position

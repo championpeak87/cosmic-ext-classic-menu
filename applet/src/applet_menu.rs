@@ -761,6 +761,18 @@ impl AppletMenu {
             AppView::Column => VirtualizedAppList::view(applet),
             AppView::Grid => VirtualizedAppGrid::view(applet),
         };
+        // The other results lead, apps found follow under a heading.
+        if let Some(results) = AppletMenu::launcher_results(applet) {
+            let mut list = column![results];
+            if !applet.available_applications.is_empty() {
+                list = list.push(text::heading(fl!("search-applications")));
+            }
+            return list
+                .push(view)
+                .spacing(theme::active().cosmic().space_xxs())
+                .height(Length::Fill)
+                .into();
+        }
         // Search results are left by clearing the search. The button takes
         // the place of the one leading here, at the bottom.
         if applet.config.menu_layout.has_start_page() && applet.search_field.is_empty() {
@@ -775,6 +787,109 @@ impl AppletMenu {
         } else {
             view
         }
+    }
+
+    /// Most results of pop-launcher's plugins shown above the apps found.
+    const MAX_LAUNCHER_RESULTS: usize = 5;
+
+    /// Results of pop-launcher's plugins for the search, such as the
+    /// calculator, files, open windows or web searches, each kind under a
+    /// heading of its own.
+    fn launcher_results<'a>(applet: &'a Applet) -> Option<Element<'a, Message>> {
+        if applet.search_field.is_empty() || applet.launcher_results.is_empty() {
+            return None;
+        }
+        let Spacing { space_xxs, space_xs, space_s, .. } = theme::active().cosmic().spacing;
+        let (icon_size, item_height) =
+            VirtualizedAppList::item_metrics(applet.config.column_item_size);
+        let highlighted = applet.default_launcher_result().map(|result| result.id);
+
+        // The best results, grouped once picked.
+        let best = &applet.launcher_results
+            [..applet.launcher_results.len().min(Self::MAX_LAUNCHER_RESULTS)];
+        let row = |result: &'a crate::logic::launcher::SearchResult| -> Element<'a, Message> {
+            let description = (!result.description.is_empty()).then(|| {
+                text(&result.description)
+                    .size(10)
+                    .wrapping(Wrapping::None)
+                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
+            });
+            cosmic::widget::button::custom(
+                row![
+                    AppletMenu::launcher_icon(result, icon_size),
+                    column![
+                        text(&result.name)
+                            .wrapping(Wrapping::None)
+                            .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1))),
+                    ]
+                    .push_maybe(description),
+                ]
+                .spacing(5)
+                .align_y(Alignment::Center),
+            )
+            .on_press(Message::LauncherResultActivated(result.id))
+            .class(if highlighted == Some(result.id) {
+                cosmic::theme::Button::Suggested
+            } else {
+                cosmic::theme::Button::AppletMenu
+            })
+            .padding([0, space_s])
+            .width(Length::Fill)
+            .height(item_height)
+            .into()
+        };
+
+        let groups = crate::logic::launcher::grouped(best).into_iter().map(|(group, results)| {
+            column![text::heading(AppletMenu::result_group_name(group))]
+                .extend(results.into_iter().map(row))
+                .spacing(space_xxs)
+                .into()
+        });
+        Some(column(groups).spacing(space_xs).into())
+    }
+
+    /// Heading of a kind of results of pop-launcher.
+    fn result_group_name(group: crate::logic::launcher::ResultGroup) -> String {
+        use crate::logic::launcher::ResultGroup;
+        match group {
+            ResultGroup::Calculator => fl!("search-calculator"),
+            ResultGroup::Windows => fl!("search-windows"),
+            ResultGroup::Files => fl!("search-files"),
+            ResultGroup::Web => fl!("search-web"),
+            ResultGroup::Commands => fl!("search-commands"),
+            ResultGroup::Sound => fl!("search-sound"),
+            ResultGroup::Other => fl!("search-other"),
+        }
+    }
+
+    /// Icon of a result of pop-launcher, by name, path or MIME type.
+    fn launcher_icon(
+        result: &crate::logic::launcher::SearchResult,
+        size: u16,
+    ) -> Element<'static, Message> {
+        use crate::logic::launcher::IconSource;
+        use cosmic::widget::icon;
+
+        let fallback = || {
+            Some(icon::IconFallback::Names(vec![
+                "application-default".into(),
+                "application-x-executable".into(),
+            ]))
+        };
+        let handle = match result.icon.as_ref().or(result.category_icon.as_ref()) {
+            Some(IconSource::Name(name)) if name.starts_with('/') => {
+                icon::from_path(PathBuf::from(name))
+            }
+            Some(IconSource::Name(name)) => {
+                icon::from_name(name.clone()).size(size).fallback(fallback()).handle()
+            }
+            Some(IconSource::Mime(mime)) => icon::from_name(mime.replace('/', "-"))
+                .size(size)
+                .fallback(fallback())
+                .handle(),
+            None => icon::from_name("system-search-symbolic").size(size).handle(),
+        };
+        icon(handle).size(size).into()
     }
 
     /// The favorites, then the recently used apps, which lead the
