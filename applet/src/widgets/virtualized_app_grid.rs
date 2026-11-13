@@ -10,7 +10,8 @@ use cosmic::{Element, theme};
 
 use crate::applet::{Applet, FavoritesRegion, Message};
 use crate::applet_menu::{AppletMenu, FavoriteSlotAxis};
-use crate::config::{AppletConfig, ItemSize};
+use crate::config::ItemSize;
+use crate::layout::AppListOptions;
 use crate::model::application_entry::ApplicationEntry;
 use crate::widgets::VirtualizedAppList;
 
@@ -34,11 +35,13 @@ impl VirtualizedAppGrid {
     /// Width at which app descriptions in tooltips wrap.
     const TOOLTIP_MAX_WIDTH: f32 = 280.0;
 
-    pub fn metrics(config: &AppletConfig) -> GridMetrics {
-        let (columns, icon_size, row_height) = match config.grid_item_size {
-            ItemSize::Small => (6, 32, 72.0),
-            ItemSize::Medium => (5, 40, 88.0),
-            ItemSize::Large => (4, 56, 108.0),
+    pub fn metrics(options: &AppListOptions) -> GridMetrics {
+        // Rows fit the icon and two lines of the name, so that names are
+        // seldom cut off.
+        let (columns, icon_size, row_height) = match options.item_size {
+            ItemSize::Small => (5, 32, 88.0),
+            ItemSize::Medium => (4, 40, 100.0),
+            ItemSize::Large => (3, 56, 120.0),
         };
         GridMetrics {
             columns,
@@ -48,38 +51,49 @@ impl VirtualizedAppGrid {
     }
 
     pub fn view(applet: &Applet) -> Element<'_, Message> {
-        let metrics = Self::metrics(&applet.config);
-        let total_rows = applet.available_applications.len().div_ceil(metrics.columns);
+        let metrics = Self::metrics(applet.config.app_list());
+        // The apps leading all apps are set apart from them, all apps
+        // starting on a row of their own.
+        let layout = applet.app_rows();
+        let total_rows = layout.rows();
 
         // Search results of pop-launcher lead the apps found.
         let header_height =
             AppletMenu::search_header_layout(applet).map_or(0., |layout| layout.height);
         let scroll_offset = (applet.scroll_offset - header_height).max(0.);
-        let visible_start = (scroll_offset / metrics.row_height).floor() as usize;
+        let visible_start = layout.row_at(scroll_offset);
         let viewport_height = applet.render_viewport_height().max(metrics.row_height);
         let visible_count = ((viewport_height / metrics.row_height).ceil() as usize) + 1;
 
         let render_start = visible_start.saturating_sub(Self::RENDER_BUFFER);
         let render_end = (visible_start + visible_count + Self::RENDER_BUFFER).min(total_rows);
+        // Drawn if between the rows rendered or right after them; otherwise
+        // the spacers make room for it.
+        let separator = layout
+            .break_row()
+            .filter(|row| render_start < *row && *row <= render_end);
 
         let mut rows: Vec<Element<'_, Message>> = Vec::new();
 
         // Spacers above and below keep the scroll position stable.
         if render_start > 0 {
-            rows.push(Self::spacer(render_start, metrics));
+            rows.push(Self::spacer(layout.top(render_start)));
         }
 
         for row_index in render_start..render_end {
-            let first = row_index * metrics.columns;
+            if separator == Some(row_index) {
+                rows.push(AppletMenu::leading_separator());
+            }
+            let range = layout.row_range(row_index);
             let mut cells: Vec<Element<'_, Message>> = applet
                 .available_applications
                 .iter()
                 .enumerate()
-                .skip(first)
-                .take(metrics.columns)
+                .skip(range.start)
+                .take(range.len())
                 .map(|(index, app)| Self::create_app_cell(applet, index, app, metrics))
                 .collect();
-            // Keep cells of a partial last row the same width as the others.
+            // Keep cells of a partial row the same width as the others.
             while cells.len() < metrics.columns {
                 cells.push(
                     cosmic::widget::Space::new()
@@ -93,9 +107,12 @@ impl VirtualizedAppGrid {
                     .into(),
             );
         }
+        if separator == Some(render_end) {
+            rows.push(AppletMenu::leading_separator());
+        }
 
         if render_end < total_rows {
-            rows.push(Self::spacer(total_rows - render_end, metrics));
+            rows.push(Self::spacer(layout.height() - layout.top(render_end)));
         }
 
         let content = column![]
@@ -110,10 +127,10 @@ impl VirtualizedAppGrid {
         VirtualizedAppList::with_context_menu(applet, grid)
     }
 
-    fn spacer(rows: usize, metrics: GridMetrics) -> Element<'static, Message> {
+    fn spacer(height: f32) -> Element<'static, Message> {
         cosmic::widget::Space::new()
             .width(Length::Fill)
-            .height(Length::Fixed(rows as f32 * metrics.row_height))
+            .height(Length::Fixed(height))
             .into()
     }
 
@@ -130,8 +147,8 @@ impl VirtualizedAppGrid {
                 VirtualizedAppList::create_icon_widget(app, metrics.icon_size),
                 text(&app.name)
                     .size(12)
-                    .wrapping(Wrapping::None)
-                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
+                    .wrapping(Wrapping::WordOrGlyph)
+                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(2)))
                     .align_x(Alignment::Center)
                     .width(Length::Fill),
             ]
@@ -139,11 +156,9 @@ impl VirtualizedAppGrid {
             .align_x(Alignment::Center),
         )
         .on_press(Message::ApplicationSelected(app.clone()))
-        .class(if applet.selected_item_index == Some(index) {
-            cosmic::theme::Button::Suggested
-        } else {
-            cosmic::theme::Button::AppletMenu
-        })
+        .class(crate::applet_menu::menu_item_class(
+            applet.selected_item_index == Some(index),
+        ))
         .padding(space_xxs)
         .width(Length::Fill)
         .height(Length::Fill);
@@ -153,7 +168,7 @@ impl VirtualizedAppGrid {
         let tile: Element<'a, Message> = match app
             .comment
             .as_deref()
-            .filter(|_| applet.config.grid_show_description)
+            .filter(|_| applet.config.app_list().show_description)
         {
             Some(comment) => cosmic::widget::tooltip(
                 button,
@@ -174,9 +189,10 @@ impl VirtualizedAppGrid {
         let cell = VirtualizedAppList::drag_source(
             applet,
             app,
-            cosmic::widget::mouse_area(tile).on_right_press(Message::ContextMenuTarget(index)),
+            cosmic::widget::mouse_area(tile).on_right_press(Message::ContextMenuTarget(app.clone())),
         );
-        let cell = if applet.app_view_shows_favorites() {
+        let cell = AppletMenu::leading_app(applet, index, cell);
+        let cell = if applet.favorite_rows().contains(&index) {
             AppletMenu::favorite_slot(
                 applet,
                 app,

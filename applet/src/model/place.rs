@@ -26,10 +26,15 @@ pub enum Place {
     /// A divider between places. Unlike the others, it may appear several
     /// times.
     Separator,
+    /// Empty room pushing the places around it apart, such as the system
+    /// tools to the bottom of the panel. It may appear several times, the
+    /// spacers sharing the room.
+    Spacer,
 }
 
 impl Place {
-    /// Every place but [`Place::Separator`].
+    /// Every place but the ones that may repeat, see
+    /// [`Place::is_repeatable`].
     pub const ALL: [Place; 12] = [
         Place::Home,
         Place::Documents,
@@ -60,6 +65,12 @@ impl Place {
         Place::Store,
     ];
 
+    /// Whether the place may appear several times, as it lays out the
+    /// others rather than opening anything.
+    pub fn is_repeatable(self) -> bool {
+        matches!(self, Place::Separator | Place::Spacer)
+    }
+
     pub fn display_name(self) -> String {
         match self {
             Place::Home => fl!("place-home"),
@@ -75,11 +86,12 @@ impl Place {
             Place::SystemMonitor => fl!("place-system-monitor"),
             Place::Disks => fl!("place-disks"),
             Place::Separator => fl!("place-separator"),
+            Place::Spacer => fl!("place-spacer"),
         }
     }
 
-    /// Name of the symbolic icon from the icon theme. Separators have none
-    /// and are drawn as a line instead.
+    /// Name of the symbolic icon from the icon theme. Separators and spacers
+    /// have none, being drawn as a line and as empty room.
     pub fn icon_name(self) -> &'static str {
         match self {
             Place::Home => "user-home-symbolic",
@@ -94,7 +106,7 @@ impl Place {
             Place::Store => "system-software-install-symbolic",
             Place::SystemMonitor => "utilities-system-monitor-symbolic",
             Place::Disks => "drive-multidisk-symbolic",
-            Place::Separator => "",
+            Place::Separator | Place::Spacer => "",
         }
     }
 
@@ -176,5 +188,27 @@ fn spawn_on_host(program: &str, args: &[&str]) {
 
     if let Err(e) = result {
         log::error!("Error launching '{program}': {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Place;
+
+    #[test]
+    fn only_separators_and_spacers_repeat() {
+        assert!(Place::Separator.is_repeatable());
+        assert!(Place::Spacer.is_repeatable());
+        assert!(Place::ALL.iter().all(|place| !place.is_repeatable()));
+    }
+
+    #[test]
+    fn spacers_survive_the_config() {
+        let places: Vec<Place> = ron::from_str("[Home, Spacer, Separator, Spacer, Settings]").unwrap();
+        assert_eq!(
+            places,
+            [Place::Home, Place::Spacer, Place::Separator, Place::Spacer, Place::Settings]
+        );
+        assert_eq!(ron::from_str::<Vec<Place>>(&ron::to_string(&places).unwrap()).unwrap(), places);
     }
 }

@@ -47,6 +47,7 @@ place-store=Obchod s aplikáciami
 place-system-monitor=Monitor systému
 place-disks=Disky
 place-separator=Oddeľovač
+place-spacer=Medzera
 
 favorites=Obľúbené
 favorites-empty=Presuňte sem aplikácie alebo ich pridajte z ich kontextovej ponuky
@@ -59,3 +60,23 @@ search-web=Hľadanie na webe
 search-commands=Príkazy
 search-sound=Zvuk
 search-other=Ďalšie výsledky
+power-logout=Odhlásiť sa
+power-suspend=Uspať
+power-hibernate=Hibernovať
+power-lock=Zamknúť obrazovku
+power-reboot=Reštartovať
+power-shutdown=Vypnúť
+
+# ponuka po kliknutí pravým tlačidlom
+context-applications=Nainštalované aplikácie
+context-power-settings=Možnosti napájania
+context-system=Systém
+context-network=Sieťové pripojenia
+context-bluetooth=Bluetooth
+context-sound=Zvuk
+context-displays=Obrazovky
+context-appearance=Vzhľad
+context-files=Súbory
+context-search=Hľadať
+context-menu-settings=Nastavenia ponuky
+context-power=Tlačidlá napájania

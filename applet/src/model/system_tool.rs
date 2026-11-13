@@ -77,6 +77,11 @@ impl SystemTool {
         exec: "cosmic-store",
     };
 
+    /// Runs `exec`, a shell command line, on the host.
+    pub const fn command(exec: &'static str) -> Self {
+        Self { exec }
+    }
+
     pub fn perform(&self) {
         if self == &SystemTool::APPLET_SETTINGS {
             self.handle_applet_settings();

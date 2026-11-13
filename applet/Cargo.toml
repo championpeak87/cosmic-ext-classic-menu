@@ -60,3 +60,7 @@ features = ["applet", "tokio", "wayland", "desktop", "a11y"]
 # libcosmic = { path = "../libcosmic" }
 # cosmic-config = { path = "../libcosmic/cosmic-config" }
 # cosmic-theme = { path = "../libcosmic/cosmic-theme" }
+
+[dev-dependencies]
+# Same version as cosmic-config uses to store the config.
+ron = "0.12"

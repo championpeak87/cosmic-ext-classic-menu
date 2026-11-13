@@ -20,8 +20,9 @@ fn main() -> cosmic::iced::Result {
 
     // Settings for configuring the application window and iced runtime.
     let settings = cosmic::app::Settings::default()
-        // Wide enough for the layout editor next to the other settings.
-        .size(cosmic::iced::Size::new(1200.0, 860.0))
+        // Wide enough for the layout editor next to the other settings, and
+        // as tall as still fits a 1080p screen under a panel.
+        .size(cosmic::iced::Size::new(1200.0, 960.0))
         // The largest preview of the menu fits this width.
         .size_limits(cosmic::iced::Limits::NONE.min_width(600.0).min_height(400.0));
 

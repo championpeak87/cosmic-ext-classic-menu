@@ -7,18 +7,17 @@ use cosmic::cctk::sctk::reexports::protocols::xdg::shell::client::xdg_positioner
     Anchor, Gravity,
 };
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
-use crate::logic::selection::{SelectionStep, step_selection};
+use crate::logic::selection::{AppRows, SelectionStep};
 use cosmic::iced::event::{Status, listen_raw};
 use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::widget::operation::AbsoluteOffset;
 use cosmic::iced::widget::scrollable::{RelativeOffset, Viewport};
 use cosmic::iced::{
-    Alignment,
+    Alignment, Length,
     event::{PlatformSpecific, wayland},
     platform_specific::shell::commands::{
         layer_surface::destroy_layer_surface, popup::destroy_popup,
     },
-    widget::{column, row},
     window::Id,
 };
 use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};
@@ -32,11 +31,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::applet_button::AppletButton;
+use crate::widgets::ArrowCursor;
 use crate::applet_menu::AppletMenu;
-use crate::config::{
-    AppView, AppletButtonStyle, AppletConfig, FeaturedApplications, RecentApplication,
-};
-use crate::fl;
+use crate::config::{AppView, AppletButtonStyle, AppletConfig, RecentApplication};
 use crate::logic::apps::{Event, desktop_files, load_apps};
 use crate::logic::launcher;
 use crate::model::application_category::ApplicationCategory;
@@ -44,6 +41,7 @@ use crate::model::application_entry::{ApplicationEntry, DesktopAction};
 use crate::model::dragged_app::DraggedApp;
 use crate::model::popup_type::PopupType;
 use crate::model::power_action::PowerAction;
+use crate::model::context_menu_item::ContextMenuItem;
 use crate::model::system_tool::SystemTool;
 use crate::model::user::User;
 
@@ -101,9 +99,9 @@ pub struct Applet {
     pub favorite_applications: Vec<Arc<ApplicationEntry>>,
     /// Most used apps, shown as recommendations in some layouts.
     pub recent_applications: Vec<Arc<ApplicationEntry>>,
-    /// Index of the app in `available_applications` whose context menu is
-    /// shown on right click.
-    pub context_menu_target: Option<usize>,
+    /// The app whose context menu is shown on right click, in the app view
+    /// or a bar of favorite or recently used apps.
+    pub context_menu_target: Option<Arc<ApplicationEntry>>,
     /// Whether the context menu of an app is showing.
     pub context_menu_open: bool,
     /// Whether an app claimed the current right click, see
@@ -113,9 +111,30 @@ pub struct Applet {
     pub favorites_drop_target: Option<FavoritesDropTarget>,
     /// The app being dragged, if any.
     pub app_drag: Option<AppDrag>,
-    /// Number of favorites leading `available_applications` while it holds
-    /// the start page of layouts having one, `None` otherwise.
-    pub start_page_favorites: Option<usize>,
+    /// The favorite and recently used apps leading `available_applications`
+    /// while the app list shows them, see [`HomeSections`].
+    pub home: Option<HomeSections>,
+    /// Whether the system can hibernate, so the power controls offer it.
+    pub can_hibernate: bool,
+}
+
+/// How many favorite and recently used apps lead the apps shown, on the
+/// start page or above all apps, see `crate::layout::AppListOptions`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HomeSections {
+    pub favorites: usize,
+    pub recents: usize,
+    /// Whether they are shown alone, on the start page, rather than above
+    /// all apps.
+    pub start_page: bool,
+}
+
+/// Which of the apps leading all apps an app is, see
+/// [`Applet::leading_app`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LeadingApp {
+    Favorite,
+    Recent,
 }
 
 /// Where an app dropped on the favorites goes.
@@ -188,7 +207,11 @@ pub enum Message {
     ApplicationSelected(Arc<ApplicationEntry>),
     CategorySelected(ApplicationCategory),
     LaunchTool(SystemTool),
+    /// An entry of the menu opened by right clicking the button.
+    ContextMenuItemSelected(ContextMenuItem),
     Zbus(Result<(), zbus::Error>),
+    /// Whether the system can hibernate, checked at start.
+    HibernateAvailability(bool),
     UpdateLoggedUser(Result<User, zbus::Error>),
     FileEvent(Event),
     UpdateConfig(AppletConfig),
@@ -210,14 +233,17 @@ pub enum Message {
     LauncherResultActivated(u32),
     AppListConfigUpdated(AppListConfig),
     ContextMenuAction(Action<Message>),
-    LaunchApplicationAt(usize),
-    LaunchApplicationWithActionAt(usize, usize),
-    PinToAppTrayIndex(usize, bool),
+    /// Launches the app of the context menu, with its desktop action at
+    /// this index, if any.
+    LaunchContextMenuTarget(Option<usize>),
+    /// Pins the app of the context menu to the dock, or unpins it if it is
+    /// pinned.
+    PinContextMenuTarget(bool),
     ScrollUpdated(Viewport),
     /// Right press on an app, sent before [`Message::ContextMenuRightPress`].
-    ContextMenuTarget(usize),
-    /// Adds or removes the app at this index from the favorites.
-    ToggleFavoriteAt(usize),
+    ContextMenuTarget(Arc<ApplicationEntry>),
+    /// Adds the app of the context menu to the favorites, or removes it.
+    ToggleContextMenuTargetFavorite,
     /// An app was dropped on the favorites.
     FavoriteDropped(Option<DraggedApp>, FavoritesDropTarget),
     /// An app is dragged onto a drop target of the favorites.
@@ -300,7 +326,8 @@ impl Application for Applet {
             context_menu_target_claimed: false,
             favorites_drop_target: None,
             app_drag: None,
-            start_page_favorites: None,
+            home: None,
+            can_hibernate: false,
         };
 
         // fetch current user asynchronously
@@ -311,7 +338,13 @@ impl Application for Applet {
 
         (
             window,
-            Task::batch(vec![fetch_current_user_task, Applet::load_applications()]),
+            Task::batch(vec![
+                fetch_current_user_task,
+                Applet::load_applications(),
+                Task::perform(crate::power_options::can_hibernate(), |can| {
+                    cosmic::Action::App(Message::HibernateAvailability(can))
+                }),
+            ]),
         )
     }
 
@@ -367,10 +400,11 @@ impl Application for Applet {
     }
 
     fn view_window(&self, _id: Id) -> Element<'_, Message> {
-        match self.popup_type {
+        let content = match self.popup_type {
             PopupType::MainMenu => self.view_main_menu(),
             PopupType::ContextMenu => self.view_context_menu(),
-        }
+        };
+        ArrowCursor::new(content).into()
     }
 
     /// Application messages are handled here. The application state can be modified based on
@@ -386,7 +420,12 @@ impl Application for Applet {
             Message::ApplicationSelected(app) => self.launch_application(app, None),
             Message::CategorySelected(category) => self.select_category(category),
             Message::LaunchTool(tool) => self.launch_tool(tool),
+            Message::ContextMenuItemSelected(item) => self.open_context_menu_item(item),
             Message::Zbus(result) => self.handle_zbus_result(result),
+            Message::HibernateAvailability(can) => {
+                self.can_hibernate = can;
+                Task::none()
+            }
             Message::UpdateLoggedUser(user) => {
                 self.current_user = user.ok();
                 Task::none()
@@ -398,15 +437,13 @@ impl Application for Applet {
                 // context menu show.
                 self.update_featured_applications();
                 self.update_context_menu();
-                if self.start_page_favorites.is_some() {
-                    self.show_start_page();
-                }
+                self.refresh_home();
 
                 Task::none()
             }
             Message::UpdateAvailableApplications(items) => {
                 // A category or search left for the start page while loading.
-                if self.start_page_favorites.is_some() {
+                if self.home.is_some() {
                     return Task::none();
                 }
                 self.available_applications = items;
@@ -419,18 +456,19 @@ impl Application for Applet {
             }
             Message::ApplicationsLoaded(applications, categories) => {
                 self.available_categories = categories;
-                // Leave search results and other categories in place.
-                if self.start_page_favorites.is_none()
-                    && self.search_field.is_empty()
+                self.update_featured_applications();
+                if self.home.is_some() {
+                    // Waiting for the apps to show them.
+                    if !self.show_home() {
+                        self.show_default_category();
+                    }
+                } else if self.search_field.is_empty()
                     && self.selected_category == Some(ApplicationCategory::ALL)
                 {
+                    // Leave search results and other categories in place.
                     self.available_applications = applications;
                     self.context_menu_target = None;
                     self.context_menu = None;
-                }
-                self.update_featured_applications();
-                if self.start_page_favorites.is_some() {
-                    self.show_start_page();
                 }
 
                 Task::none()
@@ -478,24 +516,20 @@ impl Application for Applet {
                 }
                 Task::none()
             }
-            Message::LaunchApplicationAt(index) => {
-                if let Some(app) = self.available_applications.get(index).cloned() {
-                    return self.launch_application(app, None);
+            Message::LaunchContextMenuTarget(action_index) => {
+                let Some(app) = self.context_menu_target.clone() else {
+                    return Task::none();
+                };
+                match action_index {
+                    None => self.launch_application(app, None),
+                    Some(index) => match app.desktop_actions.get(index).cloned() {
+                        Some(action) => self.launch_application(app, Some(action)),
+                        None => Task::none(),
+                    },
                 }
-
-                Task::none()
             }
-            Message::LaunchApplicationWithActionAt(app_index, action_index) => {
-                if let Some(app) = self.available_applications.get(app_index).cloned() {
-                    if let Some(action) = app.desktop_actions.get(action_index).cloned() {
-                        return self.launch_application(app, Some(action));
-                    }
-                }
-
-                Task::none()
-            }
-            Message::PinToAppTrayIndex(app_index, favorites) => {
-                if let Some(app) = self.available_applications.get(app_index).cloned() {
+            Message::PinContextMenuTarget(favorites) => {
+                if let Some(app) = self.context_menu_target.clone() {
                     if let Some(app_list_helper) =
                         Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok()
                     {
@@ -513,13 +547,13 @@ impl Application for Applet {
 
                 Task::none()
             }
-            Message::ToggleFavoriteAt(app_index) => {
-                if let Some(app) = self.available_applications.get(app_index).cloned() {
+            Message::ToggleContextMenuTargetFavorite => {
+                if let Some(app) = self.context_menu_target.clone() {
                     let mut favorites = self.config.favorite_applications.clone();
                     if let Some(position) = favorites.iter().position(|id| *id == app.id) {
                         favorites.remove(position);
-                    } else if self.config.menu_layout.has_start_page() {
-                        // The start page shows only the first favorites.
+                    } else if self.config.layout.shows_first_favorites() {
+                        // The app list shows only the first favorites.
                         favorites.insert(0, app.id.clone());
                     } else {
                         favorites.push(app.id.clone());
@@ -589,13 +623,13 @@ impl Application for Applet {
                 Task::none()
             }
             Message::ShowAllApplications => {
-                self.start_page_favorites = None;
+                self.home = None;
                 self.select_category(ApplicationCategory::ALL)
             }
             Message::ShowStartPage => {
                 // The home entry can be used while searching.
                 self.search_field.clear();
-                self.show_start_page();
+                self.show_home();
                 cosmic::iced::widget::operation::snap_to(
                     self.scrollable_id.clone(),
                     RelativeOffset { x: 0., y: 0. },
@@ -618,8 +652,8 @@ impl Application for Applet {
             Message::ContextMenuAction(action) => {
                 return cosmic::task::message(cosmic::Action::Surface(action));
             }
-            Message::ContextMenuTarget(index) => {
-                self.context_menu_target = Some(index);
+            Message::ContextMenuTarget(app) => {
+                self.context_menu_target = Some(app);
                 self.context_menu_target_claimed = true;
                 self.update_context_menu();
                 Task::none()
@@ -797,14 +831,18 @@ impl Applet {
                 Some(applications) => {
                     self.available_applications = applications;
                     self.update_featured_applications();
-                    if !self.show_start_page() {
+                    if !self.show_home() {
                         self.show_default_category();
                     }
                 }
                 None => {
                     // Shown once the apps are loaded.
-                    self.start_page_favorites =
-                        self.config.menu_layout.has_start_page().then_some(0);
+                    let options = self.config.app_list();
+                    self.home = options.has_home().then_some(HomeSections {
+                        favorites: 0,
+                        recents: 0,
+                        start_page: options.has_start_page(),
+                    });
                     tasks.push(Applet::load_applications());
                 }
             }
@@ -820,6 +858,7 @@ impl Applet {
                     self.core.applet.anchor,
                     Self::APP_ID,
                     self.panel_thickness(),
+                    self.config.menu_position,
                 );
                 let placement = self.menu_placement;
                 app_layer_shell::<Applet>(
@@ -894,8 +933,8 @@ impl Applet {
         }
         self.update_featured_applications();
 
-        if self.start_page_favorites.is_some() {
-            self.show_start_page();
+        if self.home.is_some() {
+            self.refresh_home();
         } else if self.selected_category == Some(ApplicationCategory::FAVORITES) {
             // The shown list changed, so indices into it no longer apply.
             self.available_applications = self.favorite_applications.clone();
@@ -964,31 +1003,52 @@ impl Applet {
         }
     }
 
-    /// Recently used apps shown on the start page, below the favorites.
-    const START_PAGE_RECENT_APPLICATIONS: usize = 8;
-
-    /// Shows the start page of the first favorites, then the recently used
-    /// apps that are not among them, in layouts having one. Returns whether
-    /// it is shown.
-    fn show_start_page(&mut self) -> bool {
-        if !self.config.menu_layout.has_start_page() {
-            self.start_page_favorites = None;
-            return false;
+    /// Shows the favorite and recently used apps the app list leads with,
+    /// see [`HomeSections`]: on the start page, or above all apps if the
+    /// menu opens on them. Returns whether they are shown.
+    fn show_home(&mut self) -> bool {
+        let options = self.config.app_list();
+        if options.has_start_page() {
+            return self.fill_home(true);
         }
+        if options.has_home() && self.default_category() == ApplicationCategory::ALL {
+            return self.fill_home(false);
+        }
+        self.home = None;
+        false
+    }
 
-        let count = self.config.start_page_favorite_count.clamp(
-            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.start(),
-            *AppletConfig::START_PAGE_FAVORITE_COUNT_RANGE.end(),
-        );
-        let shown = self.favorite_applications.len().min(usize::from(count));
+    /// Shows the favorite and recently used apps, on the start page if
+    /// `start_page`, otherwise above all apps, which must be cached for it.
+    /// Returns whether they are shown.
+    fn fill_home(&mut self, start_page: bool) -> bool {
+        let options = self.config.app_list();
+        let shown = self.favorite_applications.len().min(options.favorites_shown());
         let favorites = &self.favorite_applications[..shown];
-        let recent = self
+        let recent: Vec<Arc<ApplicationEntry>> = self
             .recent_applications
             .iter()
             .filter(|app| !favorites.iter().any(|favorite| favorite.id == app.id))
-            .take(Self::START_PAGE_RECENT_APPLICATIONS);
-        self.available_applications = favorites.iter().chain(recent).cloned().collect();
-        self.start_page_favorites = Some(favorites.len());
+            .take(options.recents_shown())
+            .cloned()
+            .collect();
+        let mut applications: Vec<Arc<ApplicationEntry>> =
+            favorites.iter().cloned().chain(recent.iter().cloned()).collect();
+        if !start_page {
+            let Some(all) = crate::logic::apps::with_cached_apps(<[_]>::to_vec) else {
+                self.home = None;
+                return false;
+            };
+            applications.extend(all);
+            self.selected_category = Some(ApplicationCategory::ALL);
+        }
+
+        self.home = Some(HomeSections {
+            favorites: favorites.len(),
+            recents: recent.len(),
+            start_page,
+        });
+        self.available_applications = applications;
         // Indices into the old list no longer apply.
         self.selected_item_index = None;
         self.selected_launcher_result = None;
@@ -997,29 +1057,55 @@ impl Applet {
         true
     }
 
-    /// Updates the recent and favorite apps, if the layout shows them.
-    fn update_featured_applications(&mut self) {
-        let layout = self.config.menu_layout;
-        let show_favorites = self.config.shows_favorites();
-        // Recent apps also stand in for missing favorites in the sidebar.
-        let show_recent = layout.has_favorites()
-            || (layout == crate::config::MenuLayout::Modern
-                && self.config.effective_featured_applications()
-                    == FeaturedApplications::RecentlyUsed);
+    /// Updates the favorite and recently used apps shown, after they or the
+    /// options changed.
+    fn refresh_home(&mut self) {
+        let Some(home) = self.home else {
+            return;
+        };
+        let options = self.config.app_list();
+        let still_shown = if home.start_page {
+            options.has_start_page()
+        } else {
+            options.has_home() && !options.start_page
+        };
+        if !(still_shown && self.fill_home(home.start_page)) && !self.show_home() {
+            self.show_default_category();
+        }
+    }
 
+    /// Whether the start page is shown.
+    pub fn showing_start_page(&self) -> bool {
+        self.home.is_some_and(|home| home.start_page)
+    }
+
+    /// Which of the apps leading all apps the one at `index` is, if any.
+    pub fn leading_app(&self, index: usize) -> Option<LeadingApp> {
+        let home = self.home.filter(|home| !home.start_page)?;
+        if index < home.favorites {
+            Some(LeadingApp::Favorite)
+        } else if index < home.favorites + home.recents {
+            Some(LeadingApp::Recent)
+        } else {
+            None
+        }
+    }
+
+    /// How many apps lead all apps.
+    pub fn leading_apps(&self) -> usize {
+        self.home
+            .filter(|home| !home.start_page)
+            .map_or(0, |home| home.favorites + home.recents)
+    }
+
+    /// Updates the recent and favorite apps, which blocks may show.
+    fn update_featured_applications(&mut self) {
         let config = &self.config;
         let featured = crate::logic::apps::with_cached_apps(|apps| {
-            let recent = if show_recent {
-                crate::logic::apps::get_recent_applications(&config.recent_applications, apps)
-            } else {
-                Vec::new()
-            };
-            let favorites = if show_favorites {
-                crate::logic::apps::get_favorite_applications(&config.favorite_applications, apps)
-            } else {
-                Vec::new()
-            };
-            (recent, favorites)
+            (
+                crate::logic::apps::get_recent_applications(&config.recent_applications, apps),
+                crate::logic::apps::get_favorite_applications(&config.favorite_applications, apps),
+            )
         });
 
         // Without cached apps, they are updated once the apps are loaded.
@@ -1031,19 +1117,14 @@ impl Applet {
 
     /// Builds the menu for the right clicked app, the only one needed.
     fn update_context_menu(&mut self) {
-        self.context_menu = self.context_menu_target.and_then(|app_index| {
-            self.available_applications
-                .get(app_index)
-                .map(|app| self.build_context_menu(app_index, app))
-        });
+        self.context_menu = self
+            .context_menu_target
+            .as_ref()
+            .map(|app| self.build_context_menu(app));
     }
 
-    /// Context menu of the app at `app_index` in `available_applications`.
-    fn build_context_menu(
-        &self,
-        app_index: usize,
-        app: &ApplicationEntry,
-    ) -> Vec<cosmic::widget::menu::Tree<Message>> {
+    /// Context menu of `app`, the [`Applet::context_menu_target`].
+    fn build_context_menu(&self, app: &ApplicationEntry) -> Vec<cosmic::widget::menu::Tree<Message>> {
         use crate::applet_menu::ContextMenuAction;
         use cosmic::widget::menu::Item;
 
@@ -1054,13 +1135,13 @@ impl Applet {
             Item::Button(
                 crate::fl!("launch"),
                 None,
-                ContextMenuAction::LaunchApplication(app_index),
+                ContextMenuAction::LaunchApplication,
             ),
             Item::CheckBox(
                 crate::fl!("pin-to-panel"),
                 None,
                 is_app_in_favorites,
-                ContextMenuAction::PinToPanel(app_index, is_app_in_favorites),
+                ContextMenuAction::PinToPanel(is_app_in_favorites),
             ),
         ];
 
@@ -1070,7 +1151,7 @@ impl Applet {
                 crate::fl!("add-to-favorites"),
                 None,
                 self.config.favorite_applications.contains(&app.id),
-                ContextMenuAction::ToggleFavorite(app_index),
+                ContextMenuAction::ToggleFavorite,
             ));
         }
 
@@ -1081,7 +1162,7 @@ impl Applet {
                     Item::Button(
                         action.name.to_string(),
                         None,
-                        ContextMenuAction::LaunchApplicationWithAction(app_index, action_index),
+                        ContextMenuAction::LaunchApplicationWithAction(action_index),
                     )
                 },
             ));
@@ -1090,31 +1171,51 @@ impl Applet {
         cosmic::widget::menu::items(&std::collections::HashMap::new(), context_menu_buttons)
     }
 
-    /// Whether the app view shows the favorites, in their order.
-    pub fn app_view_shows_favorites(&self) -> bool {
-        self.start_page_favorites.is_some()
-            || (self.search_field.is_empty()
-                && self.selected_category == Some(ApplicationCategory::FAVORITES))
+    /// Indices of the apps in the app view that are the favorites, in their
+    /// order, so they can be reordered by dragging.
+    pub fn favorite_rows(&self) -> std::ops::Range<usize> {
+        if let Some(home) = self.home {
+            return 0..home.favorites;
+        }
+        if self.search_field.is_empty()
+            && self.selected_category == Some(ApplicationCategory::FAVORITES)
+        {
+            0..self.available_applications.len()
+        } else {
+            0..0
+        }
+    }
+
+    /// How the apps of the app view are laid out in rows, see [`AppRows`].
+    pub fn app_rows(&self) -> AppRows {
+        let (columns, row_height) = self.app_view_metrics();
+        AppRows {
+            len: self.available_applications.len(),
+            columns,
+            leading: self.leading_apps(),
+            row_height,
+            gap: AppletMenu::LEADING_SEPARATOR_HEIGHT,
+        }
     }
 
     /// Items per row and row height of the app view, used to move the
     /// selection and keep it scrolled into view.
     fn app_view_metrics(&self) -> (usize, f32) {
+        let options = self.config.app_list();
         // The start page is a list whatever the app view is.
-        let view = if self.start_page_favorites.is_some() {
+        let view = if self.showing_start_page() {
             AppView::Column
         } else {
-            self.config.effective_app_view()
+            options.view
         };
         match view {
             AppView::Grid => {
-                let metrics = crate::widgets::VirtualizedAppGrid::metrics(&self.config);
+                let metrics = crate::widgets::VirtualizedAppGrid::metrics(options);
                 (metrics.columns, metrics.row_height)
             }
             AppView::Column => {
-                let (_, item_height) = crate::widgets::VirtualizedAppList::item_metrics(
-                    self.config.column_item_size,
-                );
+                let (_, item_height) =
+                    crate::widgets::VirtualizedAppList::item_metrics(options.item_size);
                 (1, f32::from(item_height))
             }
         }
@@ -1142,7 +1243,11 @@ impl Applet {
 
     /// The results of pop-launcher shown above the apps, in their order.
     pub fn shown_launcher_results(&self) -> Vec<&launcher::SearchResult> {
-        if self.search_field.is_empty() {
+        let shown = self
+            .config
+            .search()
+            .is_none_or(|options| options.launcher_results);
+        if !shown || self.search_field.is_empty() {
             return Vec::new();
         }
         launcher::shown(&self.launcher_results)
@@ -1232,7 +1337,7 @@ impl Applet {
         self.selected_launcher_result = None;
         self.selected_category = Some(ApplicationCategory::ALL);
         self.search_field.clear();
-        if self.show_start_page() || self.show_default_category() {
+        if self.show_home() || self.show_default_category() {
             return Task::none();
         }
 
@@ -1246,7 +1351,7 @@ impl Applet {
         self.selected_category = None;
         self.selected_item_index = None;
         self.selected_launcher_result = None;
-        self.start_page_favorites = None;
+        self.home = None;
 
         if input.is_empty() {
             return self.clear_search();
@@ -1270,8 +1375,15 @@ impl Applet {
     fn perform_power_action(&mut self, action: PowerAction) -> Task<Message> {
         let is_flatpak = std::env::var("FLATPAK_ID").is_ok();
 
-        if action == PowerAction::Lock || action == PowerAction::Suspend {
-            return action.perform();
+        if matches!(
+            action,
+            PowerAction::Lock | PowerAction::Suspend | PowerAction::Hibernate
+        ) {
+            // Closed first, so it is not still open on coming back.
+            return match self.popup.take() {
+                Some(p) => Task::batch([self.destroy_surface(p), action.perform()]),
+                None => action.perform(),
+            };
         }
 
         let app_exec = match action {
@@ -1373,7 +1485,20 @@ impl Applet {
 
     fn select_category(&mut self, category: ApplicationCategory) -> Task<Message> {
         self.search_field.clear();
-        self.start_page_favorites = None;
+        self.home = None;
+        let reset_scroll = cosmic::iced::widget::operation::snap_to(
+            self.scrollable_id.clone(),
+            RelativeOffset { x: 0., y: 0. },
+        );
+        // All apps, led by the favorite and recently used ones.
+        let options = self.config.app_list();
+        if category == ApplicationCategory::ALL
+            && options.has_home()
+            && !options.start_page
+            && self.fill_home(false)
+        {
+            return reset_scroll;
+        }
         self.selected_category = Some(category.clone());
         self.selected_item_index = None;
         self.selected_launcher_result = None;
@@ -1391,11 +1516,7 @@ impl Applet {
         };
 
         Task::batch([
-            // reset scroll position
-            cosmic::iced::widget::operation::snap_to(
-                self.scrollable_id.clone(),
-                RelativeOffset { x: 0., y: 0. },
-            ),
+            reset_scroll,
             Task::perform(
                 tokio::task::spawn_blocking(move || {
                     crate::logic::apps::get_apps_of_category(
@@ -1407,6 +1528,14 @@ impl Applet {
                 |res| cosmic::Action::App(Message::UpdateAvailableApplications(res.unwrap())),
             ),
         ])
+    }
+
+    fn open_context_menu_item(&mut self, item: ContextMenuItem) -> Task<Message> {
+        item.open();
+        if let Some(p) = self.popup.take() {
+            return self.destroy_surface(p);
+        }
+        Task::none()
     }
 
     fn launch_tool(&mut self, tool: SystemTool) -> Task<Message> {
@@ -1431,37 +1560,58 @@ impl Applet {
     }
 
     fn view_context_menu(&self) -> Element<'_, Message> {
-        let context_menu = column![
-            cosmic::applet::menu_button(
-                row![cosmic::widget::text::body(fl!("settings")),].align_y(Alignment::Center)
-            )
-            .class(cosmic::theme::Button::AppletMenu)
-            .on_press(Message::LaunchTool(SystemTool::APPLET_SETTINGS)),
-            cosmic::applet::padded_control(cosmic::widget::divider::horizontal::default()),
-            cosmic::applet::menu_button(
-                row![cosmic::widget::text::body(fl!("settings-label")),].align_y(Alignment::Center)
-            )
-            .class(cosmic::theme::Button::AppletMenu)
-            .on_press(Message::LaunchTool(SystemTool::SYSTEM_SETTINGS)),
-            cosmic::applet::menu_button(
-                row![cosmic::widget::text::body(fl!("system-monitor-label")),]
-                    .align_y(Alignment::Center)
-            )
-            .class(cosmic::theme::Button::AppletMenu)
-            .on_press(Message::LaunchTool(SystemTool::SYSTEM_MONITOR)),
-            cosmic::applet::menu_button(
-                row![cosmic::widget::text::body(fl!("disks-label")),].align_y(Alignment::Center)
-            )
-            .class(cosmic::theme::Button::AppletMenu)
-            .on_press(Message::LaunchTool(SystemTool::DISK_MANAGEMENT)),
-        ]
-        .padding([8, 0]);
+        let spacing = cosmic::theme::active().cosmic().spacing;
+        let power: Vec<PowerAction> = self
+            .config
+            .context_menu_power
+            .iter()
+            .copied()
+            .filter(|action| action.is_available(self.can_hibernate))
+            .collect();
 
-        self.core.applet.popup_container(context_menu).into()
+        let mut column = cosmic::iced::widget::Column::new();
+        for item in visible_context_menu(&self.config.context_menu, !power.is_empty()) {
+            column = match item {
+                ContextMenuItem::Separator => column.push(cosmic::applet::padded_control(
+                    cosmic::widget::divider::horizontal::default(),
+                )),
+                ContextMenuItem::Power => {
+                    let buttons = power.iter().map(|&action| {
+                        cosmic::widget::tooltip(
+                            cosmic::widget::button::icon(
+                                cosmic::widget::icon::from_svg_bytes(action.icon()).symbolic(true),
+                            )
+                            .on_press(Message::PowerOptionSelected(action)),
+                            cosmic::widget::text::caption(action.name()),
+                            cosmic::widget::tooltip::Position::Top,
+                        )
+                        .into()
+                    });
+                    column.push(cosmic::applet::padded_control(
+                        cosmic::widget::row::with_children(buttons.collect::<Vec<_>>())
+                            .spacing(spacing.space_xxs)
+                            .align_y(Alignment::Center)
+                            .width(Length::Fill)
+                            .wrap(),
+                    ))
+                }
+                item => column.push(
+                    cosmic::applet::menu_button(cosmic::widget::text::body(item.display_name()))
+                        .class(crate::applet_menu::menu_item_class(false))
+                        .on_press(Message::ContextMenuItemSelected(item)),
+                ),
+            };
+        }
+
+        self.core
+            .applet
+            .popup_container(column.padding([8, 0]))
+            .into()
     }
 
     fn move_selection(&mut self, step: SelectionStep) -> cosmic::Task<cosmic::Action<Message>> {
-        let (columns, item_height) = self.app_view_metrics();
+        let rows = self.app_rows();
+        let columns = rows.columns;
         let shown = self.shown_launcher_results().len();
         let backward = matches!(step, SelectionStep::Up | SelectionStep::Left);
 
@@ -1491,12 +1641,7 @@ impl Applet {
                 self.selected_item_index = None;
                 return self.scroll_launcher_result_into_view(shown - 1);
             }
-            self.selected_item_index = step_selection(
-                self.selected_item_index,
-                step,
-                self.available_applications.len(),
-                columns,
-            );
+            self.selected_item_index = rows.step(self.selected_item_index, step);
         }
 
         let Some(index) = self.selected_item_index else {
@@ -1505,7 +1650,10 @@ impl Applet {
         // Below the results of pop-launcher, if any.
         let header_height =
             AppletMenu::search_header_layout(self).map_or(0., |layout| layout.height);
-        self.scroll_into_view(header_height + (index / columns) as f32 * item_height, item_height)
+        self.scroll_into_view(
+            header_height + rows.top(rows.row_of(index)),
+            rows.row_height,
+        )
     }
 
     /// Scrolls the shown result of pop-launcher at `index` into view.
@@ -1519,7 +1667,7 @@ impl Applet {
             return Task::none();
         };
         let (_, item_height) =
-            crate::widgets::VirtualizedAppList::item_metrics(self.config.column_item_size);
+            crate::widgets::VirtualizedAppList::item_metrics(self.config.app_list().item_size);
         // From the first, its heading too.
         let top = if index == 0 { 0. } else { top };
         self.scroll_into_view(top, f32::from(item_height))
@@ -1545,5 +1693,52 @@ impl Applet {
             self.scrollable_id.clone(),
             AbsoluteOffset { x: 0., y: target_offset },
         )
+    }
+}
+
+/// The entries of the right click menu that are shown, of `items`: the power
+/// buttons only if `has_power` actions, and separators only between entries.
+/// With none at all, the menu settings, so they can still be reached.
+fn visible_context_menu(items: &[ContextMenuItem], has_power: bool) -> Vec<ContextMenuItem> {
+    let mut visible: Vec<ContextMenuItem> = Vec::with_capacity(items.len());
+    for &item in items {
+        match item {
+            ContextMenuItem::Power if !has_power => {}
+            ContextMenuItem::Separator
+                if visible.last().is_none_or(|last| *last == ContextMenuItem::Separator) => {}
+            item => visible.push(item),
+        }
+    }
+    if visible.last() == Some(&ContextMenuItem::Separator) {
+        visible.pop();
+    }
+    if visible.is_empty() {
+        visible.push(ContextMenuItem::MenuSettings);
+    }
+    visible
+}
+
+#[cfg(test)]
+mod context_menu_tests {
+    use super::visible_context_menu;
+    use crate::model::context_menu_item::ContextMenuItem::{self, *};
+
+    #[test]
+    fn separators_only_between_entries() {
+        let items = [Separator, Terminal, Separator, Separator, Files, Separator];
+        assert_eq!(visible_context_menu(&items, true), [Terminal, Separator, Files]);
+    }
+
+    #[test]
+    fn power_buttons_need_actions() {
+        let items = [Files, Separator, Power];
+        assert_eq!(visible_context_menu(&items, false), [Files]);
+        assert_eq!(visible_context_menu(&items, true), [Files, Separator, Power]);
+    }
+
+    #[test]
+    fn an_empty_menu_keeps_its_settings() {
+        let items: [ContextMenuItem; 1] = [Separator];
+        assert_eq!(visible_context_menu(&items, true), [MenuSettings]);
     }
 }

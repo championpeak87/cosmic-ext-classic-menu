@@ -5,7 +5,7 @@ use crate::{cosmic_session::CosmicSessionProxy, session_manager::SessionManagerP
 /// The actions going through `logind-zbus`, which is still on zbus 5.
 mod logind {
     use logind_zbus::{
-        manager::ManagerProxy,
+        manager::{IsSupported, ManagerProxy},
         session::{SessionClass, SessionProxy, SessionType},
         user::UserProxy,
     };
@@ -29,6 +29,22 @@ mod logind {
         let connection = Connection::system().await?;
         let manager_proxy = ManagerProxy::new(&connection).await?;
         manager_proxy.suspend(true).await
+    }
+
+    pub async fn hibernate() -> zbus::Result<()> {
+        let connection = Connection::system().await?;
+        let manager_proxy = ManagerProxy::new(&connection).await?;
+        manager_proxy.hibernate(true).await
+    }
+
+    /// Whether logind can hibernate, perhaps after asking for permission.
+    pub async fn can_hibernate() -> zbus::Result<bool> {
+        let connection = Connection::system().await?;
+        let manager_proxy = ManagerProxy::new(&connection).await?;
+        Ok(matches!(
+            manager_proxy.can_hibernate().await?,
+            IsSupported::Yes | IsSupported::Challenge
+        ))
     }
 
     pub async fn lock() -> zbus::Result<()> {
@@ -83,6 +99,23 @@ pub async fn shutdown() -> zbus::Result<()> {
 
 pub async fn suspend() -> zbus::Result<()> {
     logind::suspend().await.map_err(from_zbus5)
+}
+
+pub async fn hibernate() -> zbus::Result<()> {
+    logind::hibernate().await.map_err(from_zbus5)
+}
+
+/// Whether the system can hibernate: it has the swap for it and the user
+/// may, perhaps after authenticating. Unknown, such as without logind, it
+/// cannot.
+pub async fn can_hibernate() -> bool {
+    match logind::can_hibernate().await {
+        Ok(can) => can,
+        Err(err) => {
+            log::warn!("Failed to check whether the system can hibernate: {err}");
+            false
+        }
+    }
 }
 
 pub async fn lock() -> zbus::Result<()> {

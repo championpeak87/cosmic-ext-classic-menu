@@ -48,29 +48,36 @@ impl VirtualizedAppList {
     /// # Returns
     /// A scrollable element containing only the visible app items
     pub fn view(applet: &Applet) -> Element<'_, Message> {
-        let item_height = f32::from(Self::item_metrics(applet.config.column_item_size).1);
+        // One app per row, the apps leading all apps set apart from them.
+        let rows = applet.app_rows();
         // Search results of pop-launcher lead the apps found.
         let header_height =
             AppletMenu::search_header_layout(applet).map_or(0., |layout| layout.height);
         let scroll_offset = (applet.scroll_offset - header_height).max(0.);
-        let total_items = applet.available_applications.len();
+        let total_items = rows.rows();
 
         // Calculate which items should be rendered based on scroll position
-        let visible_start = (scroll_offset / item_height).floor() as usize;
-        let viewport_height = applet.render_viewport_height().max(item_height);
-        let visible_count = ((viewport_height / item_height).ceil() as usize) + 1;
+        let visible_start = rows.row_at(scroll_offset);
+        let viewport_height = applet.render_viewport_height().max(rows.row_height);
+        let visible_count = ((viewport_height / rows.row_height).ceil() as usize) + 1;
 
         // Add buffer for smooth scrolling
         let render_start = visible_start.saturating_sub(Self::RENDER_BUFFER);
         let render_end = (visible_start + visible_count + Self::RENDER_BUFFER).min(total_items);
+        // The separator is drawn if it is between the rows rendered, or
+        // right after them; otherwise the spacers make room for it.
+        let separator = rows
+            .break_row()
+            .filter(|row| render_start < *row && *row <= render_end);
 
-        // Build items to render
-        let mut items: Vec<Element<'_, Message>> = Vec::new();
+        // The items before the separator, and after it.
+        let mut before: Vec<Element<'_, Message>> = Vec::new();
+        let mut after: Vec<Element<'_, Message>> = Vec::new();
 
         // Add spacer above visible items to maintain scroll position
         if render_start > 0 {
-            let spacer_height = (render_start as f32 * item_height) as u16;
-            items.push(cosmic::widget::Space::new().width(Length::Fill).height(spacer_height).into());
+            let spacer_height = rows.top(render_start) as u16;
+            before.push(cosmic::widget::Space::new().width(Length::Fill).height(spacer_height).into());
         }
 
         // Add visible and buffered items
@@ -81,29 +88,43 @@ impl VirtualizedAppList {
             .skip(render_start)
             .take(render_end - render_start)
         {
-            items.push(Self::create_app_button(
-                applet,
-                original_index,
-                app
-            ));
+            let item = Self::create_app_button(applet, original_index, app);
+            if separator.is_some_and(|row| original_index >= row) {
+                after.push(item);
+            } else {
+                before.push(item);
+            }
         }
 
         // Add spacer below visible items
         if render_end < total_items {
-            let remaining_height = ((total_items - render_end) as f32 * item_height) as u16;
-            items.push(cosmic::widget::Space::new().width(Length::Fill).height(remaining_height).into());
+            let remaining_height = (rows.height() - rows.top(render_end)) as u16;
+            let spacer = cosmic::widget::Space::new().width(Length::Fill).height(remaining_height);
+            if separator.is_some() {
+                after.push(spacer.into());
+            } else {
+                before.push(spacer.into());
+            }
         }
 
         // Build list column from items. The buttons pad their content
         // themselves, so their highlight reaches the list's edges.
-        let app_list: ListColumn<Message> = items.into_iter().fold(
-            cosmic::widget::list_column().list_item_padding(0),
-            |list, item| list.add(item),
-        );
+        fn list<'a>(items: Vec<Element<'a, Message>>) -> ListColumn<'a, Message> {
+            items.into_iter().fold(
+                cosmic::widget::list_column().list_item_padding(0),
+                |list, item| list.add(item),
+            )
+        }
+        let mut app_list = column![container(list(before))];
+        if separator.is_some() {
+            app_list = app_list
+                .push(AppletMenu::leading_separator())
+                .push(container(list(after)));
+        }
 
         let content = column![]
             .push_maybe(AppletMenu::search_header(applet))
-            .push(container(app_list));
+            .push(app_list);
         let app_list = scrollable(content)
             .height(Length::Fill)
             .width(Length::Fill)
@@ -129,11 +150,12 @@ impl VirtualizedAppList {
         index: usize,
         app: &'a Arc<ApplicationEntry>,
     ) -> Element<'a, Message> {
-        let (icon_size, item_height) = Self::item_metrics(applet.config.column_item_size);
+        let options = applet.config.app_list();
+        let (icon_size, item_height) = Self::item_metrics(options.item_size);
         let description = app
             .comment
             .as_deref()
-            .filter(|_| applet.config.column_show_description)
+            .filter(|_| options.show_description)
             .map(|comment| {
                 text(comment)
                     .size(Self::DESCRIPTION_SIZE)
@@ -155,14 +177,9 @@ impl VirtualizedAppList {
             .align_y(Alignment::Center),
         )
         .on_press(Message::ApplicationSelected(app.clone()))
-        .class(
-            if applet.selected_item_index.is_some() && index == applet.selected_item_index.unwrap()
-            {
-                cosmic::theme::Button::Suggested
-            } else {
-                cosmic::theme::Button::AppletMenu
-            },
-        )
+        .class(crate::applet_menu::menu_item_class(
+            applet.selected_item_index == Some(index),
+        ))
         .padding([0, theme::active().cosmic().space_s()])
         .width(Length::Fill)
         .height(item_height);
@@ -172,10 +189,11 @@ impl VirtualizedAppList {
         let row = Self::drag_source(
             applet,
             app,
-            cosmic::widget::mouse_area(button).on_right_press(Message::ContextMenuTarget(index)),
+            cosmic::widget::mouse_area(button).on_right_press(Message::ContextMenuTarget(app.clone())),
         );
+        let row = AppletMenu::leading_app(applet, index, row);
 
-        if applet.app_view_shows_favorites() {
+        if applet.favorite_rows().contains(&index) {
             AppletMenu::favorite_slot(
                 applet,
                 app,

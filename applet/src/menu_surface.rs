@@ -18,6 +18,8 @@ use cosmic::iced::runtime::platform_specific::wayland::layer_surface::{
 };
 use cosmic::iced::window::Id;
 
+use crate::config::MenuPosition;
+
 /// Whether a panel hosts the applet, rather than it being run directly.
 ///
 /// Only then can the menu be a layer surface: the compositor refuses them to
@@ -58,13 +60,19 @@ impl Default for Placement {
 }
 
 /// Placement of the menu of the applet in the panel at `panel`, which is
-/// `thickness` thick.
-pub fn placement(panel: PanelAnchor, applet_id: &str, thickness: i32) -> Placement {
+/// `thickness` thick, at `position` on the screen.
+pub fn placement(
+    panel: PanelAnchor,
+    applet_id: &str,
+    thickness: i32,
+    position: MenuPosition,
+) -> Placement {
     let config = panel_config();
     let section = config.as_ref().map_or(PanelSection::Start, |config| {
         section_in(config.plugins_wings.as_ref(), applet_id)
     });
-    let (align_x, align_y) = alignments(panel, section);
+    let (align_x, align_y) =
+        position_alignments(position).unwrap_or_else(|| alignments(panel, section));
     // Panels reserving their space are already clear of the surface.
     let panel_margin = match config {
         Some(config) if config.exclusive_zone => 0,
@@ -139,6 +147,24 @@ fn section_in(wings: Option<&(Vec<String>, Vec<String>)>, applet_id: &str) -> Pa
     }
 }
 
+/// Horizontal and vertical alignment of the menu at `position`, unless it
+/// follows the panel, see [`alignments`].
+fn position_alignments(position: MenuPosition) -> Option<(Alignment, Alignment)> {
+    use Alignment::{Center, End, Start};
+    Some(match position {
+        MenuPosition::Auto => return None,
+        MenuPosition::TopLeft => (Start, Start),
+        MenuPosition::Top => (Center, Start),
+        MenuPosition::TopRight => (End, Start),
+        MenuPosition::Left => (Start, Center),
+        MenuPosition::Center => (Center, Center),
+        MenuPosition::Right => (End, Center),
+        MenuPosition::BottomLeft => (Start, End),
+        MenuPosition::Bottom => (Center, End),
+        MenuPosition::BottomRight => (End, End),
+    })
+}
+
 /// Horizontal and vertical alignment of the menu: against the panel, and
 /// along it by the applet's section.
 fn alignments(panel: PanelAnchor, section: PanelSection) -> (Alignment, Alignment) {
@@ -185,6 +211,23 @@ mod tests {
         assert_eq!(
             alignments(PanelAnchor::Right, PanelSection::End),
             (Alignment::End, Alignment::End)
+        );
+    }
+
+    #[test]
+    fn a_chosen_position_overrides_the_panels() {
+        assert_eq!(position_alignments(MenuPosition::Auto), None);
+        assert_eq!(
+            position_alignments(MenuPosition::Center),
+            Some((Alignment::Center, Alignment::Center))
+        );
+        assert_eq!(
+            position_alignments(MenuPosition::TopRight),
+            Some((Alignment::End, Alignment::Start))
+        );
+        assert_eq!(
+            position_alignments(MenuPosition::Bottom),
+            Some((Alignment::Center, Alignment::End))
         );
     }
 

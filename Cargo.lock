@@ -1028,6 +1028,7 @@ dependencies = [
  "notify",
  "once_cell",
  "open",
+ "ron",
  "roxmltree 0.21.2",
  "rust-embed",
  "rustix 1.1.6",

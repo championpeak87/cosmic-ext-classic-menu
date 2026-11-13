@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Drag and drop editor for the applet menu layout.
+//! Drag and drop editor of the blocks the menu is made of, see
+//! [`cosmic_ext_classic_menu_applet::layout`].
 //!
-//! Renders a miniature of the menu popup. The search field can be dragged
-//! to the top or bottom slot, the app list / categories panes can be
-//! dragged onto each other to swap sides, and the power controls can be
-//! dragged to the header, below either pane, next to the search field in
-//! the layouts that allow it, or to the footer. Handles
-//! around the miniature resize the menu.
+//! Renders a miniature of the menu popup. A block can be picked up and
+//! dropped next to another one: above or below it in its column, or in a
+//! new column to its left or right. Dropped between rows, it gets a row of
+//! its own. New blocks are dragged in from the palette below the preview.
+//! Clicking a block selects it, so the settings can show its options.
+//! Handles between columns resize them, handles around the miniature
+//! resize the menu.
 //!
 //! Blocks are drawn as a sketch of the real menu (icons and placeholder
-//! text lines) rather than an exact rendering. Each [`MenuLayout`] has its
-//! own preview, and only offers the slots that layout supports.
+//! text lines) rather than an exact rendering.
+
+use std::borrow::Cow;
 
 use crate::fl;
 use cosmic::iced::core::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
@@ -19,13 +22,21 @@ use cosmic::iced::{mouse, Alignment, Background, Border, Color, Length, Padding,
 use cosmic::widget::{container, icon, mouse_area, text, tooltip, Space};
 use cosmic::{Element, Theme};
 use cosmic_ext_classic_menu_applet::config::{
-    AppView, AppletConfig, FeaturedApplications, HorizontalPosition, MenuLayout, Place,
-    PowerMenuPosition, SidePanel, VerticalPosition,
+    AppView, AppletConfig, FeaturedApplications, ItemSize, MenuLayout, Place,
+};
+use cosmic_ext_classic_menu_applet::layout::{
+    AppListOptions, Block, BlockKind, BlockPath, Column, Drop, FeaturedOptions, Layout,
+    PowerOptions, Row, Side, SidePanelContent, SidePanelOptions,
 };
 use cosmic_ext_classic_menu_applet::model::application_category::{ApplicationCategory, CategoryIcon};
+use cosmic_ext_classic_menu_applet::model::power_action::PowerAction;
 
 /// Size of the preview relative to the real menu.
 const PREVIEW_SCALE: f32 = 0.5;
+/// Cards of the layouts to pick per row, see `layout_picker`.
+const LAYOUT_CARDS_PER_ROW: usize = 4;
+/// Height of two lines of a caption, which a card's description takes.
+const CARD_DESCRIPTION_HEIGHT: f32 = 32.0;
 /// The menu's width and height are multiples of this, in pixels.
 const MENU_SIZE_STEP: u16 = 10;
 /// Thickness of the handles resizing the menu.
@@ -33,33 +44,25 @@ const MENU_HANDLE_SIZE: f32 = 10.0;
 /// Length of the grip drawn on the handles along the preview's edges.
 const MENU_GRIP_LENGTH: f32 = 36.0;
 const BAR_HEIGHT: f32 = 26.0;
-const POWER_HEADER_WIDTH: f32 = 96.0;
 const GHOST_WIDTH: f32 = 110.0;
 const GHOST_HEIGHT: f32 = 28.0;
-
-/// Same proportions as the panes in the applet popup.
-/// Pane proportions in the layout thumbnails.
-const APP_LIST_PORTION: u16 = 5;
-const CATEGORIES_PORTION: u16 = 3;
 const RESIZE_HANDLE_WIDTH: f32 = 9.0;
-/// Width of the pinned apps sidebar sketch.
+/// Width of narrow columns of icons, like the favorites bar.
 const SIDEBAR_WIDTH: f32 = 22.0;
+/// Width of the user block.
+const USER_WIDTH: f32 = 72.0;
+/// Height of the drop targets between rows.
+const ROW_GAP_HEIGHT: f32 = 10.0;
+/// How far the cursor moves before a press becomes a drag.
+const DRAG_THRESHOLD: f32 = 4.0;
 
-const POWER_ICONS: [&[u8]; 5] = [
-    include_bytes!("../../res/icons/bundled/system-log-out-symbolic.svg"),
-    include_bytes!("../../res/icons/bundled/system-suspend-symbolic.svg"),
-    include_bytes!("../../res/icons/bundled/system-lock-screen-symbolic.svg"),
-    include_bytes!("../../res/icons/bundled/system-reboot-symbolic.svg"),
-    include_bytes!("../../res/icons/bundled/system-shutdown-symbolic.svg"),
-];
 const USER_ICON: &[u8] = include_bytes!("../../res/icons/bundled/user-idle-symbolic.svg");
+const STAR_ICON: &[u8] = include_bytes!("../../res/icons/bundled/starred-symbolic.svg");
 
 /// Placeholder text widths for the sketched app list rows.
 const APP_NAME_WIDTHS: [f32; 9] = [70.0, 54.0, 82.0, 46.0, 64.0, 76.0, 50.0, 68.0, 58.0];
 /// Categories shown in the sketch, in the same order as the applet.
-const CATEGORIES: [ApplicationCategory; 10] = [
-    ApplicationCategory::ALL,
-    ApplicationCategory::RECENTLY_USED,
+const CATEGORIES: [ApplicationCategory; 8] = [
     ApplicationCategory::AUDIO,
     ApplicationCategory::DEVELOPMENT,
     ApplicationCategory::GAMES,
@@ -70,52 +73,75 @@ const CATEGORIES: [ApplicationCategory; 10] = [
     ApplicationCategory::UTILITY,
 ];
 
-/// A block of the menu that can be picked up.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Block {
-    SearchField,
-    AppList,
-    Categories,
-    /// Shown instead of [`Block::Categories`] when the side panel lists places.
-    Places,
-    PowerMenu,
-    PinnedApps,
+/// Icon of a power action, as in the applet.
+pub fn power_icon(action: PowerAction) -> &'static [u8] {
+    match action {
+        PowerAction::Logout => include_bytes!("../../res/icons/bundled/system-log-out-symbolic.svg"),
+        PowerAction::Suspend => include_bytes!("../../res/icons/bundled/system-suspend-symbolic.svg"),
+        PowerAction::Hibernate => include_bytes!("../../res/icons/bundled/system-hibernate-symbolic.svg"),
+        PowerAction::Lock => include_bytes!("../../res/icons/bundled/system-lock-screen-symbolic.svg"),
+        PowerAction::Reboot => include_bytes!("../../res/icons/bundled/system-reboot-symbolic.svg"),
+        PowerAction::Shutdown => include_bytes!("../../res/icons/bundled/system-shutdown-symbolic.svg"),
+    }
 }
 
-/// A place in the preview where a block can be dropped.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Slot {
-    SearchTop,
-    SearchBottom,
-    PaneLeft,
-    PaneRight,
-    Power(PowerMenuPosition),
-    PinnedLeft,
-    PinnedRight,
+/// Name of a block, as shown in the settings.
+pub fn block_label(block: &Block) -> String {
+    match block {
+        Block::SidePanel(options) => match options.content {
+            SidePanelContent::Categories => fl!("layout-categories"),
+            SidePanelContent::Places => fl!("layout-places"),
+        },
+        block => kind_label(block.kind()),
+    }
 }
 
-impl Block {
-    fn label(self) -> String {
-        match self {
-            Block::SearchField => fl!("layout-search-field"),
-            Block::AppList => fl!("layout-app-list"),
-            Block::Categories => fl!("layout-categories"),
-            Block::Places => fl!("layout-places"),
-            Block::PowerMenu => fl!("layout-power"),
-            Block::PinnedApps => fl!("layout-pinned"),
-        }
+/// Name of a kind of block, as shown in the settings.
+pub fn kind_label(kind: BlockKind) -> String {
+    match kind {
+        BlockKind::User => fl!("layout-user"),
+        BlockKind::Search => fl!("layout-search-field"),
+        BlockKind::AppList => fl!("layout-app-list"),
+        BlockKind::SidePanel => fl!("layout-side-panel"),
+        BlockKind::Power => fl!("layout-power"),
+        BlockKind::Featured => fl!("layout-featured"),
+        BlockKind::Spacer => fl!("layout-spacer"),
+        BlockKind::Divider => fl!("layout-divider"),
     }
+}
 
-    fn accepts(self, slot: Slot) -> bool {
-        match self {
-            Block::SearchField => matches!(slot, Slot::SearchTop | Slot::SearchBottom),
-            Block::AppList | Block::Categories | Block::Places => {
-                matches!(slot, Slot::PaneLeft | Slot::PaneRight)
-            }
-            Block::PowerMenu => matches!(slot, Slot::Power(_)),
-            Block::PinnedApps => matches!(slot, Slot::PinnedLeft | Slot::PinnedRight),
-        }
+fn kind_icon(kind: BlockKind) -> icon::Icon {
+    match kind {
+        BlockKind::User => icon::from_svg_bytes(USER_ICON).symbolic(true).icon(),
+        BlockKind::Search => icon::from_name("system-search-symbolic").icon(),
+        BlockKind::AppList => icon::from_name("view-app-grid-symbolic").icon(),
+        BlockKind::SidePanel => icon::from_name("view-list-symbolic").icon(),
+        BlockKind::Power => icon::from_svg_bytes(power_icon(PowerAction::Shutdown))
+            .symbolic(true)
+            .icon(),
+        BlockKind::Featured => icon::from_svg_bytes(STAR_ICON).symbolic(true).icon(),
+        BlockKind::Spacer => icon::from_name("view-more-horizontal-symbolic").icon(),
+        BlockKind::Divider => icon::from_name("list-remove-symbolic").icon(),
     }
+}
+
+/// What is being dragged.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Dragged {
+    /// A block of the menu.
+    Block(BlockPath),
+    /// A new block, from the palette.
+    New(BlockKind),
+}
+
+/// A press on a block or the palette, which becomes a drag once the cursor
+/// moves far enough.
+#[derive(Debug, Clone, Copy)]
+struct Drag {
+    dragged: Dragged,
+    /// Where the cursor was first seen in the window.
+    origin: Option<Point>,
+    active: bool,
 }
 
 /// A handle resizing the menu.
@@ -170,6 +196,20 @@ impl MenuResize {
     }
 }
 
+/// A resize of two neighbouring columns in progress.
+#[derive(Debug, Clone, Copy)]
+struct ColumnResize {
+    row: usize,
+    /// The left one of the two columns.
+    left: usize,
+    /// Share of the left column, in percent, when the handle was grabbed.
+    start_share: u16,
+    /// Width of both columns in the preview.
+    width: f32,
+    origin: Option<Point>,
+    share: u16,
+}
+
 /// `value` rounded to a [`MENU_SIZE_STEP`] within `range`.
 fn snapped(value: f32, range: std::ops::RangeInclusive<u16>) -> u16 {
     let step = f32::from(MENU_SIZE_STEP);
@@ -178,49 +218,63 @@ fn snapped(value: f32, range: std::ops::RangeInclusive<u16>) -> u16 {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    LayoutSelected(MenuLayout),
-    DragStart(Block),
-    DragMove(Point),
-    DragEnter(Slot),
-    DragLeave(Slot),
-    /// The divider between the panes was grabbed.
-    ResizeStart,
-    /// The cursor moved to this x position over the panes while resizing.
-    ResizeMove(f32),
+    PresetSelected(MenuLayout),
+    /// The layout made by the user was picked again.
+    CustomSelected,
+    DragStart(Dragged),
+    /// The cursor moved to this position over the preview.
+    PreviewMove(Point),
+    DragEnter(Drop),
+    DragLeave(Drop),
+    /// The handle between the column at `left` and the next one of `row`
+    /// was grabbed.
+    ResizeStart { row: usize, left: usize },
     /// A handle resizing the menu was grabbed.
     MenuResizeStart(MenuHandle),
     /// The cursor moved to this position in the window.
-    MenuResizeMove(Point),
+    CursorMoved(Point),
     /// Left mouse button released anywhere in the window.
     DragEnd,
 }
 
-/// Layout change resulting from picking a layout or completing a drop.
-#[derive(Debug, Clone, Copy)]
+/// Change resulting from picking a layout or completing a drag.
+#[derive(Debug, Clone)]
 pub enum Change {
-    MenuLayout(MenuLayout),
-    AppMenuPosition(HorizontalPosition),
-    FavoritesBarPosition(HorizontalPosition),
-    SearchFieldPosition(VerticalPosition),
-    PowerMenuPosition(PowerMenuPosition),
-    SidePanelWidth(u16),
+    Layout(Layout),
     /// Width and height of the menu in pixels.
     MenuSize(u16, u16),
 }
 
 #[derive(Debug, Default)]
 pub struct LayoutEditor {
-    dragging: Option<Block>,
-    hovered: Option<Slot>,
+    drag: Option<Drag>,
+    hovered: Option<Drop>,
     cursor: Option<Point>,
-    /// Side panel width while the divider between the panes is dragged.
-    resizing: Option<u16>,
+    /// The block whose options are shown.
+    selected: Option<BlockPath>,
+    resizing: Option<ColumnResize>,
     menu_resize: Option<MenuResize>,
 }
 
 impl LayoutEditor {
+    /// Whether the mouse button is held on the editor, so it needs to hear
+    /// of the cursor's moves and the button's release anywhere.
     pub fn is_dragging(&self) -> bool {
-        self.dragging.is_some() || self.resizing.is_some() || self.menu_resize.is_some()
+        self.drag.is_some() || self.resizing.is_some() || self.menu_resize.is_some()
+    }
+
+    /// Whether a block is dragged, rather than just pressed.
+    fn drag_active(&self) -> bool {
+        self.drag.is_some_and(|drag| drag.active)
+    }
+
+    /// The selected block, if it still is in `layout`.
+    pub fn selected(&self, layout: &Layout) -> Option<BlockPath> {
+        self.selected.filter(|path| layout.get(*path).is_some())
+    }
+
+    pub fn select(&mut self, path: Option<BlockPath>) {
+        self.selected = path;
     }
 
     /// Size of the menu in pixels, following a resize in progress.
@@ -229,57 +283,97 @@ impl LayoutEditor {
             .map_or_else(|| config.menu_size(), |resize| resize.size)
     }
 
+    /// Width the editor needs: the miniature of the menu and the handles
+    /// along its right edge, following a resize in progress.
+    pub fn width(&self, config: &AppletConfig) -> f32 {
+        self.preview_size(config).0 + MENU_HANDLE_SIZE
+    }
+
+    /// Width the editor needs for the saved size of the menu, ignoring a
+    /// resize in progress.
+    pub fn saved_width(config: &AppletConfig) -> f32 {
+        f32::from(config.menu_size().0) * PREVIEW_SCALE + MENU_HANDLE_SIZE
+    }
+
     /// Size of the miniature of the menu.
     fn preview_size(&self, config: &AppletConfig) -> (f32, f32) {
         let (width, height) = self.menu_size(config);
         (f32::from(width) * PREVIEW_SCALE, f32::from(height) * PREVIEW_SCALE)
     }
 
+    /// The layout shown, following a resize of columns in progress.
+    fn shown_layout<'a>(&self, config: &'a AppletConfig) -> Cow<'a, Layout> {
+        match self.resizing {
+            Some(resize) => {
+                let mut layout = config.layout.clone();
+                layout.resize_columns(resize.row, resize.left, resize.share);
+                Cow::Owned(layout)
+            }
+            None => Cow::Borrowed(&config.layout),
+        }
+    }
+
     pub fn update(&mut self, message: Message, config: &AppletConfig) -> Option<Change> {
         match message {
-            Message::LayoutSelected(layout) => {
-                (layout != config.menu_layout).then_some(Change::MenuLayout(layout))
+            Message::PresetSelected(preset) => {
+                self.selected = None;
+                let layout = preset.layout();
+                (layout != config.layout).then_some(Change::Layout(layout))
             }
-            Message::DragStart(block) => {
-                self.dragging = Some(block);
+            Message::CustomSelected => {
+                self.selected = None;
+                config
+                    .custom_layout
+                    .clone()
+                    .filter(|layout| *layout != config.layout)
+                    .map(Change::Layout)
+            }
+            Message::DragStart(dragged) => {
+                self.drag = Some(Drag {
+                    dragged,
+                    origin: None,
+                    active: false,
+                });
+                self.hovered = None;
                 self.cursor = None;
                 None
             }
-            Message::DragMove(point) => {
-                if self.dragging.is_some() {
+            Message::PreviewMove(point) => {
+                if self.drag.is_some() {
                     self.cursor = Some(point);
                 }
                 None
             }
-            Message::DragEnter(slot) => {
-                self.hovered = Some(slot);
+            Message::DragEnter(drop) => {
+                self.hovered = Some(drop);
                 None
             }
-            Message::DragLeave(slot) => {
-                // Enter/leave of neighbouring slots may arrive in either order.
-                if self.hovered == Some(slot) {
+            Message::DragLeave(drop) => {
+                // Enter/leave of neighbouring targets may arrive in either order.
+                if self.hovered == Some(drop) {
                     self.hovered = None;
                 }
                 None
             }
-            Message::ResizeStart => {
-                self.resizing = Some(config.pane_portions().1);
-                None
-            }
-            Message::ResizeMove(x) => {
-                if self.resizing.is_some() {
-                    let left_share =
-                        x / panes_width(config.menu_layout, self.preview_size(config).0);
-                    let side_panel_share = match config.app_menu_position {
-                        HorizontalPosition::Left => 1.0 - left_share,
-                        HorizontalPosition::Right => left_share,
-                    };
-                    let range = AppletConfig::SIDE_PANEL_WIDTH_RANGE;
-                    self.resizing = Some(
-                        ((side_panel_share * 100.0).round().max(0.0) as u16)
-                            .clamp(*range.start(), *range.end()),
-                    );
-                }
+            Message::ResizeStart { row, left } => {
+                let layout = &config.layout;
+                let columns = &layout.rows.get(row)?.columns;
+                let (a, b) = (columns.get(left)?.portion, columns.get(left + 1)?.portion);
+                let fill_total: u16 = columns
+                    .iter()
+                    .filter(|column| column.fills_width())
+                    .map(|column| column.portion)
+                    .sum();
+                let share = (u32::from(a) * 100 / u32::from((a + b).max(1))) as u16;
+                self.resizing = Some(ColumnResize {
+                    row,
+                    left,
+                    start_share: share,
+                    width: self.preview_size(config).0 * f32::from(a + b)
+                        / f32::from(fill_total.max(1)),
+                    origin: None,
+                    share,
+                });
                 None
             }
             Message::MenuResizeStart(handle) => {
@@ -292,10 +386,25 @@ impl LayoutEditor {
                 });
                 None
             }
-            Message::MenuResizeMove(position) => {
+            Message::CursorMoved(position) => {
                 if let Some(resize) = &mut self.menu_resize {
                     let origin = *resize.origin.get_or_insert(position);
                     resize.size = resize.size_at(position - origin);
+                }
+                if let Some(resize) = &mut self.resizing {
+                    let origin = *resize.origin.get_or_insert(position);
+                    let delta = (position.x - origin.x) / resize.width.max(1.0) * 100.0;
+                    resize.share = (f32::from(resize.start_share) + delta)
+                        .round()
+                        .clamp(f32::from(Column::MIN_SHARE), f32::from(100 - Column::MIN_SHARE))
+                        as u16;
+                }
+                if let Some(drag) = &mut self.drag {
+                    let origin = *drag.origin.get_or_insert(position);
+                    let moved = position - origin;
+                    if moved.x.hypot(moved.y) > DRAG_THRESHOLD {
+                        drag.active = true;
+                    }
                 }
                 None
             }
@@ -309,68 +418,46 @@ impl LayoutEditor {
                         .then_some(Change::MenuSize(width, height));
                 }
 
-                if let Some(width) = self.resizing.take() {
-                    return (width != config.side_panel_width)
-                        .then_some(Change::SidePanelWidth(width));
+                if self.resizing.is_some() {
+                    let layout = self.shown_layout(config).into_owned();
+                    self.resizing = None;
+                    return (layout != config.layout).then_some(Change::Layout(layout));
                 }
 
-                let block = self.dragging.take()?;
+                let drag = self.drag.take()?;
                 self.cursor = None;
-                let slot = self.hovered.filter(|slot| block.accepts(*slot))?;
-
-                match (block, slot) {
-                    (_, Slot::Power(position)) => {
-                        (Some(position) != config.effective_power_menu_position())
-                            .then_some(Change::PowerMenuPosition(position))
+                let hovered = self.hovered.take();
+                if !drag.active {
+                    // A click selects the block.
+                    if let Dragged::Block(path) = drag.dragged {
+                        self.selected = Some(path);
                     }
-                    (Block::PinnedApps, slot) => {
-                        let position = if slot == Slot::PinnedLeft {
-                            HorizontalPosition::Left
-                        } else {
-                            HorizontalPosition::Right
-                        };
-                        (position != config.favorites_bar_position)
-                            .then_some(Change::FavoritesBarPosition(position))
-                    }
-                    (Block::SearchField, slot) => {
-                        let position = if slot == Slot::SearchTop {
-                            VerticalPosition::Top
-                        } else {
-                            VerticalPosition::Bottom
-                        };
-                        (position != config.search_field_position)
-                            .then_some(Change::SearchFieldPosition(position))
-                    }
-                    (block, slot) => {
-                        // `HorizontalPosition` describes where the app list sits.
-                        let app_list_left = (block == Block::AppList) == (slot == Slot::PaneLeft);
-                        let position = if app_list_left {
-                            HorizontalPosition::Left
-                        } else {
-                            HorizontalPosition::Right
-                        };
-                        (position != config.app_menu_position)
-                            .then_some(Change::AppMenuPosition(position))
-                    }
+                    return None;
                 }
+
+                let drop = hovered?;
+                let mut layout = config.layout.clone();
+                let placed = match drag.dragged {
+                    Dragged::Block(from) => layout.move_block(from, drop),
+                    Dragged::New(kind) => {
+                        if kind.is_unique() && layout.contains(kind) {
+                            return None;
+                        }
+                        layout.insert(kind.block(), drop)
+                    }
+                }?;
+                self.selected = Some(placed);
+                (layout != config.layout).then_some(Change::Layout(layout))
             }
         }
     }
 
-    pub fn view(&self, config: &AppletConfig) -> Element<'_, Message> {
+    pub fn view(&self, config: &AppletConfig) -> Element<'static, Message> {
         let spacing = cosmic::theme::active().cosmic().spacing;
-
-        let menu = match config.menu_layout {
-            MenuLayout::Classic => self.view_classic(config),
-            // Arranged like Retro; the start page is not part of the sketch.
-            MenuLayout::Retro | MenuLayout::Whistler => self.view_retro(config),
-            MenuLayout::Compact => self.view_compact(config),
-            MenuLayout::Cinnamon => self.view_cinnamon(config),
-            MenuLayout::Modern => self.view_modern(config),
-        };
+        let layout = self.shown_layout(config);
 
         let (width, height) = self.preview_size(config);
-        let frame = container(menu)
+        let frame = container(self.rows(&layout))
             .padding(spacing.space_xxs)
             .width(Length::Fixed(width))
             .height(Length::Fixed(height))
@@ -378,15 +465,20 @@ impl LayoutEditor {
             .class(cosmic::theme::Container::custom(frame_style));
 
         let mut preview = cosmic::iced::widget::stack![frame];
-        if let (Some(block), Some(cursor)) = (self.dragging, self.cursor) {
-            preview = preview.push(ghost(block, cursor, (width, height)));
+        if let (Some(drag), Some(cursor)) = (self.drag.filter(|drag| drag.active), self.cursor) {
+            let label = match drag.dragged {
+                Dragged::Block(path) => layout.get(path).map_or_else(String::new, block_label),
+                Dragged::New(kind) => kind_label(kind),
+            };
+            preview = preview.push(ghost(label, cursor, (width, height)));
         }
 
         let preview = mouse_area(preview)
-            .on_move(Message::DragMove)
+            .on_move(Message::PreviewMove)
             .interaction(match self.menu_resize {
                 Some(resize) => resize.handle.interaction(),
-                None if self.is_dragging() => mouse::Interaction::Grabbing,
+                None if self.resizing.is_some() => mouse::Interaction::ResizingHorizontally,
+                None if self.drag_active() => mouse::Interaction::Grabbing,
                 None => mouse::Interaction::None,
             });
 
@@ -405,11 +497,14 @@ impl LayoutEditor {
         let (menu_width, menu_height) = self.menu_size(config);
 
         cosmic::iced::widget::column![
-            layout_picker(config.menu_layout),
             // Above the preview, so it stays in place when resizing.
             text::body(format!("{menu_width} × {menu_height} px")),
             preview,
+            self.palette(&layout),
             text::caption(fl!("layout-hint")),
+            // Below the editor, where picking a whole layout goes after
+            // editing this one.
+            layout_picker(config),
         ]
         .spacing(spacing.space_s)
         .align_x(Alignment::Center)
@@ -417,249 +512,37 @@ impl LayoutEditor {
         .into()
     }
 
-    fn view_classic(&self, config: &AppletConfig) -> Element<'_, Message> {
-        let header = cosmic::iced::widget::row![user_bar(Length::Fill)]
-            .push_maybe(self.power_slot(
-                PowerMenuPosition::Header,
-                config,
-                Length::Fixed(POWER_HEADER_WIDTH),
-            ))
-            .spacing(space_xxs());
+    /// The rows of the menu, with drop targets between them while dragging.
+    fn rows(&self, layout: &Layout) -> Element<'static, Message> {
+        let mut items = Vec::new();
+        for (index, row) in layout.rows.iter().enumerate() {
+            if self.drag_active() {
+                items.push(self.row_gap(index));
+            }
+            items.push(self.row(index, row));
+        }
+        if self.drag_active() {
+            items.push(self.row_gap(layout.rows.len()));
+        }
 
-        self.with_search(
-            config,
-            header.into(),
-            self.panes(config, false),
-            self.power_slot(PowerMenuPosition::Footer, config, Length::Fill),
-        )
-    }
-
-    fn view_retro(&self, config: &AppletConfig) -> Element<'_, Message> {
-        let header = container(
-            cosmic::iced::widget::row![user_bar(Length::Fill)]
-                .push_maybe(self.power_slot(
-                    PowerMenuPosition::Header,
-                    config,
-                    Length::Fixed(POWER_HEADER_WIDTH),
-                ))
-                .spacing(space_xxs()),
-        )
-        .padding(2)
-        .class(cosmic::theme::Container::custom(banner_style));
-
-        let footer = container(
-            cosmic::iced::widget::row![Space::new().width(Length::Fill)]
-                .push_maybe(self.power_slot(
-                    PowerMenuPosition::Footer,
-                    config,
-                    Length::Fixed(POWER_HEADER_WIDTH),
-                ))
-                .height(Length::Fixed(BAR_HEIGHT)),
-        )
-        .padding(2)
-        .class(cosmic::theme::Container::custom(banner_style));
-
-        self.with_search(
-            config,
-            header.into(),
-            self.panes(config, true),
-            Some(footer.into()),
-        )
-    }
-
-    fn view_compact(&self, config: &AppletConfig) -> Element<'_, Message> {
-        let header = cosmic::iced::widget::row![user_bar(Length::Fixed(72.0))]
-            .push(fill_or_space(self.search_slot(Slot::SearchTop, config)))
-            .push_maybe(self.power_slot(
-                PowerMenuPosition::Header,
-                config,
-                Length::Fixed(POWER_HEADER_WIDTH),
-            ))
-            .spacing(space_xxs());
-
-        let footer = cosmic::iced::widget::row![]
-            .push(fill_or_space(self.search_slot(Slot::SearchBottom, config)))
-            .push_maybe(self.power_slot(
-                PowerMenuPosition::Footer,
-                config,
-                Length::Fixed(POWER_HEADER_WIDTH),
-            ))
-            .spacing(space_xxs());
-
-        cosmic::iced::widget::column![header, self.panes(config, false), footer]
+        cosmic::widget::column::with_children(items)
             .spacing(space_xxs())
+            .width(Length::Fill)
+            .height(Length::Fill)
             .into()
     }
 
-    fn view_cinnamon(&self, config: &AppletConfig) -> Element<'_, Message> {
-        let on_left = config.favorites_bar_position == HorizontalPosition::Left;
-        let body = cosmic::iced::widget::row![]
-            .push_maybe(self.pinned_slot(Slot::PinnedLeft, on_left, config))
-            .push_maybe(on_left.then(|| cosmic::widget::divider::vertical::default()))
-            .push(self.panes(config, false))
-            .push_maybe((!on_left).then(|| cosmic::widget::divider::vertical::default()))
-            .push_maybe(self.pinned_slot(Slot::PinnedRight, !on_left, config))
-            .spacing(space_xxs());
-
-        self.with_search(config, user_bar(Length::Fill), body.into(), None)
-    }
-
-    fn view_modern(&self, config: &AppletConfig) -> Element<'_, Message> {
-        let header = self
-            .power_slot(PowerMenuPosition::Header, config, Length::Fixed(POWER_HEADER_WIDTH))
-            .map(|power| cosmic::iced::widget::row![Space::new().width(Length::Fill), power]);
-
-        let footer = cosmic::iced::widget::row![user_bar(Length::Fill)]
-            .push_maybe(self.power_slot(
-                PowerMenuPosition::Footer,
-                config,
-                Length::Fixed(POWER_HEADER_WIDTH),
-            ))
-            .spacing(space_xxs());
-
-        cosmic::iced::widget::column![]
-            .push_maybe(header)
-            .push_maybe(self.search_slot(Slot::SearchTop, config))
-            .push(fixed_part(
-                cosmic::iced::widget::column![
-                    container(text_line(Length::Fixed(60.0), 5.0)).padding(space_xxs()),
-                    AppsSketch::of(config).sketch(MODERN_GRID_COLUMNS),
-                ]
-                .height(Length::Fill)
-                .into(),
-                fl!("layout-app-list"),
-            ))
-            .push(fixed_part(
-                recent_sketch(),
-                match config.featured_applications {
-                    FeaturedApplications::RecentlyUsed => fl!("layout-recent"),
-                    FeaturedApplications::Favorites => fl!("layout-favorites"),
-                },
-            ))
-            .push_maybe(self.search_slot(Slot::SearchBottom, config))
-            .push(cosmic::widget::divider::horizontal::light())
-            .push(footer)
-            .spacing(space_xxs())
-            .into()
-    }
-
-    /// Stacks `header`, `body` and `footer`, with search slots above and
-    /// below the body.
-    fn with_search<'a>(
-        &'a self,
-        config: &AppletConfig,
-        header: Element<'a, Message>,
-        body: Element<'a, Message>,
-        footer: Option<Element<'a, Message>>,
-    ) -> Element<'a, Message> {
-        cosmic::iced::widget::column![header]
-            .push_maybe(self.search_row(Slot::SearchTop, config))
-            .push(container(body).height(Length::Fill))
-            .push_maybe(self.search_row(Slot::SearchBottom, config))
-            .push_maybe(footer)
-            .spacing(space_xxs())
-            .into()
-    }
-
-    fn search_slot(&self, slot: Slot, config: &AppletConfig) -> Option<Element<'_, Message>> {
-        let position = if slot == Slot::SearchTop {
-            VerticalPosition::Top
-        } else {
-            VerticalPosition::Bottom
-        };
-        self.slot(
-            slot,
-            (config.search_field_position == position).then_some(Block::SearchField),
-            Length::Fill,
-            Length::Fixed(BAR_HEIGHT),
-            AppsSketch::of(config),
-        )
-    }
-
-    /// A search slot, sharing its row with the power controls slot where
-    /// the search field is, if the layout supports one there.
-    fn search_row(&self, slot: Slot, config: &AppletConfig) -> Option<Element<'_, Message>> {
-        let position = if slot == Slot::SearchTop {
-            VerticalPosition::Top
-        } else {
-            VerticalPosition::Bottom
-        };
-        let power = (config.search_field_position == position)
-            .then(|| {
-                self.power_slot(
-                    PowerMenuPosition::Search,
-                    config,
-                    Length::Fixed(POWER_HEADER_WIDTH),
-                )
-            })
-            .flatten();
-        let search = self.search_slot(slot, config);
-
-        match power {
-            Some(power) => Some(
-                cosmic::iced::widget::row![fill_or_space(search), power]
-                    .spacing(space_xxs())
-                    .into(),
-            ),
-            None => search,
-        }
-    }
-
-    /// App list and categories side by side, each with the power controls
-    /// slot below it where the layout supports one.
-    fn panes(&self, config: &AppletConfig, tinted: bool) -> Element<'_, Message> {
-        let side_panel = match config.side_panel {
-            SidePanel::Categories => Block::Categories,
-            SidePanel::Places => Block::Places,
-        };
-        let (left, right) = match config.app_menu_position {
-            HorizontalPosition::Left => (Block::AppList, side_panel),
-            HorizontalPosition::Right => (side_panel, Block::AppList),
-        };
-
-        let mut width = panes_width(config.menu_layout, self.preview_size(config).0);
-        // Room for the empty slot on the other side.
-        if self.dragging == Some(Block::PinnedApps) {
-            width -= SIDEBAR_WIDTH + f32::from(space_xxs());
-        }
-
-        let panes = cosmic::iced::widget::row![
-            self.pane(Slot::PaneLeft, left, config, tinted),
-            self.resize_handle(),
-            self.pane(Slot::PaneRight, right, config, tinted),
-        ]
-        .spacing(space_xxs())
-        // Fixed, so cursor positions translate into a split.
-        .width(Length::Fixed(width))
-        .height(Length::Fill);
-
-        let mut area = mouse_area(panes);
-        if self.resizing.is_some() {
-            area = area.on_move(|point| Message::ResizeMove(point.x));
-        }
-        area.into()
-    }
-
-    /// A handle next to the preview, dragged to resize the menu.
-    fn menu_handle(
-        &self,
-        handle: MenuHandle,
-        width: f32,
-        height: f32,
-    ) -> Element<'_, Message> {
-        let active = self.menu_resize.is_some_and(|resize| resize.handle == handle);
-        let (grip_width, grip_height) = match handle {
-            MenuHandle::Right => (3.0, MENU_GRIP_LENGTH),
-            MenuHandle::Bottom => (MENU_GRIP_LENGTH, 3.0),
-            MenuHandle::BottomRight => (6.0, 6.0),
-        };
-        let grip = container(Space::new())
-            .width(Length::Fixed(grip_width))
-            .height(Length::Fixed(grip_height))
+    /// A drop target making a new row at `index`.
+    fn row_gap(&self, index: usize) -> Element<'static, Message> {
+        let drop = Drop::NewRow(index);
+        let hovered = self.hovered == Some(drop);
+        let line = container(Space::new())
+            .width(Length::Fill)
+            .height(Length::Fixed(3.0))
             .class(cosmic::theme::Container::custom(move |theme: &Theme| {
                 let cosmic = theme.cosmic();
                 container::Style {
-                    background: Some(Background::Color(if active {
+                    background: Some(Background::Color(if hovered {
                         cosmic.accent_color().into()
                     } else {
                         cosmic.bg_divider().into()
@@ -672,6 +555,244 @@ impl LayoutEditor {
                 }
             }));
 
+        mouse_area(
+            container(line)
+                .center_y(Length::Fixed(ROW_GAP_HEIGHT))
+                .width(Length::Fill),
+        )
+        .on_enter(Message::DragEnter(drop))
+        .on_exit(Message::DragLeave(drop))
+        .into()
+    }
+
+    fn row(&self, row_index: usize, row: &Row) -> Element<'static, Message> {
+        let tall = row.fills_height();
+        let alone = row.columns.len() == 1 && row.columns[0].blocks.len() == 1;
+
+        let mut items: Vec<Element<'static, Message>> = Vec::new();
+        for (index, column) in row.columns.iter().enumerate() {
+            if index > 0 && tall {
+                let previous = &row.columns[index - 1];
+                items.push(if previous.fills_width() && column.fills_width() {
+                    self.resize_handle(row_index, index - 1)
+                } else {
+                    vertical_line()
+                });
+            }
+            let path = |block| BlockPath {
+                row: row_index,
+                column: index,
+                block,
+            };
+            let blocks: Vec<Element<'static, Message>> = column
+                .blocks
+                .iter()
+                .enumerate()
+                .map(|(block_index, block)| {
+                    let context = SketchContext {
+                        tall_row: tall,
+                        wide_column: column.fills_width(),
+                        alone,
+                        banner: row.banner,
+                    };
+                    let block = self.block(path(block_index), block, context);
+                    let padding = column.padding(block_index);
+                    if padding.is_zero() {
+                        return block;
+                    }
+                    // Scaled as the rest of the miniature.
+                    let scaled = |side: u16| f32::from(side) * PREVIEW_SCALE;
+                    container(block)
+                        .padding(Padding {
+                            top: scaled(padding.top),
+                            right: scaled(padding.right),
+                            bottom: scaled(padding.bottom),
+                            left: scaled(padding.left),
+                        })
+                        .into()
+                })
+                .collect();
+            items.push(
+                cosmic::widget::column::with_children(blocks)
+                    .spacing(space_xxs())
+                    .width(if column.fills_width() {
+                        Length::FillPortion(column.portion.max(1))
+                    } else {
+                        Length::Shrink
+                    })
+                    .height(if tall { Length::Fill } else { Length::Shrink })
+                    .into(),
+            );
+        }
+
+        let content = cosmic::widget::row::with_children(items)
+            .spacing(space_xxs())
+            .width(Length::Fill)
+            .height(if tall { Length::Fill } else { Length::Shrink });
+
+        if row.banner {
+            container(content)
+                .padding(2)
+                .width(Length::Fill)
+                .height(if tall { Length::Fill } else { Length::Shrink })
+                .class(cosmic::theme::Container::custom(banner_style))
+                .into()
+        } else {
+            content.into()
+        }
+    }
+
+    /// A block, which can be picked up, selected, and dropped on.
+    fn block(
+        &self,
+        path: BlockPath,
+        block: &Block,
+        context: SketchContext,
+    ) -> Element<'static, Message> {
+        let picked_up = self.drag_active() && self.drag.is_some_and(|drag| drag.dragged == Dragged::Block(path));
+        let selected = self.selected == Some(path) && !self.drag_active();
+        let (width, height) = block_size(block, context);
+
+        let content: Element<'static, Message> = if picked_up {
+            Space::new().into()
+        } else {
+            sketch(block, context)
+        };
+        let boxed = container(content)
+            .width(width)
+            .height(height)
+            .clip(true)
+            .class(cosmic::theme::Container::custom(move |theme| {
+                slot_style(theme, !picked_up, selected)
+            }));
+
+        let content: Element<'static, Message> = if self.drag_active() && !picked_up {
+            cosmic::iced::widget::stack![boxed, self.drop_zones(path)].into()
+        } else if !self.is_dragging() {
+            // Name the block on hover, as the sketch alone may be ambiguous.
+            tooltip(boxed, text::caption(block_label(block)), tooltip::Position::Bottom).into()
+        } else {
+            boxed.into()
+        };
+
+        let mut area = mouse_area(content).on_press(Message::DragStart(Dragged::Block(path)));
+        if !self.is_dragging() {
+            area = area.interaction(mouse::Interaction::Grab);
+        }
+        area.into()
+    }
+
+    /// Targets over a block, for dropping another one on each of its sides.
+    fn drop_zones(&self, path: BlockPath) -> Element<'static, Message> {
+        let zone = |side: Side| -> Element<'static, Message> {
+            let drop = Drop::Beside { path, side };
+            let hovered = self.hovered == Some(drop);
+            // A bar at the side the block goes to.
+            let bar = container(Space::new())
+                .width(match side {
+                    Side::Above | Side::Below => Length::Fill,
+                    Side::Before | Side::After => Length::Fixed(3.0),
+                })
+                .height(match side {
+                    Side::Above | Side::Below => Length::Fixed(3.0),
+                    Side::Before | Side::After => Length::Fill,
+                })
+                .class(cosmic::theme::Container::custom(move |theme: &Theme| {
+                    container::Style {
+                        background: hovered
+                            .then(|| Background::Color(theme.cosmic().accent_color().into())),
+                        ..Default::default()
+                    }
+                }));
+            let zone = container(bar)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(match side {
+                    Side::After => Alignment::End,
+                    _ => Alignment::Start,
+                })
+                .align_y(match side {
+                    Side::Below => Alignment::End,
+                    _ => Alignment::Start,
+                })
+                .class(cosmic::theme::Container::custom(move |theme: &Theme| {
+                    let mut accent: Color = theme.cosmic().accent_color().into();
+                    accent.a = 0.2;
+                    container::Style {
+                        background: hovered.then_some(Background::Color(accent)),
+                        ..Default::default()
+                    }
+                }));
+            mouse_area(zone)
+                .on_enter(Message::DragEnter(drop))
+                .on_exit(Message::DragLeave(drop))
+                .into()
+        };
+
+        cosmic::iced::widget::row![
+            container(zone(Side::Before)).width(Length::FillPortion(1)).height(Length::Fill),
+            cosmic::iced::widget::column![
+                container(zone(Side::Above)).width(Length::Fill).height(Length::FillPortion(1)),
+                container(zone(Side::Below)).width(Length::Fill).height(Length::FillPortion(1)),
+            ]
+            .width(Length::FillPortion(2))
+            .height(Length::Fill),
+            container(zone(Side::After)).width(Length::FillPortion(1)).height(Length::Fill),
+        ]
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+    }
+
+    /// The blocks to drag into the menu. Blocks the menu holds one of at
+    /// most are left out while it has one.
+    fn palette(&self, layout: &Layout) -> Element<'static, Message> {
+        let chips = BlockKind::ALL
+            .into_iter()
+            .filter(|kind| !(kind.is_unique() && layout.contains(*kind)))
+            .map(|kind| -> Element<'static, Message> {
+                let chip = container(
+                    cosmic::iced::widget::row![kind_icon(kind).size(14), text::caption(kind_label(kind))]
+                        .spacing(space_xxs())
+                        .align_y(Alignment::Center),
+                )
+                .padding([4, 8])
+                .class(cosmic::theme::Container::custom(chip_style));
+                let mut area = mouse_area(chip).on_press(Message::DragStart(Dragged::New(kind)));
+                if !self.is_dragging() {
+                    area = area.interaction(mouse::Interaction::Grab);
+                }
+                area.into()
+            })
+            .collect();
+
+        cosmic::iced::widget::column![
+            text::caption(fl!("layout-add-blocks")),
+            cosmic::widget::flex_row(chips)
+                .row_spacing(space_xxs())
+                .column_spacing(space_xxs()),
+        ]
+        .spacing(space_xxs())
+        .align_x(Alignment::Center)
+        .width(Length::Fill)
+        .into()
+    }
+
+    /// A handle next to the preview, dragged to resize the menu.
+    fn menu_handle(&self, handle: MenuHandle, width: f32, height: f32) -> Element<'static, Message> {
+        let active = self.menu_resize.is_some_and(|resize| resize.handle == handle);
+        let (grip_width, grip_height) = match handle {
+            MenuHandle::Right => (3.0, MENU_GRIP_LENGTH),
+            MenuHandle::Bottom => (MENU_GRIP_LENGTH, 3.0),
+            MenuHandle::BottomRight => (6.0, 6.0),
+        };
+        let grip = container(Space::new())
+            .width(Length::Fixed(grip_width))
+            .height(Length::Fixed(grip_height))
+            .class(cosmic::theme::Container::custom(move |theme: &Theme| {
+                accent_or_divider(theme, active, 2.0)
+            }));
+
         let area = mouse_area(
             container(grip).center_x(Length::Fixed(width)).center_y(Length::Fixed(height)),
         )
@@ -681,31 +802,20 @@ impl LayoutEditor {
         if self.is_dragging() {
             area.into()
         } else {
-            tooltip(
-                area,
-                text::caption(fl!("layout-resize-menu")),
-                tooltip::Position::Bottom,
-            )
-            .into()
+            tooltip(area, text::caption(fl!("layout-resize-menu")), tooltip::Position::Bottom).into()
         }
     }
 
-    /// The divider between the panes, dragged to change their widths.
-    fn resize_handle(&self) -> Element<'_, Message> {
-        let resizing = self.resizing.is_some();
+    /// The divider between two columns, dragged to change their widths.
+    fn resize_handle(&self, row: usize, left: usize) -> Element<'static, Message> {
+        let resizing = self
+            .resizing
+            .is_some_and(|resize| resize.row == row && resize.left == left);
         let line = container(Space::new())
             .width(Length::Fixed(if resizing { 2.0 } else { 1.0 }))
             .height(Length::Fill)
             .class(cosmic::theme::Container::custom(move |theme: &Theme| {
-                let cosmic = theme.cosmic();
-                container::Style {
-                    background: Some(Background::Color(if resizing {
-                        cosmic.accent_color().into()
-                    } else {
-                        cosmic.bg_divider().into()
-                    })),
-                    ..Default::default()
-                }
+                accent_or_divider(theme, resizing, 0.0)
             }));
 
         // Wider than the line, so it is easy to grab.
@@ -714,164 +824,94 @@ impl LayoutEditor {
                 .center_x(Length::Fixed(RESIZE_HANDLE_WIDTH))
                 .height(Length::Fill),
         )
-        .on_press(Message::ResizeStart)
+        .on_press(Message::ResizeStart { row, left })
         .interaction(mouse::Interaction::ResizingHorizontally);
 
         if self.is_dragging() {
             handle.into()
         } else {
-            tooltip(
-                handle,
-                text::caption(fl!("layout-resize-panes")),
-                tooltip::Position::Bottom,
-            )
-            .into()
-        }
-    }
-
-    /// A pane together with the power controls slot below it.
-    fn pane(
-        &self,
-        slot: Slot,
-        block: Block,
-        config: &AppletConfig,
-        tinted: bool,
-    ) -> Element<'_, Message> {
-        let (app_list_portion, side_panel_portion) = match self.resizing {
-            Some(width) => (100 - width, width),
-            None => config.pane_portions(),
-        };
-        let (power, portion) = if block == Block::AppList {
-            (PowerMenuPosition::AppList, app_list_portion)
-        } else {
-            (PowerMenuPosition::Categories, side_panel_portion)
-        };
-
-        let pane = cosmic::iced::widget::column![]
-            .push_maybe(self.slot(
-                slot,
-                Some(block),
-                Length::Fill,
-                Length::Fill,
-                AppsSketch::of(config),
-            ))
-            .push_maybe(self.power_slot(power, config, Length::Fill))
-            .spacing(space_xxs())
-            .width(Length::FillPortion(portion))
-            .height(Length::Fill);
-
-        if tinted && block != Block::AppList {
-            container(pane)
-                .padding(2)
-                .width(Length::FillPortion(portion))
-                .height(Length::Fill)
-                .class(cosmic::theme::Container::custom(tinted_style))
+            tooltip(handle, text::caption(fl!("layout-resize-panes")), tooltip::Position::Bottom)
                 .into()
-        } else {
-            pane.into()
         }
     }
+}
 
-    /// Slot for the pinned apps column on one side of the panes.
-    fn pinned_slot(
-        &self,
-        slot: Slot,
-        holds_column: bool,
-        config: &AppletConfig,
-    ) -> Option<Element<'_, Message>> {
-        self.slot(
-            slot,
-            holds_column.then_some(Block::PinnedApps),
-            Length::Fixed(SIDEBAR_WIDTH),
+/// Where a block is sketched, which tells how it is laid out, as in the
+/// applet.
+#[derive(Clone, Copy, Debug)]
+struct SketchContext {
+    tall_row: bool,
+    wide_column: bool,
+    alone: bool,
+    banner: bool,
+}
+
+/// Size of the sketch of `block`.
+fn block_size(block: &Block, context: SketchContext) -> (Length, Length) {
+    let bar = Length::Fixed(BAR_HEIGHT);
+    match block {
+        Block::User(_) => (Length::Fixed(USER_WIDTH), bar),
+        Block::Search(options) => (
             Length::Fill,
-            AppsSketch::of(config),
-        )
-    }
-
-    /// Power controls slot, if the layout supports this position.
-    fn power_slot(
-        &self,
-        position: PowerMenuPosition,
-        config: &AppletConfig,
-        width: Length,
-    ) -> Option<Element<'_, Message>> {
-        if !config.menu_layout.power_menu_positions().contains(&position) {
-            return None;
-        }
-
-        self.slot(
-            Slot::Power(position),
-            (config.effective_power_menu_position() == Some(position))
-                .then_some(Block::PowerMenu),
-            width,
-            Length::Fixed(BAR_HEIGHT),
-            AppsSketch::of(config),
-        )
-    }
-
-    /// A drop slot, optionally holding a block.
-    ///
-    /// Empty slots are only shown while dragging a block that fits them, so
-    /// the preview otherwise looks like the real menu.
-    fn slot(
-        &self,
-        slot: Slot,
-        block: Option<Block>,
-        width: Length,
-        height: Length,
-        apps: AppsSketch,
-    ) -> Option<Element<'_, Message>> {
-        let picked_up = block.is_some() && block == self.dragging;
-        let drop_target = self.dragging.is_some_and(|dragging| dragging.accepts(slot));
-        let highlighted = drop_target && self.hovered == Some(slot);
-        if block.is_none() && !drop_target {
-            return None;
-        }
-
-        let content: Element<'_, Message> = match block {
-            Some(block) if !picked_up => sketch(block, apps),
-            _ => Space::new().into(),
-        };
-
-        let content = container(content)
-            .width(width)
-            .height(height)
-            .clip(true)
-            .class(cosmic::theme::Container::custom(move |theme| {
-                slot_style(theme, block.is_some() && !picked_up, drop_target, highlighted)
-            }));
-
-        // Name the block on hover, as the sketch alone may be ambiguous.
-        let content: Element<'_, Message> = match block {
-            Some(block) if !self.is_dragging() => tooltip(
-                content,
-                text::caption(block.label()),
-                tooltip::Position::Bottom,
-            )
-            .into(),
-            _ => content.into(),
-        };
-
-        let mut area = mouse_area(content)
-            .on_enter(Message::DragEnter(slot))
-            .on_exit(Message::DragLeave(slot));
-        if let Some(block) = block {
-            area = area.on_press(Message::DragStart(block));
-            if !self.is_dragging() {
-                area = area.interaction(mouse::Interaction::Grab);
+            Length::Fixed(match options.size {
+                ItemSize::Small => BAR_HEIGHT - 4.0,
+                ItemSize::Medium => BAR_HEIGHT,
+                ItemSize::Large => BAR_HEIGHT + 6.0,
+            }),
+        ),
+        Block::AppList(_) | Block::SidePanel(_) => (Length::Fill, Length::Fill),
+        Block::Power(options) => {
+            let length = options.actions.len().max(1) as f32 * 18.0 + 8.0;
+            if options.vertical {
+                (Length::Fixed(SIDEBAR_WIDTH), Length::Fixed(length))
+            } else if context.wide_column || context.alone {
+                (Length::Fill, bar)
+            } else {
+                (Length::Fixed(length), bar)
             }
         }
-
-        Some(area.into())
+        Block::Featured(options) => {
+            if options.vertical {
+                (Length::Fixed(SIDEBAR_WIDTH), Length::Fill)
+            } else {
+                let rows = options.count().div_ceil(4).min(3) as f32;
+                let heading = if options.show_heading { 12.0 } else { 0.0 };
+                (Length::Fill, Length::Fixed(heading + rows * 16.0 + 8.0))
+            }
+        }
+        Block::Spacer => {
+            if context.tall_row {
+                (Length::Fill, Length::Fill)
+            } else {
+                (Length::Fill, bar)
+            }
+        }
+        Block::Divider => (Length::Fill, Length::Fixed(8.0)),
     }
 }
 
 /// A rough drawing of what the block looks like in the applet popup.
-fn sketch(block: Block, apps: AppsSketch) -> Element<'static, Message> {
+fn sketch(block: &Block, context: SketchContext) -> Element<'static, Message> {
     let spacing = cosmic::theme::active().cosmic().spacing;
 
     match block {
-        Block::SearchField => container(
+        Block::User(options) => {
+            let avatar = options
+                .show_avatar
+                .then(|| icon::from_svg_bytes(USER_ICON).symbolic(true).icon().size(16));
+            container(
+                cosmic::iced::widget::row![]
+                    .push_maybe(avatar)
+                    .push(text_line(Length::Fixed(40.0), 6.0))
+                    .spacing(space_xxs())
+                    .align_y(Alignment::Center),
+            )
+            .center_y(Length::Fill)
+            .padding([0, space_xxs()])
+            .into()
+        }
+
+        Block::Search(_) => container(
             container(
                 cosmic::iced::widget::row![
                     icon::from_name("system-search-symbolic").size(12),
@@ -888,88 +928,246 @@ fn sketch(block: Block, apps: AppsSketch) -> Element<'static, Message> {
         .padding(3)
         .into(),
 
-        Block::AppList => apps.sketch(APP_LIST_GRID_COLUMNS),
+        Block::AppList(options) => apps_sketch(options),
 
-        Block::PinnedApps => sidebar_sketch(),
+        Block::SidePanel(options) => side_panel_sketch(options),
 
-        Block::Categories => {
-            let mut rows: Vec<Element<'static, Message>> = CATEGORIES
-                .iter()
-                .enumerate()
-                .map(|(index, category)| {
-                    let selected = index == 0;
-                    container(
-                        cosmic::iced::widget::row![
-                            category_icon(&category.icon).size(10),
-                            text_line(Length::Fill, 5.0),
-                        ]
-                        .spacing(spacing.space_xxs)
-                        .align_y(Alignment::Center),
-                    )
-                    .center_y(Length::Fixed(18.0))
-                    .width(Length::Fill)
-                    .padding([0, spacing.space_xxs])
-                    .class(cosmic::theme::Container::custom(move |theme| {
-                        category_style(theme, selected)
-                    }))
-                    .into()
-                })
-                .collect();
-            // The applet separates the permanent categories from the rest.
-            rows.insert(2, cosmic::widget::divider::horizontal::light().into());
+        Block::Power(options) => power_sketch(options, context.banner),
 
-            cosmic::widget::column::with_children(rows)
-                .spacing(2)
-                .padding(spacing.space_xxs)
-                .into()
-        }
+        Block::Featured(options) => featured_sketch(options),
 
-        Block::Places => {
-            let rows = Place::DEFAULT.iter().map(|place| -> Element<'static, Message> {
-                if *place == Place::Separator {
-                    return container(cosmic::widget::divider::horizontal::light())
-                        .center_y(Length::Fixed(8.0))
-                        .into();
-                }
-                container(
-                    cosmic::iced::widget::row![
-                        icon::from_name(place.icon_name()).size(10),
-                        text_line(Length::Fill, 5.0),
-                    ]
-                    .spacing(spacing.space_xxs)
-                    .align_y(Alignment::Center),
-                )
-                .center_y(Length::Fixed(18.0))
-                .width(Length::Fill)
-                .padding([0, spacing.space_xxs])
-                .into()
-            });
-
-            cosmic::widget::column::with_children(rows)
-                .spacing(2)
-                .padding(spacing.space_xxs)
-                .into()
-        }
-
-        Block::PowerMenu => container(
-            cosmic::widget::row::with_children(
-                POWER_ICONS
-                    .iter()
-                    .map(|bytes| {
-                        icon::from_svg_bytes(*bytes)
-                            .symbolic(true)
-                            .icon()
-                            .size(12)
-                            .into()
-                    })
-                    .collect::<Vec<Element<'static, Message>>>(),
-            )
-            .spacing(6)
-            .align_y(Alignment::Center),
+        Block::Spacer => container(
+            icon::from_name("view-more-horizontal-symbolic").size(10),
         )
         .center(Length::Fill)
+        .class(cosmic::theme::Container::custom(fixed_style))
         .into(),
+
+        Block::Divider => container(cosmic::widget::divider::horizontal::light())
+            .center_y(Length::Fill)
+            .padding([0, 4])
+            .into(),
     }
+}
+
+fn power_sketch(options: &PowerOptions, banner: bool) -> Element<'static, Message> {
+    let icons: Vec<Element<'static, Message>> = options
+        .actions
+        .iter()
+        .map(|&action| {
+            icon::from_svg_bytes(power_icon(action))
+                .symbolic(true)
+                .icon()
+                .size(12)
+                .into()
+        })
+        .collect();
+    let content: Element<'static, Message> = if options.vertical {
+        cosmic::widget::column::with_children(icons)
+            .spacing(6)
+            .align_x(Alignment::Center)
+            .into()
+    } else {
+        cosmic::widget::row::with_children(icons)
+            .spacing(6)
+            .align_y(Alignment::Center)
+            .into()
+    };
+    let content = container(content).center(Length::Fill);
+    if banner {
+        content
+            .class(cosmic::theme::Container::custom(|theme: &Theme| container::Style {
+                icon_color: Some(theme.cosmic().on_accent_color().into()),
+                ..Default::default()
+            }))
+            .into()
+    } else {
+        content.into()
+    }
+}
+
+/// App rows or a grid, led by tinted favorite and recently used apps if
+/// the list shows them.
+fn apps_sketch(options: &AppListOptions) -> Element<'static, Message> {
+    let spacing = cosmic::theme::active().cosmic().spacing;
+    let leading = options.favorites_shown().min(2) + options.recents_shown().min(2);
+    let heading = options
+        .show_heading
+        .then(|| container(text_line(Length::Fixed(60.0), 5.0)).padding(space_xxs()));
+
+    let apps: Element<'static, Message> = match options.view {
+        AppView::Column => {
+            let rows = APP_NAME_WIDTHS.iter().enumerate().map(|(index, &width)| {
+                let description = options
+                    .show_description
+                    .then(|| text_line(Length::Fixed(width * 1.4), 3.0));
+                let row = cosmic::iced::widget::row![
+                    app_tile(index),
+                    cosmic::iced::widget::column![text_line(Length::Fixed(width), 5.0)]
+                        .push_maybe(description)
+                        .spacing(3),
+                ]
+                .spacing(spacing.space_xxs)
+                .align_y(Alignment::Center)
+                .height(Length::Fixed(22.0))
+                .width(Length::Fill);
+                let tinted = index < leading;
+                container(row)
+                    .padding([0, spacing.space_xxs])
+                    .class(cosmic::theme::Container::custom(move |theme| tint_style(theme, tinted)))
+                    .into()
+            });
+            cosmic::widget::column::with_children(rows.collect::<Vec<_>>())
+                .padding([spacing.space_xxs, spacing.space_xxs])
+                .into()
+        }
+        AppView::Grid => {
+            let columns = 5;
+            let rows = (0..6).map(|row| -> Element<'static, Message> {
+                cosmic::widget::row::with_children((0..columns).map(|column| {
+                    let index = row * columns + column;
+                    let tinted = index < leading;
+                    container(
+                        cosmic::iced::widget::column![
+                            app_tile(index),
+                            text_line(Length::Fixed(24.0), 3.0),
+                        ]
+                        .spacing(3)
+                        .align_x(Alignment::Center),
+                    )
+                    .padding(2)
+                    .center_x(Length::FillPortion(1))
+                    .class(cosmic::theme::Container::custom(move |theme| tint_style(theme, tinted)))
+                    .into()
+                }))
+                .into()
+            });
+            cosmic::widget::column::with_children(rows.collect::<Vec<_>>())
+                .spacing(6)
+                .padding(space_xxs())
+                .into()
+        }
+    };
+
+    let mut content = cosmic::iced::widget::column![].push_maybe(heading).push(apps);
+    if options.has_start_page() {
+        // The button leading to all apps.
+        content = content.push(Space::new().height(Length::Fill)).push(
+            container(text_line(Length::Fixed(60.0), 5.0))
+                .padding(space_xxs())
+                .width(Length::Fill),
+        );
+    }
+    content.height(Length::Fill).into()
+}
+
+fn side_panel_sketch(options: &SidePanelOptions) -> Element<'static, Message> {
+    let spacing = cosmic::theme::active().cosmic().spacing;
+    let entry = |icon: icon::Icon, selected: bool| -> Element<'static, Message> {
+        container(
+            cosmic::iced::widget::row![icon.size(10), text_line(Length::Fill, 5.0)]
+                .spacing(spacing.space_xxs)
+                .align_y(Alignment::Center),
+        )
+        .center_y(Length::Fixed(18.0))
+        .width(Length::Fill)
+        .padding([0, spacing.space_xxs])
+        .class(cosmic::theme::Container::custom(move |theme| category_style(theme, selected)))
+        .into()
+    };
+    let separator = || -> Element<'static, Message> {
+        container(cosmic::widget::divider::horizontal::light())
+            .center_y(Length::Fixed(8.0))
+            .into()
+    };
+
+    let rows: Vec<Element<'static, Message>> = match options.content {
+        SidePanelContent::Categories => {
+            let mut rows = vec![entry(category_icon(&ApplicationCategory::ALL.icon), true)];
+            if options.show_recently_used {
+                rows.push(entry(category_icon(&ApplicationCategory::RECENTLY_USED.icon), false));
+            }
+            if options.show_favorites {
+                rows.push(entry(category_icon(&ApplicationCategory::FAVORITES.icon), false));
+            }
+            rows.push(separator());
+            rows.extend(
+                CATEGORIES
+                    .iter()
+                    .map(|category| entry(category_icon(&category.icon), false)),
+            );
+            rows
+        }
+        SidePanelContent::Places => options
+            .places
+            .iter()
+            .map(|place| match place {
+                Place::Separator => separator(),
+                Place::Spacer => Space::new().height(Length::Fill).into(),
+                _ => entry(icon::from_name(place.icon_name()).icon(), false),
+            })
+            .collect(),
+    };
+
+    let panel = cosmic::widget::column::with_children(rows)
+        .spacing(2)
+        .padding(spacing.space_xxs);
+    if options.tinted {
+        container(panel)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .class(cosmic::theme::Container::custom(tinted_style))
+            .into()
+    } else {
+        panel.into()
+    }
+}
+
+fn featured_sketch(options: &FeaturedOptions) -> Element<'static, Message> {
+    let count = options.count();
+    if options.vertical {
+        return cosmic::widget::column::with_children(
+            (0..count.min(6)).map(app_tile).collect::<Vec<_>>(),
+        )
+        .spacing(6)
+        .padding([space_xxs(), 2])
+        .align_x(Alignment::Center)
+        .width(Length::Fill)
+        .into();
+    }
+
+    let item = |index: usize| -> Element<'static, Message> {
+        cosmic::iced::widget::row![app_tile(index), text_line(Length::Fill, 4.0)]
+            .spacing(space_xxs())
+            .align_y(Alignment::Center)
+            .width(Length::FillPortion(1))
+            .into()
+    };
+    let offset = match options.source {
+        FeaturedApplications::RecentlyUsed => 5,
+        FeaturedApplications::Favorites => 1,
+    };
+    let rows = (0..count.min(12)).collect::<Vec<_>>();
+    let rows = rows.chunks(4).map(|chunk| -> Element<'static, Message> {
+        let mut items: Vec<Element<'static, Message>> =
+            chunk.iter().map(|index| item(index + offset)).collect();
+        while items.len() < 4 {
+            items.push(Space::new().width(Length::FillPortion(1)).into());
+        }
+        cosmic::widget::row::with_children(items)
+            .spacing(space_xxs())
+            .into()
+    });
+
+    let heading = options
+        .show_heading
+        .then(|| text_line(Length::Fixed(50.0), 5.0));
+    cosmic::iced::widget::column![]
+        .push_maybe(heading)
+        .extend(rows)
+        .spacing(4)
+        .padding(space_xxs())
+        .into()
 }
 
 /// Placeholder for a line of text.
@@ -1010,212 +1208,137 @@ fn app_tile(index: usize) -> Element<'static, Message> {
         .into()
 }
 
-/// Width of the row holding both panes and the divider between them.
-fn panes_width(layout: MenuLayout, preview_width: f32) -> f32 {
-    let spacing = f32::from(space_xxs());
-    // Inside the frame's padding.
-    let width = preview_width - 2.0 * spacing;
-    if layout == MenuLayout::Cinnamon {
-        // Next to the sidebar and its divider.
-        width - SIDEBAR_WIDTH - 1.0 - 2.0 * spacing
-    } else {
-        width
-    }
+fn vertical_line() -> Element<'static, Message> {
+    container(cosmic::widget::divider::vertical::light())
+        .height(Length::Fill)
+        .into()
 }
 
 fn space_xxs() -> u16 {
     cosmic::theme::active().cosmic().space_xxs()
 }
 
-fn user_bar(width: Length) -> Element<'static, Message> {
-    let user = container(
-        cosmic::iced::widget::row![
-            icon::from_svg_bytes(USER_ICON).symbolic(true).icon().size(16),
-            text_line(Length::Fixed(40.0), 6.0),
-        ]
-        .spacing(space_xxs())
-        .align_y(Alignment::Center),
-    )
-    .center_y(Length::Fixed(BAR_HEIGHT))
-    .padding([0, space_xxs()])
-    .width(width)
-    .class(cosmic::theme::Container::custom(fixed_style));
-
-    tooltip(
-        user,
-        text::caption(fl!("layout-user")),
-        tooltip::Position::Bottom,
-    )
-    .into()
-}
-
-/// `slot` if shown, otherwise a spacer taking its room in a row.
-fn fill_or_space(slot: Option<Element<'_, Message>>) -> Element<'_, Message> {
-    slot.unwrap_or_else(|| Space::new().width(Length::Fill).into())
-}
-
-/// A part of the preview that the layout keeps in place.
-fn fixed_part(content: Element<'static, Message>, label: String) -> Element<'static, Message> {
-    tooltip(content, text::caption(label), tooltip::Position::Bottom).into()
-}
-
-/// Pinned apps above vertical power controls.
-fn sidebar_sketch() -> Element<'static, Message> {
-    let pinned = (0..4).map(|index| app_tile(index));
-    let power = POWER_ICONS.iter().map(|bytes| {
-        icon::from_svg_bytes(*bytes)
-            .symbolic(true)
-            .icon()
-            .size(12)
-            .into()
-    });
-
-    cosmic::widget::column::with_children(pinned)
-        .push(Space::new().height(Length::Fill))
-        .extend(power)
-        .spacing(6)
-        .padding([space_xxs(), 2])
-        .align_x(Alignment::Center)
-        .height(Length::Fill)
-        .into()
-}
-
-/// Grid columns sketched in the app list pane, which is narrower than the
-/// app grid of the modern layout.
-const APP_LIST_GRID_COLUMNS: usize = 4;
-const MODERN_GRID_COLUMNS: usize = 5;
-
-/// How the apps are sketched, following the app view options.
-#[derive(Clone, Copy, Debug)]
-struct AppsSketch {
-    view: AppView,
-    show_description: bool,
-}
-
-impl AppsSketch {
-    fn of(config: &AppletConfig) -> Self {
-        let view = config.effective_app_view();
-        let show_description = match view {
-            AppView::Column => config.column_show_description,
-            AppView::Grid => config.grid_show_description,
-        };
-        AppsSketch {
-            view,
-            show_description,
-        }
-    }
-
-    /// Rows of apps, or a grid with `columns` apps per row.
-    fn sketch(self, columns: usize) -> Element<'static, Message> {
-        match self.view {
-            AppView::Column => self.column(),
-            AppView::Grid => self.grid(columns),
-        }
-    }
-
-    /// App rows with their names, and descriptions if shown.
-    fn column(self) -> Element<'static, Message> {
-        let spacing = cosmic::theme::active().cosmic().spacing;
-        let rows = APP_NAME_WIDTHS.iter().enumerate().map(|(index, &width)| {
-            let description = self
-                .show_description
-                .then(|| text_line(Length::Fixed(width * 1.4), 3.0));
-            cosmic::iced::widget::row![
-                app_tile(index),
-                cosmic::iced::widget::column![text_line(Length::Fixed(width), 5.0)]
-                    .push_maybe(description)
-                    .spacing(3),
-            ]
-            .spacing(spacing.space_xxs)
-            .align_y(Alignment::Center)
-            .height(Length::Fixed(22.0))
-            .into()
-        });
-        let rows: Vec<Element<'static, Message>> = rows.collect();
-
-        cosmic::widget::column::with_children(rows)
-            .padding([spacing.space_xxs, spacing.space_xs])
-            .into()
-    }
-
-    /// A grid of app tiles with names below. Descriptions are only shown
-    /// on hover, so they are not sketched.
-    fn grid(self, columns: usize) -> Element<'static, Message> {
-        let rows = (0..6).map(|row| -> Element<'static, Message> {
-            cosmic::widget::row::with_children((0..columns).map(|column| {
-                cosmic::iced::widget::column![
-                    app_tile(row * columns + column),
-                    text_line(Length::Fixed(28.0), 3.0),
-                ]
-                .spacing(3)
-                .align_x(Alignment::Center)
-                .width(Length::FillPortion(1))
-                .into()
-            }))
-            .into()
-        });
-
-        cosmic::widget::column::with_children(rows.collect::<Vec<_>>())
-            .spacing(8)
-            .padding(space_xxs())
-            .height(Length::Fill)
-            .into()
-    }
-}
-
-/// Recently used apps in two columns.
-fn recent_sketch() -> Element<'static, Message> {
-    let item = |index: usize| -> Element<'static, Message> {
-        cosmic::iced::widget::row![app_tile(index), text_line(Length::Fixed(48.0), 4.0)]
-            .spacing(space_xxs())
-            .align_y(Alignment::Center)
-            .width(Length::FillPortion(1))
-            .into()
-    };
-
-    cosmic::iced::widget::column![
-        text_line(Length::Fixed(60.0), 5.0),
-        cosmic::iced::widget::row![item(5), item(6)],
-        cosmic::iced::widget::row![item(7), item(0)],
-    ]
-    .spacing(6)
-    .padding(space_xxs())
-    .into()
-}
-
-/// Cards to switch between layouts, each with a miniature of its shape.
-fn layout_picker(selected: MenuLayout) -> Element<'static, Message> {
-    let cards = MenuLayout::ALL.into_iter().map(|layout| -> Element<'static, Message> {
-        let (name, description) = layout_name(layout);
+/// Cards to switch between layouts, each with a miniature of its shape, and
+/// the layout made by the user.
+fn layout_picker(config: &AppletConfig) -> Element<'static, Message> {
+    let selected = MenuLayout::matching(&config.layout);
+    let card = |thumbnail_of: &Layout,
+                name: String,
+                description: String,
+                is_selected: bool,
+                message: Option<Message>|
+     -> Element<'static, Message> {
         // Long translations get cut off on the card, so show them in full on hover.
         let full_text = format!("{name} · {description}");
         let card = cosmic::widget::button::custom(
             cosmic::iced::widget::column![
-                thumbnail(layout),
+                thumbnail(thumbnail_of),
+                // The image button colors its text with the accent, which
+                // can hardly be read on the card; the usual text color can.
                 text::body(name)
                     .wrapping(Wrapping::None)
-                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1))),
+                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
+                    .class(cosmic::theme::Text::Custom(card_name_style)),
+                // Up to two lines, so cards of short and long descriptions
+                // stay the same height.
                 text::caption(description)
-                    .wrapping(Wrapping::None)
-                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1))),
+                    .align_x(Alignment::Center)
+                    .wrapping(Wrapping::WordOrGlyph)
+                    .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(2)))
+                    .height(Length::Fixed(CARD_DESCRIPTION_HEIGHT))
+                    .class(cosmic::theme::Text::Custom(card_description_style)),
             ]
             .spacing(space_xxs())
             .align_x(Alignment::Center)
             .width(Length::Fill),
         )
         .class(cosmic::theme::Button::Image)
-        .selected(layout == selected)
+        .selected(is_selected)
         .padding(space_xxs())
         .width(Length::FillPortion(1))
-        .on_press(Message::LayoutSelected(layout));
+        .on_press_maybe(message);
 
         tooltip(card, text::caption(full_text), tooltip::Position::Bottom).into()
+    };
+
+    let mut cards: Vec<Element<'static, Message>> = MenuLayout::ALL
+        .into_iter()
+        .map(|preset| {
+            let (name, description) = layout_name(preset);
+            card(
+                &preset.layout(),
+                name,
+                description,
+                selected == Some(preset),
+                Some(Message::PresetSelected(preset)),
+            )
+        })
+        .collect();
+
+    // The current layout, if it is none of the presets, or the last one
+    // made by the user.
+    let custom = if selected.is_none() {
+        Some(&config.layout)
+    } else {
+        config.custom_layout.as_ref()
+    };
+    cards.push(match custom {
+        Some(layout) => card(
+            layout,
+            fl!("layout-custom"),
+            fl!("layout-custom-description"),
+            selected.is_none(),
+            Some(Message::CustomSelected),
+        ),
+        None => card(
+            &config.layout,
+            fl!("layout-custom"),
+            fl!("layout-custom-none"),
+            false,
+            None,
+        ),
     });
 
-    cosmic::widget::row::with_children(cards)
-        .spacing(cosmic::theme::active().cosmic().space_xs())
+    // In rows, as all of them side by side would be too narrow for their
+    // names. The last row keeps the width of the others.
+    let spacing = cosmic::theme::active().cosmic().space_xxs();
+    let mut rows = Vec::new();
+    let mut cards = cards.into_iter().peekable();
+    while cards.peek().is_some() {
+        let mut row: Vec<Element<'static, Message>> = cards.by_ref().take(LAYOUT_CARDS_PER_ROW).collect();
+        while row.len() < LAYOUT_CARDS_PER_ROW {
+            row.push(Space::new().width(Length::FillPortion(1)).into());
+        }
+        rows.push(
+            cosmic::widget::row::with_children(row)
+                .spacing(spacing)
+                .width(Length::Fill)
+                .into(),
+        );
+    }
+    cosmic::widget::column::with_children(rows)
+        .spacing(spacing)
         .width(Length::Fill)
         .into()
+}
+
+/// Text color of a layout's name on its card.
+fn card_name_style(theme: &Theme) -> cosmic::iced::widget::text::Style {
+    cosmic::iced::widget::text::Style {
+        color: Some(theme.current_container().on.into()),
+        ..Default::default()
+    }
+}
+
+/// Text color of a layout's description on its card, less prominent than
+/// its name.
+fn card_description_style(theme: &Theme) -> cosmic::iced::widget::text::Style {
+    let mut color: Color = theme.current_container().on.into();
+    color.a *= 0.75;
+    cosmic::iced::widget::text::Style {
+        color: Some(color),
+        ..Default::default()
+    }
 }
 
 fn layout_name(layout: MenuLayout) -> (String, String) {
@@ -1230,131 +1353,56 @@ fn layout_name(layout: MenuLayout) -> (String, String) {
 }
 
 /// Tiny wireframe of a layout's shape.
-fn thumbnail(layout: MenuLayout) -> Element<'static, Message> {
-    let bar = |height: f32| shape(Length::Fill, Length::Fixed(height), ShapeKind::Line);
-    let pane = |portion: u16, kind: ShapeKind| {
-        shape(Length::FillPortion(portion), Length::Fill, kind)
-    };
-    let panes = |categories_first: bool, tinted: bool| -> Element<'static, Message> {
-        let categories = pane(
-            CATEGORIES_PORTION,
-            if tinted { ShapeKind::Tinted } else { ShapeKind::Pane },
-        );
-        let apps = pane(APP_LIST_PORTION, ShapeKind::Pane);
-        let row = if categories_first {
-            cosmic::iced::widget::row![categories, apps]
-        } else {
-            cosmic::iced::widget::row![apps, categories]
-        };
-        row.spacing(2).height(Length::Fill).into()
-    };
-
-    let content: Element<'static, Message> = match layout {
-        MenuLayout::Classic => cosmic::iced::widget::column![bar(5.0), bar(5.0), panes(false, false)]
-            .spacing(2)
-            .into(),
-        MenuLayout::Retro => cosmic::iced::widget::column![
-            shape(Length::Fill, Length::Fixed(8.0), ShapeKind::Accent),
-            panes(false, true),
-            shape(Length::Fill, Length::Fixed(6.0), ShapeKind::Accent),
-        ]
-        .spacing(2)
-        .into(),
-        MenuLayout::Whistler => {
-            // Favorites, a gap, recently used apps and the button to all apps.
-            let item = || shape(Length::Fill, Length::Fixed(3.0), ShapeKind::Line);
-            let start_page = cosmic::iced::widget::column![
-                item(),
-                item(),
-                Space::new().height(Length::Fixed(2.0)),
-                item(),
-                item(),
-                item(),
-                Space::new().height(Length::Fill),
-                shape(Length::Fill, Length::Fixed(3.0), ShapeKind::Accent),
-            ]
-            .spacing(2)
-            .padding(2)
-            .width(Length::FillPortion(APP_LIST_PORTION))
-            .height(Length::Fill);
-            cosmic::iced::widget::column![
-                shape(Length::Fill, Length::Fixed(8.0), ShapeKind::Accent),
-                cosmic::iced::widget::row![
-                    container(start_page)
-                        .width(Length::FillPortion(APP_LIST_PORTION))
-                        .height(Length::Fill)
-                        // Like a `ShapeKind::Pane` shape.
-                        .class(cosmic::theme::Container::custom(|theme: &Theme| {
-                            container::Style {
-                                background: Some(Background::Color(
-                                    theme.cosmic().bg_component_color().into(),
-                                )),
-                                border: Border {
-                                    radius: 1.5.into(),
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            }
-                        })),
-                    pane(CATEGORIES_PORTION, ShapeKind::Tinted),
-                ]
-                .spacing(2)
-                .height(Length::Fill),
-                shape(Length::Fill, Length::Fixed(6.0), ShapeKind::Accent),
-            ]
-            .spacing(2)
-            .into()
+fn thumbnail(layout: &Layout) -> Element<'static, Message> {
+    let rows = layout.rows.iter().map(|row| -> Element<'static, Message> {
+        let tall = row.fills_height();
+        if row.banner && !tall {
+            return shape(Length::Fill, Length::Fixed(6.0), ShapeKind::Accent);
         }
-        MenuLayout::Compact => cosmic::iced::widget::column![
-            cosmic::iced::widget::row![
-                shape(Length::Fixed(5.0), Length::Fixed(5.0), ShapeKind::Line),
-                bar(5.0),
-            ]
-            .spacing(2),
-            panes(true, false),
-            cosmic::iced::widget::row![
-                Space::new().width(Length::Fill),
-                shape(Length::Fixed(20.0), Length::Fixed(4.0), ShapeKind::Line),
-            ],
-        ]
-        .spacing(2)
-        .into(),
-        MenuLayout::Cinnamon => cosmic::iced::widget::column![
-            bar(5.0),
-            cosmic::iced::widget::row![
-                shape(Length::Fixed(6.0), Length::Fill, ShapeKind::Pane),
-                pane(CATEGORIES_PORTION, ShapeKind::Pane),
-                pane(APP_LIST_PORTION, ShapeKind::Pane),
-            ]
+        let columns = row.columns.iter().map(|column| -> Element<'static, Message> {
+            let width = if column.fills_width() {
+                Length::FillPortion(column.portion.max(1))
+            } else {
+                Length::Fixed(6.0)
+            };
+            let blocks = column.blocks.iter().filter_map(|block| -> Option<Element<'static, Message>> {
+                Some(match block {
+                    Block::AppList(_) => shape(Length::Fill, Length::Fill, ShapeKind::Pane),
+                    Block::SidePanel(options) => shape(
+                        Length::Fill,
+                        Length::Fill,
+                        if options.tinted { ShapeKind::Tinted } else { ShapeKind::Pane },
+                    ),
+                    Block::Featured(options) if options.vertical => {
+                        shape(Length::Fill, Length::Fill, ShapeKind::Pane)
+                    }
+                    Block::Spacer | Block::Divider => return None,
+                    _ => shape(Length::Fill, Length::Fixed(4.0), ShapeKind::Line),
+                })
+            });
+            cosmic::widget::column::with_children(blocks.collect::<Vec<_>>())
+                .spacing(2)
+                .width(width)
+                .height(if tall { Length::Fill } else { Length::Shrink })
+                .into()
+        });
+        cosmic::widget::row::with_children(columns.collect::<Vec<_>>())
+            .spacing(2)
+            .width(Length::Fill)
+            .height(if tall { Length::Fill } else { Length::Shrink })
+            .into()
+    });
+
+    container(
+        cosmic::widget::column::with_children(rows.collect::<Vec<_>>())
             .spacing(2)
             .height(Length::Fill),
-        ]
-        .spacing(2)
-        .into(),
-        MenuLayout::Modern => {
-            let tiles = (0..3).map(|_| -> Element<'static, Message> {
-                cosmic::widget::row::with_children((0..5).map(|_| {
-                    shape(Length::Fixed(6.0), Length::Fixed(6.0), ShapeKind::Accent)
-                }))
-                .spacing(4)
-                .into()
-            });
-            cosmic::iced::widget::column![bar(5.0)]
-                .extend(tiles)
-                .push(Space::new().height(Length::Fill))
-                .push(bar(4.0))
-                .spacing(3)
-                .align_x(Alignment::Center)
-                .into()
-        }
-    };
-
-    container(content)
-        .padding(3)
-        .width(Length::Fixed(72.0))
-        .height(Length::Fixed(56.0))
-        .class(cosmic::theme::Container::custom(frame_style))
-        .into()
+    )
+    .padding(3)
+    .width(Length::Fixed(64.0))
+    .height(Length::Fixed(52.0))
+    .class(cosmic::theme::Container::custom(frame_style))
+    .into()
 }
 
 #[derive(Clone, Copy)]
@@ -1393,13 +1441,18 @@ fn shape(width: Length, height: Length, kind: ShapeKind) -> Element<'static, Mes
         .into()
 }
 
-/// The block following the cursor while dragging.
-fn ghost(block: Block, cursor: Point, preview_size: (f32, f32)) -> Element<'static, Message> {
+/// The name of the block following the cursor while dragging.
+fn ghost(label: String, cursor: Point, preview_size: (f32, f32)) -> Element<'static, Message> {
     let (width, height) = preview_size;
     let x = (cursor.x - GHOST_WIDTH / 2.0).clamp(0.0, width - GHOST_WIDTH);
     let y = (cursor.y - GHOST_HEIGHT / 2.0).clamp(0.0, height - GHOST_HEIGHT);
 
-    let label = container(text::body(block.label()))
+    // Long names get cut off rather than spill out of the ghost.
+    let label = text::body(label)
+        .wrapping(Wrapping::None)
+        .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)));
+    let label = container(label)
+        .padding([0, 8])
         .center(Length::Fill)
         .width(Length::Fixed(GHOST_WIDTH))
         .height(Length::Fixed(GHOST_HEIGHT))
@@ -1420,6 +1473,22 @@ fn radius(theme: &Theme) -> cosmic::iced::border::Radius {
     theme.cosmic().radius_s().into()
 }
 
+fn accent_or_divider(theme: &Theme, accent: bool, radius: f32) -> container::Style {
+    let cosmic = theme.cosmic();
+    container::Style {
+        background: Some(Background::Color(if accent {
+            cosmic.accent_color().into()
+        } else {
+            cosmic.bg_divider().into()
+        })),
+        border: Border {
+            radius: radius.into(),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 fn frame_style(theme: &Theme) -> container::Style {
     let cosmic = theme.cosmic();
     container::Style {
@@ -1428,6 +1497,21 @@ fn frame_style(theme: &Theme) -> container::Style {
             color: cosmic.bg_divider().into(),
             width: 1.0,
             radius: cosmic.radius_m().into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn chip_style(theme: &Theme) -> container::Style {
+    let cosmic = theme.cosmic();
+    container::Style {
+        text_color: Some(cosmic.on_bg_component_color().into()),
+        icon_color: Some(cosmic.on_bg_component_color().into()),
+        background: Some(Background::Color(cosmic.bg_component_color().into())),
+        border: Border {
+            color: cosmic.bg_component_divider().into(),
+            width: 1.0,
+            radius: cosmic.radius_xl().into(),
         },
         ..Default::default()
     }
@@ -1455,6 +1539,23 @@ fn search_style(theme: &Theme) -> container::Style {
             color: cosmic.bg_component_divider().into(),
             width: 1.0,
             radius: cosmic.radius_xl().into(),
+        },
+        ..Default::default()
+    }
+}
+
+/// Background of the favorite and recently used apps leading the list.
+fn tint_style(theme: &Theme, tinted: bool) -> container::Style {
+    if !tinted {
+        return container::Style::default();
+    }
+    let mut accent: Color = theme.cosmic().accent_color().into();
+    accent.a = 0.12;
+    container::Style {
+        background: Some(Background::Color(accent)),
+        border: Border {
+            radius: radius(theme),
+            ..Default::default()
         },
         ..Default::default()
     }
@@ -1502,38 +1603,20 @@ fn tinted_style(theme: &Theme) -> container::Style {
 
 fn fixed_style(theme: &Theme) -> container::Style {
     let cosmic = theme.cosmic();
-    let mut text_color: Color = cosmic.on_bg_color().into();
-    text_color.a *= 0.6;
+    let mut color: Color = cosmic.on_bg_color().into();
+    color.a *= 0.4;
     container::Style {
-        text_color: Some(text_color),
-        border: Border {
-            radius: radius(theme),
-            ..Default::default()
-        },
+        icon_color: Some(color),
         ..Default::default()
     }
 }
 
-fn slot_style(
-    theme: &Theme,
-    occupied: bool,
-    drop_target: bool,
-    highlighted: bool,
-) -> container::Style {
+fn slot_style(theme: &Theme, occupied: bool, selected: bool) -> container::Style {
     let cosmic = theme.cosmic();
-    let accent: Color = cosmic.accent_color().into();
-
-    let background = if highlighted {
-        Some(Background::Color(Color { a: 0.2, ..accent }))
-    } else if occupied {
-        Some(Background::Color(cosmic.bg_component_color().into()))
-    } else {
-        None
-    };
-
-    let border = if highlighted {
+    let background = occupied.then(|| Background::Color(cosmic.bg_component_color().into()));
+    let border = if selected {
         Border {
-            color: accent,
+            color: cosmic.accent_color().into(),
             width: 2.0,
             radius: radius(theme),
         }
@@ -1542,15 +1625,13 @@ fn slot_style(
             radius: radius(theme),
             ..Default::default()
         }
-    } else if drop_target {
-        // Outline empty slots the dragged block can be dropped on.
+    } else {
+        // Where the dragged block was.
         Border {
             color: cosmic.bg_divider().into(),
             width: 1.0,
             radius: radius(theme),
         }
-    } else {
-        Border::default()
     };
 
     container::Style {
@@ -1590,12 +1671,17 @@ fn category_icon(category_icon: &CategoryIcon) -> icon::Icon {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmic_ext_classic_menu_applet::layout::BlockKind;
+
+    fn path(row: usize, column: usize, block: usize) -> BlockPath {
+        BlockPath { row, column, block }
+    }
 
     fn resized(handle: MenuHandle, moves: &[(f32, f32)], config: &AppletConfig) -> Option<Change> {
         let mut editor = LayoutEditor::default();
         editor.update(Message::MenuResizeStart(handle), config);
         for &(x, y) in moves {
-            editor.update(Message::MenuResizeMove(Point::new(x, y)), config);
+            editor.update(Message::CursorMoved(Point::new(x, y)), config);
         }
         assert!(editor.is_dragging());
         let change = editor.update(Message::DragEnd, config);
@@ -1610,54 +1696,103 @@ mod tests {
         }
     }
 
-    #[test]
-    fn power_controls_can_be_dropped_next_to_the_search_field() {
-        let config = AppletConfig {
-            menu_layout: MenuLayout::Whistler,
-            ..Default::default()
-        };
-        let slot = Slot::Power(PowerMenuPosition::Search);
-
-        let mut editor = LayoutEditor::default();
-        editor.update(Message::DragStart(Block::PowerMenu), &config);
-        editor.update(Message::DragEnter(slot), &config);
-
-        assert!(matches!(
-            editor.update(Message::DragEnd, &config),
-            Some(Change::PowerMenuPosition(PowerMenuPosition::Search))
-        ));
-    }
-
-    fn dropped_pinned_apps(slot: Slot, config: &AppletConfig) -> Option<Change> {
-        let mut editor = LayoutEditor::default();
-        editor.update(Message::DragStart(Block::PinnedApps), config);
-        editor.update(Message::DragEnter(slot), config);
+    /// Drags `dragged` far enough onto `drop` and lets go.
+    fn dropped(dragged: Dragged, drop: Drop, editor: &mut LayoutEditor, config: &AppletConfig) -> Option<Change> {
+        editor.update(Message::DragStart(dragged), config);
+        editor.update(Message::CursorMoved(Point::new(0.0, 0.0)), config);
+        editor.update(Message::CursorMoved(Point::new(20.0, 0.0)), config);
+        editor.update(Message::DragEnter(drop), config);
         editor.update(Message::DragEnd, config)
     }
 
     #[test]
-    fn pinned_apps_move_to_the_other_side() {
-        let mut config = AppletConfig::default();
-        config.apply_layout(MenuLayout::Cinnamon);
+    fn dropping_a_block_moves_it_and_selects_it() {
+        let config = AppletConfig::default();
+        let mut editor = LayoutEditor::default();
+        let change = dropped(
+            Dragged::Block(path(1, 0, 0)),
+            Drop::NewRow(3),
+            &mut editor,
+            &config,
+        );
 
+        let Some(Change::Layout(layout)) = change else {
+            panic!("no layout change: {change:?}");
+        };
+        assert_eq!(layout.rows[2].columns[0].blocks[0].kind(), BlockKind::Search);
+        assert_eq!(editor.selected(&layout), Some(path(2, 0, 0)));
+    }
+
+    #[test]
+    fn clicking_a_block_selects_it_without_moving_it() {
+        let config = AppletConfig::default();
+        let mut editor = LayoutEditor::default();
+        editor.update(Message::DragStart(Dragged::Block(path(0, 0, 0))), &config);
+        editor.update(Message::CursorMoved(Point::new(5.0, 5.0)), &config);
+        editor.update(Message::DragEnter(Drop::NewRow(3)), &config);
+
+        assert!(editor.update(Message::DragEnd, &config).is_none());
+        assert_eq!(editor.selected(&config.layout), Some(path(0, 0, 0)));
+    }
+
+    #[test]
+    fn new_blocks_come_from_the_palette() {
+        let config = AppletConfig::default();
+        let mut editor = LayoutEditor::default();
+        let change = dropped(
+            Dragged::New(BlockKind::Spacer),
+            Drop::Beside {
+                path: path(0, 0, 0),
+                side: Side::After,
+            },
+            &mut editor,
+            &config,
+        );
+
+        let Some(Change::Layout(layout)) = change else {
+            panic!("no layout change: {change:?}");
+        };
+        assert_eq!(layout.rows[0].columns[1].blocks[0], Block::Spacer);
+    }
+
+    #[test]
+    fn a_second_search_field_is_not_added() {
+        let config = AppletConfig::default();
+        let mut editor = LayoutEditor::default();
+        let change = dropped(Dragged::New(BlockKind::Search), Drop::NewRow(0), &mut editor, &config);
+
+        assert!(change.is_none());
+    }
+
+    #[test]
+    fn resizing_columns_follows_the_cursor() {
+        let config = AppletConfig::default();
+        let mut editor = LayoutEditor::default();
+        editor.update(Message::ResizeStart { row: 2, left: 0 }, &config);
+        editor.update(Message::CursorMoved(Point::new(100.0, 0.0)), &config);
+        // A tenth of the preview's width.
+        editor.update(Message::CursorMoved(Point::new(130.0, 0.0)), &config);
+
+        let Some(Change::Layout(layout)) = editor.update(Message::DragEnd, &config) else {
+            panic!("no layout change");
+        };
+        let portions: Vec<u16> = layout.rows[2].columns.iter().map(|c| c.portion).collect();
+        assert_eq!(portions, [72, 28]);
+    }
+
+    #[test]
+    fn picking_the_custom_layout_brings_it_back() {
+        let mut config = AppletConfig::default();
+        let mut custom = MenuLayout::Classic.layout();
+        custom.rows.reverse();
+        config.set_menu_layout(custom.clone());
+        config.set_menu_layout(MenuLayout::Retro.layout());
+
+        let mut editor = LayoutEditor::default();
         assert!(matches!(
-            dropped_pinned_apps(Slot::PinnedRight, &config),
-            Some(Change::FavoritesBarPosition(HorizontalPosition::Right))
+            editor.update(Message::CustomSelected, &config),
+            Some(Change::Layout(layout)) if layout == custom
         ));
-    }
-
-    #[test]
-    fn pinned_apps_dropped_where_they_are_change_nothing() {
-        let mut config = AppletConfig::default();
-        config.apply_layout(MenuLayout::Cinnamon);
-
-        assert!(dropped_pinned_apps(Slot::PinnedLeft, &config).is_none());
-    }
-
-    #[test]
-    fn pinned_apps_only_fit_their_own_slots() {
-        assert!(!Block::PinnedApps.accepts(Slot::PaneLeft));
-        assert!(!Block::AppList.accepts(Slot::PinnedLeft));
     }
 
     #[test]
