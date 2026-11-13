@@ -1,3 +1,20 @@
+cosmic-ext-classic-menu (1.2.0) unstable; urgency=medium
+
+  * Menus made of blocks: build the menu in the layout editor from the
+    user, search, applications, side panel, power, quick launch, spacers
+    and dividers, each with options of its own.
+  * The six layouts are presets of blocks; existing settings are migrated.
+  * Right-click menu on the panel button, with entries chosen and
+    reordered in the settings.
+  * Hibernate power action, and a choice of the power actions shown.
+  * Spacers in the places panel.
+  * Choose where on the screen the focused menu opens.
+  * Settings split into pages, with the layout editor next to the block
+    options.
+  * New settings translated into all languages.
+
+ -- Kamil Lihan <k.lihan@outlook.com>  Fri, 13 Nov 2026 12:00:00 +0100
+
 cosmic-ext-classic-menu (1.1.0) unstable; urgency=medium
 
   * New Whistler layout: a start page with favorite and recently used

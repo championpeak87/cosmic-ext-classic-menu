@@ -1,5 +1,5 @@
 Name:           cosmic-ext-classic-menu
-Version:        1.1.0
+Version:        1.2.0
 Release:        1%{?dist}
 Summary:        Classic Menu Applet
 
@@ -36,6 +36,21 @@ just rootdir=%{buildroot} install
 %{_datadir}/cosmic/com.championpeak87.cosmic-ext-classic-menu/applet-buttons/*
 
 %changelog
+* Fri Nov 13 2026 Kamil Lihan <k.lihan@outlook.com> 1.2.0-1
+- Menus made of blocks: the layout editor builds the menu from the user, search field, applications, side panel, power controls, quick launch, spacers and dividers, dragged anywhere, added from below and removed
+- Options of each block next to the layout editor, e.g. padding on each side, a colored bar behind its row, the size of the search field and its other results, a tinted side panel, which categories it shows, and favorites or recently used apps at the top of the application list
+- The six layouts are presets of blocks, and the last layout of your own is kept as Custom when picking one
+- Existing settings are migrated to blocks
+- Right-click menu on the panel button, with shortcuts to system settings, tools and power actions, whose entries can be chosen and reordered in the settings
+- Hibernate power action, offered where the system can hibernate, and a choice of which power actions the power controls show
+- Spacers in the places panel, pushing the places around them apart
+- With the focused menu turned on, choose where on the screen the menu opens
+- Settings split into pages: layout, general, right-click menu, keyboard shortcut and experimental options
+- The layout editor is shown next to the block options at the default window size
+- The panel button fills the thickness of the panel, as other applets do, and shows the regular cursor
+- Up and down arrow keys keep to their column when moving between the apps leading the list and all applications
+- All new settings translated into all languages, with shorter labels that fit the settings window
+
 * Mon Nov 09 2026 Kamil Lihan <k.lihan@outlook.com> 1.1.0-1
 - New Whistler layout: a start page with favorite and recently used applications, leading to all applications
 - Quick launcher type: favorites can be shown in place of the recently used apps, as a category and below the app grid of the Modern layout

@@ -1009,7 +1009,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-ext-classic-menu-applet"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "accounts-zbus",
  "cached",
@@ -1046,7 +1046,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-ext-classic-menu-settings"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cosmic-ext-classic-menu-applet",
  "cosmic-settings-config",

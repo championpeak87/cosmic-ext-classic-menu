@@ -13,7 +13,7 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "cosmic-ext-classic-menu";
-  version = "1.1.0";
+  version = "1.2.0";
 
   # Only what the build needs, leaving out e.g. build output.
   src = lib.fileset.toSource {

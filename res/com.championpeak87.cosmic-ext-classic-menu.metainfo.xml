@@ -166,6 +166,25 @@
     <category>Desktop</category>
   </categories>
   <releases>
+    <release version="1.2.0" date="2026-11-13">
+      <description>
+        <ul>
+          <li>Menus made of blocks: the layout editor builds the menu from the user, search field, applications, side panel, power controls, quick launch, spacers and dividers, dragged anywhere, added from below and removed</li>
+          <li>Options of each block next to the layout editor, e.g. padding on each side, a colored bar behind its row, the size of the search field and its other results, a tinted side panel, which categories it shows, and favorites or recently used apps at the top of the application list</li>
+          <li>The six layouts are presets of blocks, and the last layout of your own is kept as Custom when picking one</li>
+          <li>Existing settings are migrated to blocks</li>
+          <li>Right-click menu on the panel button, with shortcuts to system settings, tools and power actions, whose entries can be chosen and reordered in the settings</li>
+          <li>Hibernate power action, offered where the system can hibernate, and a choice of which power actions the power controls show</li>
+          <li>Spacers in the places panel, pushing the places around them apart</li>
+          <li>With the focused menu turned on, choose where on the screen the menu opens</li>
+          <li>Settings split into pages: layout, general, right-click menu, keyboard shortcut and experimental options</li>
+          <li>The layout editor is shown next to the block options at the default window size</li>
+          <li>The panel button fills the thickness of the panel, as other applets do, and shows the regular cursor</li>
+          <li>Up and down arrow keys keep to their column when moving between the apps leading the list and all applications</li>
+          <li>All new settings translated into all languages, with shorter labels that fit the settings window</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-11-09">
       <description>
         <h1>What's changed</h1>
